@@ -1,0 +1,43 @@
+build
+
+-- go.mod --
+module example
+
+-- module.cue --
+package quickbooks
+
+import (
+	"discern.com/devx"
+)
+
+Types: devx.#TypeMap & {
+	PullDataRequest: {
+		Fields: {
+			ID: Type: "string"
+		}
+	}
+
+	PullDataResponse: {
+		Fields: {
+			Data: Type: "string"
+		}
+	}
+}
+
+Worker: devx.#Worker & {
+	TaskQueue: "default"
+
+	Workflows: {
+		PullData: {
+			Request:  Types.PullDataRequest
+			Response: Types.PullDataResponse
+		}
+	}
+
+	Activities: {
+		PullAccountData: {
+			Request:  Types.PullDataRequest
+			Response: Types.PullDataResponse
+		}
+	}
+}

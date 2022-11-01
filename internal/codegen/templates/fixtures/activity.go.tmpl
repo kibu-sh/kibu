@@ -1,0 +1,18 @@
+package {{ .Name }}
+
+import (
+	"context"
+)
+
+type Activities struct {}
+
+{{ range .Worker.Activities }}
+func (a *Activities) {{.Name}} (ctx context.Context, req {{ .Request.Name }}) (res {{ .Response.Name }}, err error) {
+	panic("not implemented")
+	return
+}
+{{ end }}
+
+func NewActivities() (*Activities, error) {
+	return &Activities{}, nil
+}
