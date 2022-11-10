@@ -1,0 +1,5 @@
+package devx
+
+func Module() {
+
+}
