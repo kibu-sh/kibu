@@ -1,5 +1,1 @@
 package devx
-
-func Module() {
-
-}
