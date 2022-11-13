@@ -1,0 +1,48 @@
+parse $WORK/pkg/auth
+
+-- go.mod --
+module devx
+
+-- pkg/auth/auth.go --
+package auth
+
+// service is a private thing.. i think
+//devx:service
+type service struct {}
+
+// Method this is an example of some code I wrote
+//   Here's some other comment related stuff
+//devx:endpoint path=/hello method=GET
+func (s *service) Method() {}
+
+/*
+TODO: write an error test for this (directives must be in single line comments)
+Method2 this is an example of some code I wrote
+Here's some other comment related stuff
+devx:endpoint path=/hello method=GET
+*/
+func (s *service) Method2() {}
+
+-- pkg/mfa/mfa.go --
+package mfa
+
+// service there's some documentation for this private thing I made
+//devx:service
+type service struct {}
+
+// Method this is an example of some code I wrote
+//   Here's some other comment related stuff
+//devx:endpoint path=/hello method=GET
+func (s *service) Method() {}
+
+/*
+Method2 this is an example of some code I wrote
+Here's some other comment related stuff
+devx:endpoint path=/hello method=GET
+*/
+func (s *service) Method2() {}
+
+-- pkg/cmd/main.go --
+package main
+
+func main() {}
