@@ -20,6 +20,24 @@ type OptionList map[string]string
 
 type List []Directive
 
+// FromCommentGroup returns a list of directives by parsing an *ast.CommentGroup.
+func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
+	for _, comment := range d.List {
+		if comment.Text[:2] == "//" {
+			txt := comment.Text[2:]
+			if IsDirective(txt) {
+				var dir Directive
+				dir, err = Parse(txt)
+				if err != nil {
+					return
+				}
+				result = append(result, dir)
+			}
+		}
+	}
+	return
+}
+
 // IsDirective reports whether c is a comment directive.
 // This code is also in go/printer.
 // Copied from private go/ast/ast.go IsDirective
@@ -50,8 +68,8 @@ func IsDirective(c string) bool {
 	return true
 }
 
-// Parse parses a directive string.
-// A directive is a string literal (because it has the string type)
+// Parse extracts data from a directive string.
+//
 // Example: devx:endpoint method=GET path=/api/v1/users
 //
 // Key is an unquoted string literal (devx:endpoint)
@@ -69,8 +87,13 @@ func Parse(d string) (dir Directive, err error) {
 		err = errors.Wrapf(ErrInvalidDirective, "%s", d)
 		return
 	}
+
 	parts := strings.Split(d, " ")
-	dir.Tool, dir.Name = parseKey(parts[0])
+	dir.Tool, dir.Name, err = parseKey(parts[0])
+	if err != nil {
+		return
+	}
+
 	dir.Options, err = parseOptions(parts[1:])
 	if err != nil {
 		return
@@ -79,27 +102,13 @@ func Parse(d string) (dir Directive, err error) {
 	return
 }
 
-// FromCommentGroup returns a list of directives by parsing an *ast.CommentGroup.
-func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
-	for _, comment := range d.List {
-		if comment.Text[:2] == "//" {
-			txt := comment.Text[2:]
-			if IsDirective(txt) {
-				var dir Directive
-				dir, err = Parse(txt)
-				if err != nil {
-					return
-				}
-				result = append(result, dir)
-			}
-		}
-	}
-	return
-}
-
-func parseKey(s string) (string, string) {
+func parseKey(s string) (string, string, error) {
 	parts := strings.Split(s, ":")
-	return parts[0], parts[1]
+	if len(parts) != 2 {
+		return "", "", errors.Wrapf(ErrInvalidDirective,
+			"failed to parse key expected form at (tool:name) got %s", s)
+	}
+	return parts[0], parts[1], nil
 }
 
 func parseOptions(opts []string) (result OptionList, err error) {
@@ -109,7 +118,10 @@ func parseOptions(opts []string) (result OptionList, err error) {
 
 	result = make(OptionList)
 	for _, opt := range opts {
+		// clean up any leading or trailing spaces
 		opt = strings.TrimSpace(opt)
+
+		// ignore spaces between options (e.g. "key1=value1     key2=value2")
 		if opt == "" {
 			continue
 		}

@@ -1,6 +1,7 @@
 package directive
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -64,13 +65,22 @@ var parseDirectiveTests = map[string]struct {
 			Options: OptionList{"method": "GET", "path": "/thing/place/:location"},
 		},
 	},
+
+	"should error when directive key cannot be parsed": {
+		in:  "devxendpoint",
+		err: ErrInvalidDirective,
+	},
+
+	// TODO: think about invalid options cases
+	// How will we validate the option?
 }
 
 func TestParseDirective(t *testing.T) {
 	for name, tt := range parseDirectiveTests {
 		t.Run(name, func(t *testing.T) {
 			dir, err := Parse(tt.in)
-			if tt.err != nil {
+			// check that the error returned is the same as the expected error
+			if err != nil && !errors.Is(err, tt.err) {
 				require.NoError(t, err)
 			}
 			require.Equal(t, tt.out, dir)
