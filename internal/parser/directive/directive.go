@@ -2,6 +2,7 @@ package directive
 
 import (
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
 	"go/ast"
 	"strings"
 )
@@ -18,7 +19,33 @@ type Directive struct {
 
 type OptionList map[string]string
 
+// Get returns a single option value by its key
+// If the option does not exist an empty string is returned
+func (ol OptionList) Get(key, def string) (val string, ok bool) {
+	if val, ok = ol[key]; ok {
+		return
+	}
+	return def, false
+}
+
 type List []Directive
+type FilterFunc func(d Directive) bool
+
+func (l List) Filter(filter FilterFunc) List {
+	return lo.Filter(l, func(d Directive, _ int) bool {
+		return filter(d)
+	})
+}
+
+func (l List) Some(some FilterFunc) bool {
+	return lo.SomeBy(l, some)
+}
+
+func HasKey(tool, name string) FilterFunc {
+	return func(d Directive) bool {
+		return d.Tool == tool && d.Name == name
+	}
+}
 
 // FromCommentGroup returns a list of directives by parsing an *ast.CommentGroup.
 func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
@@ -137,4 +164,54 @@ func tryIndex(pair []string, i int) string {
 		return pair[i]
 	}
 	return ""
+}
+
+// FromDecls returns a list of directives cached by *ast.Ident
+func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
+	result = make(map[*ast.Ident]List)
+
+	for _, decl := range decls {
+		if err = applyFromDecl(decl, result); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
+	var comments *ast.CommentGroup
+
+	switch decl := decl.(type) {
+	case *ast.GenDecl:
+		comments = decl.Doc
+	case *ast.FuncDecl:
+		comments = decl.Doc
+	}
+
+	if comments == nil {
+		return
+	}
+
+	dirs, err := FromCommentGroup(comments)
+	if err != nil {
+		return
+	}
+
+	switch decl := decl.(type) {
+	case *ast.GenDecl:
+		for _, spec := range decl.Specs {
+			switch spec := spec.(type) {
+			case *ast.TypeSpec:
+				result[spec.Name] = dirs
+			case *ast.ValueSpec:
+				for _, name := range spec.Names {
+					result[name] = dirs
+				}
+			}
+		}
+	case *ast.FuncDecl:
+		result[decl.Name] = dirs
+	}
+	return
 }
