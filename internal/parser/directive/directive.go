@@ -17,15 +17,28 @@ type Directive struct {
 	Options OptionList
 }
 
-type OptionList map[string]string
+type OptionList map[string][]string
 
 // Get returns a single option value by its key
 // If the option does not exist an empty string is returned
-func (ol OptionList) Get(key, def string) (val string, ok bool) {
-	if val, ok = ol[key]; ok {
-		return
+func (ol OptionList) Get(key, def string) (string, bool) {
+	vals, ok := ol[key]
+	if !ok {
+		return def, ok
 	}
-	return def, false
+
+	if len(vals) == 0 {
+		return def, ok
+	}
+
+	return vals[0], ok
+}
+
+// Has checks if an option is present by its key
+// it is possible for a key to be present with no value
+func (ol OptionList) Has(key string) bool {
+	_, ok := ol[key]
+	return ok
 }
 
 type List []Directive
@@ -154,16 +167,16 @@ func parseOptions(opts []string) (result OptionList, err error) {
 		}
 
 		pair := strings.Split(opt, "=")
-		result[pair[0]] = tryIndex(pair, 1)
+		result[pair[0]] = append(result[pair[0]], tryIndex(pair, 1)...)
 	}
 	return result, nil
 }
 
-func tryIndex(pair []string, i int) string {
+func tryIndex(pair []string, i int) []string {
 	if len(pair) > i {
-		return pair[i]
+		return strings.Split(pair[i], ",")
 	}
-	return ""
+	return nil
 }
 
 // FromDecls returns a list of directives cached by *ast.Ident

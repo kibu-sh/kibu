@@ -54,7 +54,7 @@ var parseDirectiveTests = map[string]struct {
 		in: "devx:endpoint method=GET path=/thing/place/:location",
 		out: Directive{
 			Tool: "devx", Name: "endpoint",
-			Options: OptionList{"method": "GET", "path": "/thing/place/:location"},
+			Options: OptionList{"method": []string{"GET"}, "path": []string{"/thing/place/:location"}},
 		},
 	},
 
@@ -62,7 +62,22 @@ var parseDirectiveTests = map[string]struct {
 		in: "devx:endpoint method=GET  path=/thing/place/:location",
 		out: Directive{
 			Tool: "devx", Name: "endpoint",
-			Options: OptionList{"method": "GET", "path": "/thing/place/:location"},
+			Options: OptionList{"method": []string{"GET"}, "path": []string{"/thing/place/:location"}},
+		},
+	},
+	"should parse multiple options": {
+		in: "devx:endpoint method=GET method=POST",
+		out: Directive{
+			Tool: "devx", Name: "endpoint",
+			Options: OptionList{"method": []string{"GET", "POST"}},
+		},
+	},
+
+	"should parse multiple options with comma": {
+		in: "devx:endpoint method=GET,POST",
+		out: Directive{
+			Tool: "devx", Name: "endpoint",
+			Options: OptionList{"method": []string{"GET", "POST"}},
 		},
 	},
 
