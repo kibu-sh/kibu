@@ -1,4 +1,4 @@
-package http
+package httpx
 
 import (
 	"bytes"
@@ -42,19 +42,19 @@ func TestDecodeForm(t *testing.T) {
 			"Foo": "bar"
 		}`))),
 		// TODO: clean up tests and check for form cases
-		//Form: url.Values{
+		// Form: url.Values{
 		//	"foo":    []string{"bar"},
 		//	"number": []string{"1"},
-		//},
-		//PostForm: url.Values{
+		// },
+		// PostForm: url.Values{
 		//	"foo": []string{"baz"},
-		//},
-		//MultipartForm: &multipart.Form{
+		// },
+		// MultipartForm: &multipart.Form{
 		//	Value: url.Values{
 		//		"foo": []string{"qux"},
 		//	},
 		//	File: nil,
-		//},
+		// },
 	}
 
 	req.AddCookie(&http.Cookie{

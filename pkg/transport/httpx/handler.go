@@ -1,4 +1,4 @@
-package http
+package httpx
 
 import (
 	"github.com/discernhq/devx/pkg/transport"

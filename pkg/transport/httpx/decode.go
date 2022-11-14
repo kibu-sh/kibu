@@ -1,4 +1,4 @@
-package http
+package httpx
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func PathParamsFromContext(ctx context.Context) url.Values {
 	return nil
 }
 
-// ContextWithPathParams TODO: implement this as middleware for Gin or what ever router
+// ContextWithPathParams TODO: implement this as middleware for Gin or what ever Router
 func ContextWithPathParams(ctx context.Context, values url.Values) context.Context {
 	return context.WithValue(ctx, uriParamsContextKey, values)
 }
