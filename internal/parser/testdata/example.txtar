@@ -6,43 +6,58 @@ module devx
 -- pkg/auth/auth.go --
 package auth
 
-// service is a private thing.. i think
+import ("context")
+
+type VerifyRequest struct {}
+type VerifyResponse struct {}
+
+// Send sends an authentication request
+//   Here's some other comment related stuff
+//devx:endpoint path=/verify method=GET
+func (s *service) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
+	return
+}
+
+// service handles authentication
 //devx:service
 type service struct {}
 
-// Method this is an example of some code I wrote
+// service handles authentication
+//devx:worker
+type workflows struct {}
+
+// Verify sends an authentication request
 //   Here's some other comment related stuff
-//devx:endpoint path=/hello method=GET
-func (s *service) Method() {}
+//devx:workflow
+func (*workflows) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
+	return
+}
 
-/*
-TODO: write an error test for this (directives must be in single line comments)
-Method2 this is an example of some code I wrote
-Here's some other comment related stuff
-devx:endpoint path=/hello method=GET
-*/
-func (s *service) Method2() {}
+// TODO: add validation run that prevents activities and workflows from being in the same struct
 
--- pkg/mfa/mfa.go --
-package mfa
+// service handles authentication
+//devx:worker
+type activities struct {}
 
-// service there's some documentation for this private thing I made
-//devx:service
-type service struct {}
-
-// Method this is an example of some code I wrote
+// Verify sends an authentication request
 //   Here's some other comment related stuff
-//devx:endpoint path=/hello method=GET
-func (s *service) Method() {}
+//devx:activity
+func (activities) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
+	return
+}
 
-/*
-Method2 this is an example of some code I wrote
-Here's some other comment related stuff
-devx:endpoint path=/hello method=GET
-*/
-func (s *service) Method2() {}
 
--- pkg/cmd/main.go --
-package main
+//devx:provider
+func initService() (*service, error) {
+	return &service{}, nil
+}
 
-func main() {}
+//devx:provider
+func initWorkflows() (*workflows, error) {
+	return &workflows{}, nil
+}
+
+//devx:provider
+func initActivities() (*activities, error) {
+	return &activities{}, nil
+}
