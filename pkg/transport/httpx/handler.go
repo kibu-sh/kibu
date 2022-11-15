@@ -5,12 +5,15 @@ import (
 	"net/http"
 )
 
+type RawHandlerFunc func(w http.ResponseWriter, r *http.Request) error
+
 type Handler[Req, Res any] struct {
-	Path     string
-	Methods  []string
-	Decoder  DecoderFunc[Req]
-	Encode   EncoderFunc[Res]
-	Endpoint transport.Endpoint[Req, Res]
+	Path            string
+	Methods         []string
+	Decoder         DecoderFunc[Req]
+	Encode          EncoderFunc[Res]
+	Endpoint        transport.Endpoint[Req, Res]
+	PreRequestHooks []RawHandlerFunc
 }
 
 func (h *Handler[Req, Res]) Route() Route {
@@ -23,24 +26,36 @@ func (h *Handler[Req, Res]) Route() Route {
 func NewHandler[Req, Res any](
 	path string,
 	endpoint transport.Endpoint[Req, Res],
-	methods ...string,
 ) *Handler[Req, Res] {
-	if len(methods) == 0 {
-		methods = []string{http.MethodGet}
-	}
-
 	h := &Handler[Req, Res]{
 		Path:     path,
-		Methods:  methods,
 		Endpoint: endpoint,
 		Decoder:  Decode[Req],
 		Encode:   Encode[Res],
+		Methods:  []string{http.MethodGet},
 	}
 
 	return h
 }
 
+func (h *Handler[Req, Res]) WithMethods(methods ...string) *Handler[Req, Res] {
+	h.Methods = methods
+	return h
+}
+
+func (h *Handler[Req, Res]) WithPreRequestHooks(hooks ...RawHandlerFunc) *Handler[Req, Res] {
+	h.PreRequestHooks = hooks
+	return h
+}
+
 func (h *Handler[Req, Res]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for _, hook := range h.PreRequestHooks {
+		if err := hook(w, r); err != nil {
+			// TODO: handle error
+			return
+		}
+	}
+
 	var req Req
 
 	// TODO: decode errors

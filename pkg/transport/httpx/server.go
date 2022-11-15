@@ -7,58 +7,6 @@ import (
 	"net/http"
 )
 
-type Route struct {
-	Path    string
-	Methods []string
-}
-
-type Controller interface {
-	http.Handler
-	Route() Route
-}
-
-type Router interface {
-	http.Handler
-	MountController(controller Controller)
-}
-
-type StdRouter struct {
-	*http.ServeMux
-}
-
-func NewStdRouter() Router {
-	return StdRouter{http.NewServeMux()}
-}
-
-func (s StdRouter) MountController(controller Controller) {
-	route := controller.Route()
-	s.Handle(route.Path, controller)
-}
-
-type ServeMux struct {
-	Router Router
-}
-
-func (s ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.Router.ServeHTTP(w, r)
-}
-
-type NewServeMuxParams struct {
-	fx.In
-
-	Router      Router
-	Controllers []Controller `group:"controllers"`
-}
-
-func NewServeMux(params NewServeMuxParams) *ServeMux {
-	for _, controller := range params.Controllers {
-		params.Router.MountController(controller)
-	}
-	return &ServeMux{
-		Router: params.Router,
-	}
-}
-
 type Server interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -78,7 +26,8 @@ func (s *NetListener) Stop(ctx context.Context) error {
 }
 
 func OnStart(ctx context.Context, s Server) error {
-	return s.Start(ctx)
+	go s.Start(ctx)
+	return nil
 }
 
 func OnStop(ctx context.Context, s Server) error {
@@ -106,9 +55,10 @@ func NewNetListener(params *NewServerParams) (Server, error) {
 	}, nil
 }
 
-func AsController(c any) fx.Option {
+func AsController(controller any) fx.Option {
 	return fx.Provide(
-		fx.Annotate(c,
+		fx.Annotate(
+			controller,
 			fx.As(new(Controller)),
 			fx.ResultTags(`group:"controllers"`),
 		),
