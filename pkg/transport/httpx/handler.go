@@ -5,69 +5,40 @@ import (
 	"net/http"
 )
 
-type RawHandlerFunc func(w http.ResponseWriter, r *http.Request) error
+// check if Handler implements http.Handler
+var _ http.Handler = (*Handler)(nil)
 
-type Handler[Req, Res any] struct {
-	Path            string
-	Methods         []string
-	Decoder         DecoderFunc[Req]
-	Encode          EncoderFunc[Res]
-	Endpoint        transport.Endpoint[Req, Res]
-	PreRequestHooks []RawHandlerFunc
+// Handler is an HTTP adapter for transport.Handler
+type Handler struct {
+	Path    string
+	Methods []string
+	OnError func(err error)
+	Handler transport.Handler
 }
 
-func (h *Handler[Req, Res]) Route() Route {
-	return Route{
-		Path:    h.Path,
-		Methods: h.Methods,
+type HandlerOption func(h *Handler)
+
+func NewHandler(path string, handler transport.Handler, opt ...HandlerOption) *Handler {
+	return &Handler{
+		Path:    path,
+		Handler: handler,
+		Methods: []string{http.MethodGet},
 	}
 }
 
-func NewHandler[Req, Res any](
-	path string,
-	endpoint transport.Endpoint[Req, Res],
-) *Handler[Req, Res] {
-	h := &Handler[Req, Res]{
-		Path:     path,
-		Endpoint: endpoint,
-		Decoder:  Decode[Req],
-		Encode:   Encode[Res],
-		Methods:  []string{http.MethodGet},
+func WithMethods(methods ...string) HandlerOption {
+	return func(h *Handler) {
+		h.Methods = methods
 	}
-
-	return h
 }
 
-func (h *Handler[Req, Res]) WithMethods(methods ...string) *Handler[Req, Res] {
-	h.Methods = methods
-	return h
-}
-
-func (h *Handler[Req, Res]) WithPreRequestHooks(hooks ...RawHandlerFunc) *Handler[Req, Res] {
-	h.PreRequestHooks = hooks
-	return h
-}
-
-func (h *Handler[Req, Res]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	for _, hook := range h.PreRequestHooks {
-		if err := hook(w, r); err != nil {
-			// TODO: handle error
-			return
-		}
+// ServeHTTP implements http.Handler
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req := &Request{r}
+	res := &ResponseWriter{w}
+	if err := h.Handler.Serve(req.Context(), req, res); err != nil && h.OnError != nil {
+		h.OnError(err)
 	}
-
-	var req Req
-
-	// TODO: decode errors
-	_ = h.Decoder(r)(r.Context(), &req)
-	// encoder := h.Encode(w)
-
-	res, err := h.Endpoint(r.Context(), req)
-	if err != nil {
-		return
-	}
-
-	// TODO: encode errors
-	_ = h.Encode(w)(r.Context(), &res)
-	return
 }
+
+var _ = http.Handle

@@ -3,6 +3,7 @@ package httpx
 import (
 	"bytes"
 	"context"
+	"github.com/discernhq/devx/pkg/transport"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -62,7 +63,7 @@ func TestDecodeForm(t *testing.T) {
 		Value: "bar",
 	})
 
-	err = Decode[payload](req)(context.Background(), &example)
+	err = transport.DefaultDecoderChain()(context.Background(), &Request{req}, &example)
 	require.NoError(t, err)
 
 	require.Equal(t, "bar", example.Foo)

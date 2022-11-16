@@ -7,14 +7,13 @@ import (
 	"testing"
 )
 
-func TestGin(t *testing.T) {
+func TestServer(t *testing.T) {
 	svc := testSvc{}
-	h := NewHandler("/home/:name", transport.NewController(
+	h := NewHandler("/home", transport.NewController(
 		transport.NewEndpoint(svc.Call),
 	))
-	m := NewGinMux()
+	m := NewStdLibMux()
 	m.Handle(h)
-	require.HTTPStatusCode(t, http.HandlerFunc(m.ServeHTTP), "GET", "/home/test", nil, http.StatusOK)
-	require.HTTPBodyContains(t, http.HandlerFunc(m.ServeHTTP), "GET", "/home/test", nil, "test")
+	require.HTTPStatusCode(t, http.HandlerFunc(m.ServeHTTP), "GET", "/home", nil, http.StatusOK)
 	require.HTTPStatusCode(t, http.HandlerFunc(m.ServeHTTP), "GET", "/example", nil, http.StatusNotFound)
 }

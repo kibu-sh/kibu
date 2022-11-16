@@ -2,44 +2,44 @@ package httpx
 
 import (
 	"context"
+	"github.com/discernhq/devx/pkg/transport"
+	"github.com/fatih/structtag"
+	"github.com/samber/lo"
 	"go.uber.org/fx"
 	"net"
 	"net/http"
 )
 
-type Server interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
-
-type NetListener struct {
+type Server struct {
 	*http.Server
 	l net.Listener
 }
 
-func (s *NetListener) Start(ctx context.Context) error {
+func (s *Server) Start(ctx context.Context) error {
 	return s.Serve(s.l)
 }
 
-func (s *NetListener) Stop(ctx context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	return s.Shutdown(ctx)
 }
 
-func OnStart(ctx context.Context, s Server) error {
+func OnStart(ctx context.Context, s transport.Server) error {
+	// TODO: this might not be super great
+	// lets think about what happens when this errors
 	go s.Start(ctx)
 	return nil
 }
 
-func OnStop(ctx context.Context, s Server) error {
+func OnStop(ctx context.Context, s transport.Server) error {
 	return s.Stop(ctx)
 }
 
 type NewServerParams struct {
 	Addr string
-	Mux  *ServeMux
+	Mux  ServeMux
 }
 
-func NewNetListener(params *NewServerParams) (Server, error) {
+func NewServer(params *NewServerParams) (transport.Server, error) {
 	s := &http.Server{
 		Addr:    params.Addr,
 		Handler: params.Mux,
@@ -50,17 +50,42 @@ func NewNetListener(params *NewServerParams) (Server, error) {
 		return nil, err
 	}
 
-	return &NetListener{
+	return &Server{
 		s, l,
 	}, nil
 }
 
-func AsController(controller any) fx.Option {
+func AsHandler(provider any) fx.Option {
 	return fx.Provide(
 		fx.Annotate(
-			controller,
-			fx.As(new(Controller)),
-			fx.ResultTags(`group:"controllers"`),
+			provider,
+			fx.As(new(Handler)),
+			fx.ResultTags(`group:"handlers"`),
 		),
+	)
+}
+
+func HandlerGroupTag() structtag.Tag {
+	return structtag.Tag{
+		Key: "group",
+		// TODO: think about adding suffixes to group tags for devx
+		// devx:controllers
+		Name: "handlers",
+	}
+}
+
+func ResultTags(tags ...structtag.Tag) fx.Annotation {
+	return fx.ResultTags(
+		lo.Map(tags, func(t structtag.Tag, _ int) string {
+			return t.String()
+		})...,
+	)
+}
+
+func ParamTags(tags ...structtag.Tag) fx.Annotation {
+	return fx.ParamTags(
+		lo.Map(tags, func(t structtag.Tag, _ int) string {
+			return t.String()
+		})...,
 	)
 }

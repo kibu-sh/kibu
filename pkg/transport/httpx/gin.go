@@ -1,9 +1,49 @@
 package httpx
 
-import "github.com/gin-gonic/gin"
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"net/url"
+)
 
-type GinRouter struct {
-	*gin.Engine
+var _ ServeMux = (*GinMux)(nil)
+
+type GinMux struct {
+	mux *gin.Engine
+}
+
+func (g GinMux) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	g.mux.ServeHTTP(writer, request)
+}
+
+func NewGinMux() *GinMux {
+	r := gin.Default()
+	r.Use(captureGinParams)
+	return &GinMux{r}
+}
+
+func (g GinMux) Handle(handler *Handler) {
+	for _, method := range handler.Methods {
+		g.mux.Handle(method, handler.Path, gin.HandlerFunc(func(c *gin.Context) {
+			handler.ServeHTTP(c.Writer, c.Request)
+		}))
+	}
+}
+
+var uriParamsContextKey struct{}
+
+// PathParamsFromContext
+func PathParamsFromContext(ctx context.Context) url.Values {
+	if v, ok := ctx.Value(uriParamsContextKey).(url.Values); ok {
+		return v
+	}
+	return nil
+}
+
+// ContextWithPathParams
+func ContextWithPathParams(ctx context.Context, values url.Values) context.Context {
+	return context.WithValue(ctx, uriParamsContextKey, values)
 }
 
 func captureGinParams(c *gin.Context) {
@@ -13,19 +53,4 @@ func captureGinParams(c *gin.Context) {
 	}
 	ctx := ContextWithPathParams(c.Request.Context(), m)
 	c.Request = c.Request.WithContext(ctx)
-}
-
-func NewGinRouter() Router {
-	r := gin.Default()
-	r.Use(captureGinParams)
-	return GinRouter{r}
-}
-
-func (g GinRouter) MountController(controller Controller) {
-	route := controller.Route()
-	for _, method := range route.Methods {
-		g.Handle(method, route.Path, gin.HandlerFunc(func(c *gin.Context) {
-			controller.ServeHTTP(c.Writer, c.Request)
-		}))
-	}
 }

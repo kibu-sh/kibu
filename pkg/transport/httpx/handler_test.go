@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"github.com/discernhq/devx/pkg/transport"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -24,6 +25,8 @@ func (s testSvc) Call(ctx context.Context, req testReq) (res testRes, err error)
 
 func TestHandler_ServeHTTP(t *testing.T) {
 	svc := testSvc{}
-	h := NewHandler("/", svc.Call)
+	h := NewHandler("/", transport.NewController(
+		transport.NewEndpoint(svc.Call),
+	))
 	require.HTTPStatusCode(t, http.HandlerFunc(h.ServeHTTP), "GET", "/example", nil, http.StatusOK)
 }
