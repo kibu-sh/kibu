@@ -9,9 +9,7 @@ import (
 
 func TestServer(t *testing.T) {
 	svc := testSvc{}
-	h := NewHandler("/home", transport.NewController(
-		transport.NewEndpoint(svc.Call),
-	))
+	h := NewHandler("/home", transport.NewEndpoint(svc.Call))
 	m := NewStdLibMux()
 	m.Handle(h)
 	require.HTTPStatusCode(t, http.HandlerFunc(m.ServeHTTP), "GET", "/home", nil, http.StatusOK)

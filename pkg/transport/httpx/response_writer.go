@@ -5,12 +5,16 @@ import (
 	"net/http"
 )
 
-var _ transport.ResponseWriter = (*ResponseWriter)(nil)
+var _ transport.Response = (*Response)(nil)
 
-type ResponseWriter struct {
+type Response struct {
 	http.ResponseWriter
 }
 
-func (r ResponseWriter) Underlying() any {
+func (r Response) Underlying() any {
 	return r.ResponseWriter
+}
+
+func NewResponse(w http.ResponseWriter) *Response {
+	return &Response{w}
 }

@@ -25,8 +25,7 @@ func (s testSvc) Call(ctx context.Context, req testReq) (res testRes, err error)
 
 func TestHandler_ServeHTTP(t *testing.T) {
 	svc := testSvc{}
-	h := NewHandler("/", transport.NewController(
-		transport.NewEndpoint(svc.Call),
-	))
+	e := transport.NewEndpoint(svc.Call)
+	h := NewHandler("/", e)
 	require.HTTPStatusCode(t, http.HandlerFunc(h.ServeHTTP), "GET", "/example", nil, http.StatusOK)
 }

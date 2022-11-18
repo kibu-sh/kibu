@@ -9,9 +9,8 @@ import (
 
 func TestGin(t *testing.T) {
 	svc := testSvc{}
-	h := NewHandler("/home/:name", transport.NewController(
-		transport.NewEndpoint(svc.Call),
-	))
+	e := transport.NewEndpoint(svc.Call)
+	h := NewHandler("/home/:name", e)
 	m := NewGinMux()
 	m.Handle(h)
 	require.HTTPStatusCode(t, http.HandlerFunc(m.ServeHTTP), "GET", "/home/test", nil, http.StatusOK)

@@ -2,30 +2,63 @@ package transport
 
 import "context"
 
-// Endpoint is any function that can be modeled as service call.
-// These should remain transport agnostic and are used to implement business logic.
-type Endpoint interface {
-	Serve(ctx context.Context, request any) (response any, err error)
-	InitRequest() any
-}
-
 // EndpointFunc is a functional implementation of Endpoint
 type EndpointFunc[Req, Res any] func(ctx context.Context, request Req) (response Res, err error)
 
-// Serve implements Endpoint
-func (e EndpointFunc[Req, Res]) Serve(ctx context.Context, request any) (response any, err error) {
-	// pass by value allows the upstream endpoint to rely on non-nil values
-	v := request.(*Req)
-	return e(ctx, *v)
+// Endpoint is any function that can be modeled as service call.
+// These should remain transport agnostic and are used to implement business logic.
+type Endpoint[Req, Res any] struct {
+	Func      EndpointFunc[Req, Res]
+	Validator Validator
 }
 
-func (e EndpointFunc[Req, Res]) InitRequest() any {
-	return new(Req)
+func NewEndpoint[Req, Res any](
+	endpointFunc EndpointFunc[Req, Res],
+) (ep *Endpoint[Req, Res]) {
+	ep = &Endpoint[Req, Res]{
+		Func: endpointFunc,
+	}
+	return
 }
 
-// EndpointMiddlewareFunc decorates an Endpoint with additional functionality
-type EndpointMiddlewareFunc func(next Endpoint) Endpoint
+func (endpoint Endpoint[Req, Res]) AsHandler() Handler {
+	return endpoint
+}
 
-func NewEndpoint[Req, Res any](handler EndpointFunc[Req, Res]) Endpoint {
-	return handler
+func (endpoint Endpoint[Req, Res]) WithValidator(validator Validator) Endpoint[Req, Res] {
+	endpoint.Validator = validator
+	return endpoint
+}
+
+// Serve implements transport.Handler
+func (endpoint Endpoint[Req, Res]) Serve(ctx Context) (err error) {
+	decoded := new(Req)
+
+	err = ctx.Codec().Decode(ctx, ctx.Request(), decoded)
+	if err != nil {
+		return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+	}
+
+	if endpoint.Validator != nil {
+		if err = endpoint.Validator.Validate(ctx, decoded); err != nil {
+			return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+		}
+	}
+
+	if v, ok := asAny(decoded).(PayloadValidator); ok {
+		if err = v.Validate(); err != nil {
+			return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+		}
+	}
+
+	response, err := endpoint.Func(ctx, *decoded)
+	if err != nil {
+		return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+	}
+
+	return ctx.Codec().Encode(ctx, ctx.Response(), response)
+}
+
+func asAny[T any](t *T) any {
+	return t
 }

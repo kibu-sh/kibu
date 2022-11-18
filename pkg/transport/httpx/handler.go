@@ -12,33 +12,44 @@ var _ http.Handler = (*Handler)(nil)
 type Handler struct {
 	Path    string
 	Methods []string
-	OnError func(err error)
 	Handler transport.Handler
+	Codec   transport.Codec
+
+	// TODO: think about emitting errors at a higher level
+	// Maybe we need a logger here
+	OnError func(err error)
 }
 
-type HandlerOption func(h *Handler)
-
-func NewHandler(path string, handler transport.Handler, opt ...HandlerOption) *Handler {
+func NewHandler(path string, handler transport.Handler) *Handler {
 	return &Handler{
 		Path:    path,
 		Handler: handler,
 		Methods: []string{http.MethodGet},
+		Codec:   DefaultCodec,
 	}
 }
 
-func WithMethods(methods ...string) HandlerOption {
-	return func(h *Handler) {
-		h.Methods = methods
-	}
+func (h *Handler) WithMethods(methods ...string) *Handler {
+	h.Methods = methods
+	return h
 }
+
+// TODO: consider capturing panics at this level
 
 // ServeHTTP implements http.Handler
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req := &Request{r}
-	res := &ResponseWriter{w}
-	if err := h.Handler.Serve(req.Context(), req, res); err != nil && h.OnError != nil {
+	req := NewRequest(r)
+	res := NewResponse(w)
+	ctx := &Context{
+		Context: r.Context(),
+		req:     req,
+		writer:  res,
+		codec:   h.Codec,
+	}
+
+	if err := h.Handler.Serve(ctx); err != nil && h.OnError != nil {
 		h.OnError(err)
 	}
 }
 
-var _ = http.Handle
+var _ http.Handler = (*Handler)(nil)

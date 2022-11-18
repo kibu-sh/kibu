@@ -14,6 +14,17 @@ type Request struct {
 	*http.Request
 }
 
+func (r *Request) URL() *url.URL {
+	return r.Request.URL
+}
+
+// TODO: path can be incorrect when behind a proxy
+// TODO: what about the original mounting path? maybe we don't care (wait until someone asks)
+
+func (r *Request) Path() string {
+	return r.URL().Path
+}
+
 func (r *Request) Body() io.ReadCloser {
 	return r.Request.Body
 }
@@ -40,4 +51,8 @@ func (r *Request) QueryParams() url.Values {
 
 func (r *Request) Headers() http.Header {
 	return r.Request.Header
+}
+
+func NewRequest(r *http.Request) *Request {
+	return &Request{r}
 }
