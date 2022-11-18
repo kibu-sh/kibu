@@ -30,6 +30,10 @@ func (endpoint Endpoint[Req, Res]) WithValidator(validator Validator) Endpoint[R
 	return endpoint
 }
 
+func (endpoint Endpoint[Req, Res]) ApplyMiddleware(middleware ...Middleware) Handler {
+	return ApplyMiddleware(endpoint.AsHandler(), middleware...)
+}
+
 // Serve implements transport.Handler
 func (endpoint Endpoint[Req, Res]) Serve(ctx Context) (err error) {
 	decoded := new(Req)
