@@ -35,6 +35,7 @@ func (endpoint Endpoint[Req, Res]) ApplyMiddleware(middleware ...Middleware) Han
 }
 
 // Serve implements transport.Handler
+// TODO: benchmark value receiver vs pointer receiver (maybe have request overhead)
 func (endpoint Endpoint[Req, Res]) Serve(ctx Context) (err error) {
 	decoded := new(Req)
 
