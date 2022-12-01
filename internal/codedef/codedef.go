@@ -1,9 +1,10 @@
 package codedef
 
 type Module struct {
-	Name   string
-	Types  TypeMap
-	Worker Worker
+	Name    string
+	Types   TypeMap
+	Worker  Worker
+	Service Service
 }
 
 type Field struct {
@@ -38,4 +39,27 @@ type Activity struct {
 	Description string
 	Request     Type
 	Response    Type
+}
+
+type HTTP struct {
+	Path   string
+	Method string
+}
+
+type Transports struct {
+	HTTP HTTP
+}
+
+type Method struct {
+	Name       string
+	Request    Type
+	Response   Type
+	Transports Transports
+}
+
+type Service struct {
+	Name        string
+	Description string
+	Type        string
+	Methods     map[string]Method
 }

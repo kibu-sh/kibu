@@ -49,5 +49,8 @@ var DefaultPipeline = Pipeline{
 		"activity.go": {
 			Executor: templates.Activity,
 		},
+		"service.go": {
+			Executor: templates.Service,
+		},
 	},
 }

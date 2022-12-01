@@ -1,6 +1,7 @@
 package build
 
 import (
+	"github.com/discernhq/devx/internal/codedef"
 	"github.com/discernhq/devx/internal/codegen"
 	"github.com/discernhq/devx/internal/cuecore"
 	"path/filepath"
@@ -40,18 +41,23 @@ func NewBuilder(opts ...Options) (b *Builder, err error) {
 }
 
 func NewWithDefaults(dir string) (b *Builder, err error) {
-	return NewBuilder(WithDir(dir), WithEntrypoint("devx.cue"))
+	return NewBuilder(WithDir(dir), WithEntrypoint("devx.module.cue"))
 }
 
 func (b *Builder) Exec() (err error) {
-	mod, err := cuecore.Load(cuecore.LoadOptions{
-		Dir:        b.Dir,
-		Entrypoint: b.Entrypoint,
-	})
+	loader, err := cuecore.NewDefaultLoader(b.Dir, b.Entrypoint)
+	if err != nil {
+		return
+	}
+
+	var mod codedef.Module
+	err = loader.Load(cuecore.WithValidation(), cuecore.WithBasicDecoder(&mod))
 
 	if err != nil {
 		return
 	}
+
+	mod.Name = instances[0].PkgName
 
 	err = codegen.DefaultPipeline.Generate(b.Dir, mod)
 	if err != nil {

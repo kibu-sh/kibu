@@ -7,9 +7,9 @@ import (
 )
 
 var templateStdLib = template.FuncMap{
-	"to_snake":  xstrings.ToSnakeCase,
-	"to_camel":  xstrings.ToCamelCase,
-	"to_pascal": xstrings.ToKebabCase,
+	"to_snake": xstrings.ToSnakeCase,
+	"to_camel": xstrings.ToCamelCase,
+	"to_kebab": xstrings.ToKebabCase,
 }
 
 type ExecFunc[T any] func(T) (rendered bytes.Buffer, err error)
