@@ -1,0 +1,20 @@
+mkdir -p $WORK/level1/level2/level3
+determine $WORK/level1/level2/level3
+load $WORK/level1/level2/level3
+
+-- .devx/workspace.cue --
+package workspace
+
+import (
+  "discern.com/devx"
+)
+
+devx.#Workspace & {
+  ConfigStore: {
+    Keys: [{
+      Env: "development"
+      Engine: "gcpkms"
+      Path: "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID"
+    }]
+  }
+}
