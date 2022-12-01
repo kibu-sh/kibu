@@ -112,9 +112,9 @@ func IsDirective(c string) bool {
 //
 // Example: devx:endpoint method=GET path=/api/v1/users
 //
-// Key is an unquoted string literal (devx:endpoint)
-// Key contains two parts tool (devx) and name (endpoint) separated by a colon
-// Key is required
+// Path is an unquoted string literal (devx:endpoint)
+// Path contains two parts tool (devx) and name (endpoint) separated by a colon
+// Path is required
 //
 // Value is an unquoted string literal (method=GET path=/api/v1/users)
 // Value is optional
