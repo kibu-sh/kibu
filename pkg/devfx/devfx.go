@@ -15,7 +15,7 @@ type ServiceKey struct {
 }
 
 func (sk ServiceKey) String() string {
-	return fmt.Sprintf(`%s:%s`, sk.Pkg, sk.Name)
+	return fmt.Sprintf(`pkg:%s:service:%s`, sk.Pkg, sk.Name)
 }
 
 func (sk ServiceKey) NameTag() structtag.Tag {
@@ -25,15 +25,26 @@ func (sk ServiceKey) NameTag() structtag.Tag {
 	}
 }
 
-func (sk ServiceKey) MethodString(method string) string {
-	return fmt.Sprintf("%s:%s", sk.String(), method)
+type EndpointKey struct {
+	ServiceKey ServiceKey
+	Name       string
 }
 
-func (sk ServiceKey) MethodTag(s string) structtag.Tag {
+func (ek EndpointKey) String() string {
+	return fmt.Sprintf(`%s:endpoint:%s`, ek.ServiceKey.String(), ek.Name)
+}
+
+func (ek EndpointKey) NameTag() structtag.Tag {
 	return structtag.Tag{
-		Key:     "group",
-		Name:    sk.MethodString(s),
-		Options: nil,
+		Key:  "name",
+		Name: ek.String(),
+	}
+}
+
+func (ek EndpointKey) GroupTag() structtag.Tag {
+	return structtag.Tag{
+		Key:  "group",
+		Name: ek.String(),
 	}
 }
 
@@ -46,47 +57,11 @@ func AsService(provider any, sk ServiceKey) fx.Option {
 	)
 }
 
-func AsMiddleware(provider any, tag structtag.Tag) fx.Option {
+func AsMiddleware(provider any, endpointKey EndpointKey) fx.Option {
 	return fx.Provide(
 		fx.Annotate(
 			provider,
-			ResultTags(tag),
-		),
-	)
-}
-
-type EndpointProvider[T any] func(service *T, middleware []transport.Middleware) *httpx.Handler
-
-func BindServiceEndpoint[T any](
-	provider EndpointProvider[T],
-	serviceTag structtag.Tag,
-	methodTag structtag.Tag,
-) fx.Option {
-	return fx.Provide(
-		fx.Annotate(
-			provider,
-			ParamTags(serviceTag, methodTag),
-			ResultTags(HandlerGroupTag()),
-		),
-	)
-}
-
-func AsEndpoint(provider any, tag structtag.Tag) fx.Option {
-	return fx.Provide(
-		fx.Annotate(
-			provider,
-			ParamTags(tag),
-			ResultTags(HandlerGroupTag()),
-		),
-	)
-}
-
-func AsHandler(provider any) fx.Option {
-	return fx.Provide(
-		fx.Annotate(
-			provider,
-			fx.As(new(httpx.Handler)),
-			fx.ResultTags(`group:"handlers"`),
+			ResultTags(endpointKey.GroupTag()),
 		),
 	)
 }
@@ -113,5 +88,37 @@ func ParamTags(tags ...structtag.Tag) fx.Annotation {
 		lo.Map(tags, func(t structtag.Tag, _ int) string {
 			return t.String()
 		})...,
+	)
+}
+
+type EndpointProviderFunc[Service any] func(service *Service, middleware []transport.Middleware) transport.Handler
+
+func AsEndpoint[Service any](
+	provider EndpointProviderFunc[Service],
+	serviceKey ServiceKey,
+	endpointKey EndpointKey,
+) fx.Option {
+	return fx.Provide(
+		fx.Annotate(
+			provider,
+			ParamTags(serviceKey.NameTag(), endpointKey.GroupTag()),
+			ResultTags(endpointKey.NameTag()),
+		),
+	)
+}
+
+type HTTPProviderFunc func(endpoint transport.Handler) *httpx.Handler
+
+func AsHTTPEndpoint(
+	provider HTTPProviderFunc,
+	endpointKey EndpointKey,
+	handlerGroupTag structtag.Tag,
+) fx.Option {
+	return fx.Provide(
+		fx.Annotate(
+			provider,
+			ParamTags(endpointKey.NameTag()),
+			ResultTags(handlerGroupTag),
+		),
 	)
 }
