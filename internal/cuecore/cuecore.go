@@ -55,7 +55,7 @@ func WithValidation() LoadOption {
 func WithBasicDecoder[T any](v *T) LoadOption {
 	return func(l *Loader) error {
 		if len(l.Values) == 0 {
-			return errors.New("no cue values to decode into")
+			return errors.New("no cue values to decode, did you build a cue instance")
 		}
 		return l.Values[0].Decode(v)
 	}

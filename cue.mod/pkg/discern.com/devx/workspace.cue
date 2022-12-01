@@ -3,7 +3,7 @@ package devx
 #ConfigKey: {
 	Env: "development" | "staging" | "production"
 	Engine: "hashivault" | "gcpkms" | "awskms" | "azurevaultkey"
-	Path: string
+	Key: string
 }
 
 #ConfigStoreSettings: {

@@ -11,12 +11,12 @@ import (
 
 // FileSystemSettings configures the workspace file system observer
 type FileSystemSettings struct {
-	Ignore []string `json:"ignore"`
+	Ignore []string
 }
 
 // RemoteCacheSettings configures the workspace remote cache location
 type RemoteCacheSettings struct {
-	URL string `json:"url"`
+	URL string
 }
 
 // ConfigStoreKey refers to a KMS encryption key
@@ -24,21 +24,21 @@ type RemoteCacheSettings struct {
 // Env is used to separate different environments, such as dev, staging, prod, etc.
 // Engine might be one of hashivault, gcpkms, awskms, azurekeyvault, etc.
 type ConfigStoreKey struct {
-	Env    string `json:"env"`
-	Engine string `json:"engine"`
-	Path   string `json:"key"`
+	Env    string
+	Engine string
+	Key    string
 }
 
 func (k ConfigStoreKey) String() string {
 	return (&url.URL{
 		Scheme: k.Engine,
-		Path:   k.Path,
+		Path:   k.Key,
 	}).String()
 }
 
 // ConfigStoreSettings allows user to set Vault address that's not reliant on an env var
 type ConfigStoreSettings struct {
-	Keys []ConfigStoreKey `json:"keys"`
+	Keys []ConfigStoreKey
 }
 
 func (s ConfigStoreSettings) KeyByEnv(env string) (ConfigStoreKey, error) {
@@ -54,10 +54,10 @@ func (s ConfigStoreSettings) KeyByEnv(env string) (ConfigStoreKey, error) {
 // Config holds data for configuring a workspace
 type Config struct {
 	file                 string
-	ConfigStore          ConfigStoreSettings `json:"secrets"`
-	FileSystem           FileSystemSettings  `json:"file_system"`
-	RemoteCache          RemoteCacheSettings `json:"remote_cache"`
-	VersionCheckDisabled bool                `json:"disable_version_check"`
+	ConfigStore          ConfigStoreSettings
+	FileSystem           FileSystemSettings
+	RemoteCache          RemoteCacheSettings
+	VersionCheckDisabled bool
 }
 
 type DetermineRootParams struct {
@@ -163,9 +163,14 @@ func (c Config) Dir() string {
 	return filepath.Dir(c.file)
 }
 
-func CueLoader(c *Config) error {
+func CueLoader(c *Config) (err error) {
 	dir := filepath.Dir(c.file)
 	file := filepath.Base(c.file)
-	_, err := cuecore.LoadWithDefaults(dir, []string{file}, cuecore.WithBasicDecoder(c))
+
+	_, err = cuecore.LoadWithDefaults(dir, []string{file},
+		cuecore.WithValidation(),
+		cuecore.WithBasicDecoder(c),
+	)
+
 	return err
 }

@@ -14,7 +14,7 @@ devx.#Workspace & {
     Keys: [{
       Env: "development"
       Engine: "gcpkms"
-      Path: "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID"
+      Key: "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID"
     }]
   }
 }

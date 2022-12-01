@@ -17,7 +17,9 @@ func TestLoad(t *testing.T) {
 				cwd := ts.Getenv("WORK")
 				var mod struct {
 					Nested struct {
-						Name string
+						Names []struct {
+							Name string
+						}
 					}
 				}
 
@@ -26,7 +28,7 @@ func TestLoad(t *testing.T) {
 					WithBasicDecoder(&mod),
 				)
 				ts.Check(err)
-				require.Equal(t, "example", mod.Nested.Name)
+				require.Equal(t, "example", mod.Nested.Names[0].Name)
 			},
 		},
 	})

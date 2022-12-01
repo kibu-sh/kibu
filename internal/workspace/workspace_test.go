@@ -27,6 +27,7 @@ func TestAll(t *testing.T) {
 				ts.Check(err)
 				require.NotNil(t, config)
 				require.NotNil(t, config.ConfigStore.Keys)
+				require.Equal(t, "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID", config.ConfigStore.Keys[0].Key)
 			},
 			"determine": func(ts *testscript.TestScript, neg bool, args []string) {
 				cwd := ts.Getenv("WORK")
@@ -51,7 +52,7 @@ func TestConfigStoreKey_String(t *testing.T) {
 			expected: "hashivault://secret/data/devx",
 			key: ConfigStoreKey{
 				Engine: "hashivault",
-				Path:   "secret/data/devx",
+				Key:    "secret/data/devx",
 			},
 		},
 
@@ -59,7 +60,7 @@ func TestConfigStoreKey_String(t *testing.T) {
 			expected: "gcpkms://secret/data/devx",
 			key: ConfigStoreKey{
 				Engine: "gcpkms",
-				Path:   "secret/data/devx",
+				Key:    "secret/data/devx",
 			},
 		},
 	}

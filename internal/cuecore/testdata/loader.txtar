@@ -5,12 +5,12 @@ package main
 
 #Definition: {
   Nested: {
-    Name: string
+    Names: [{ Name: string }]
   }
 }
 
 #Definition & {
  Nested: {
-	Name: "example"
+	Names: [{ Name: "example"}]
   }
 }
