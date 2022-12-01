@@ -18,3 +18,9 @@ package devx
 	Request:  #Type
 	Response: #Type
 }
+
+#Module: {
+	Types?:   #TypeMap
+	Service?: #Service
+	Worker?:  #Worker
+}

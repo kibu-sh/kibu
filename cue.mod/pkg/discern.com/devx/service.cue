@@ -9,33 +9,41 @@ package devx
 	Description?: string
 }
 
-#Method: "get" | "post" | "put" | "delete" | "patch" | "head" |
-	"options" | "connect" | "trace" | "all"
-
-#Endpoint: {
-	Name:   string
-	Path:   string
-	Method: #Method
+#Method: {
+	Name: string
 	Tags?: [...string]
 	Description?: string
 	Middleware?: [...#Middleware]
 	Params: [param=string]: #Param & {Name: param}
-	Request:  #Type
-	Response: #Type
+
+	#Handler
+
+	Transports: {
+		HTTP: #HTTP
+	}
+}
+
+#HTTP: {
+	Method: "get" | *"post" | "put" | "delete" | "patch"
+	Path:   string
 }
 
 #Service: {
 	Name: string
-	Type: *"private" | "auth" | "public"
+	Type: "public" | "auth" | *"private"
 	Tags?: [...string]
 	Middleware?: [...#Middleware]
 
 	// TODO: validate path expression
 	// https://cuelang.org/docs/tutorials/tour/expressions/regexp/
-	Endpoints: [path=string]: {
-		Middleware?: [...#Middleware]
-		[method=#Method]: #Endpoint & {
-			Path: path, Method: method
+	_ServiceName: Name
+
+	Methods: [name=string]: #Method & {
+		Name:        name
+		_MethodName: name
+
+		Transports: HTTP: {
+			Path: "\(_ServiceName).\(_MethodName)"
 		}
 	}
 }

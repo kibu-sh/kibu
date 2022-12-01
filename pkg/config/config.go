@@ -15,7 +15,7 @@ type SetParams struct {
 	Data any
 }
 
-type KV interface {
+type Store interface {
 	Get(ctx context.Context, params GetParams) (err error)
 	Set(ctx context.Context, params SetParams) (err error)
 }
