@@ -11,7 +11,7 @@ import (
 
 devx.#Workspace & {
   ConfigStore: {
-    Keys: [{
+    EncryptionKeys: [{
       Env: "development"
       Engine: "gcpkms"
       Key: "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID"

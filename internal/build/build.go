@@ -45,19 +45,17 @@ func NewWithDefaults(dir string) (b *Builder, err error) {
 }
 
 func (b *Builder) Exec() (err error) {
-	loader, err := cuecore.NewDefaultLoader(b.Dir, b.Entrypoint)
-	if err != nil {
-		return
-	}
-
 	var mod codedef.Module
-	err = loader.Load(cuecore.WithValidation(), cuecore.WithBasicDecoder(&mod))
 
+	loader, err := cuecore.LoadWithDefaults(b.Dir, b.Entrypoint,
+		cuecore.WithValidation(),
+		cuecore.WithBasicDecoder(&mod),
+	)
 	if err != nil {
 		return
 	}
 
-	mod.Name = instances[0].PkgName
+	mod.Name = loader.Instances[0].PkgName
 
 	err = codegen.DefaultPipeline.Generate(b.Dir, mod)
 	if err != nil {

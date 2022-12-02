@@ -3,18 +3,21 @@ package main
 import (
 	"github.com/discernhq/devx/cmd/devx/cmd"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"os"
 )
 
-var log = zerolog.New(os.Stderr).With().Timestamp().Logger()
+func init() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+}
 
 func main() {
-	root, err := cmd.Init()
+	cmd, err := cmd.InitCLI()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize")
+		log.Fatal().Err(err).Msg("failed to initialize CLI")
 	}
 
-	if err = root.Execute(); err != nil {
-		log.Fatal().Err(err).Msg("failed to execute")
+	if err = cmd.Execute(); err != nil {
+		log.Fatal().Err(err).Msg("failed to execute CLI")
 	}
 }

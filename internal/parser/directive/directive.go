@@ -116,9 +116,9 @@ func IsDirective(c string) bool {
 // Path contains two parts tool (devx) and name (endpoint) separated by a colon
 // Path is required
 //
-// Value is an unquoted string literal (method=GET path=/api/v1/users)
-// Value is optional
-// A Value is a list of Options separated by a space
+// value is an unquoted string literal (method=GET path=/api/v1/users)
+// value is optional
+// A value is a list of Options separated by a space
 // An Option is a key value pair separated by an equals sign
 // An Option key is an unquoted string literal (method)
 // An Option value is an unquoted string literal (GET)

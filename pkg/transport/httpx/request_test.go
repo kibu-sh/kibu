@@ -50,7 +50,7 @@ func TestDecodeForm(t *testing.T) {
 		//	"foo": []string{"baz"},
 		// },
 		// MultipartForm: &multipart.Form{
-		//	Value: url.Values{
+		//	value: url.Values{
 		//		"foo": []string{"qux"},
 		//	},
 		//	File: nil,

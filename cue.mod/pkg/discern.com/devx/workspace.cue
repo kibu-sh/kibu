@@ -1,13 +1,13 @@
 package devx
 
-#ConfigKey: {
-	Env: "development" | "staging" | "production"
+#EncryptionKey: {
 	Engine: "hashivault" | "gcpkms" | "awskms" | "azurevaultkey"
+	Env: string
 	Key: string
 }
 
 #ConfigStoreSettings: {
-	Keys: [#ConfigKey]
+	EncryptionKeys: [...#EncryptionKey]
 }
 
 #Workspace: {

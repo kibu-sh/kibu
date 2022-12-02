@@ -3,8 +3,9 @@ package workspace
 import (
 	"encoding/json"
 	"github.com/discernhq/devx/internal/cuecore"
+	"github.com/discernhq/devx/pkg/config"
 	"github.com/pkg/errors"
-	"net/url"
+	"github.com/samber/lo"
 	"os"
 	"path/filepath"
 )
@@ -19,36 +20,21 @@ type RemoteCacheSettings struct {
 	URL string
 }
 
-// ConfigStoreKey refers to a KMS encryption key
-// This can use many engines or drivers, such as AWS KMS, GCP KMS, Azure Key Vault, etc.
-// Env is used to separate different environments, such as dev, staging, prod, etc.
-// Engine might be one of hashivault, gcpkms, awskms, azurekeyvault, etc.
-type ConfigStoreKey struct {
-	Env    string
-	Engine string
-	Key    string
-}
-
-func (k ConfigStoreKey) String() string {
-	return (&url.URL{
-		Scheme: k.Engine,
-		Path:   k.Key,
-	}).String()
-}
-
 // ConfigStoreSettings allows user to set Vault address that's not reliant on an env var
 type ConfigStoreSettings struct {
-	Keys []ConfigStoreKey
+	EncryptionKeys []config.EncryptionKey
 }
 
-func (s ConfigStoreSettings) KeyByEnv(env string) (ConfigStoreKey, error) {
-	for _, key := range s.Keys {
+func (s ConfigStoreSettings) KeyByEnv(env string) (config.EncryptionKey, error) {
+	for _, key := range s.EncryptionKeys {
 		if key.Env == env {
 			return key, nil
 		}
 	}
 
-	return ConfigStoreKey{}, errors.Errorf("no key found for env %s", env)
+	return config.EncryptionKey{}, errors.Errorf("no encryption key found for env %s, found (%s)", env, lo.Map(s.EncryptionKeys, func(k config.EncryptionKey, _ int) string {
+		return k.Env
+	}))
 }
 
 // Config holds data for configuring a workspace
@@ -156,10 +142,10 @@ func (c Config) File() string {
 }
 
 func (c Config) Root() string {
-	return filepath.Clean(filepath.Join(c.Dir(), ".."))
+	return filepath.Clean(filepath.Join(c.ConfigRoot(), ".."))
 }
 
-func (c Config) Dir() string {
+func (c Config) ConfigRoot() string {
 	return filepath.Dir(c.file)
 }
 

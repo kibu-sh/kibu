@@ -1,33 +1,35 @@
 package cmd
 
 import (
+	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 )
 
 func init() {
-	cobra.OnInitialize(func() {
-
-	})
+	cobra.OnInitialize(func() {})
 }
 
-type NewRootCmdResult struct {
-	fx.Out
-	RootCmd *cobra.Command `name:"rootCmd"`
+type RootCmd struct {
+	*cobra.Command
 }
 
-func NewRootCmd() (result NewRootCmdResult) {
-	result.RootCmd = &cobra.Command{
+type RootCommandParams struct {
+	ConfigCmd ConfigCmd
+	BuildCmd  BuildCmd
+}
+
+func NewRootCmd(params RootCommandParams) (root RootCmd) {
+	root.Command = &cobra.Command{
 		Use:   "devx",
 		Short: "devx is a backend development engine for developer productivity",
 		Long:  `devx is a backend development engine for developer productivity`,
 	}
+
+	// TODO: don't ignore these
+	_ = cliflags.Environment.BindToCommand(root.Command)
+	_ = cliflags.Debug.BindToCommand(root.Command)
+
+	root.AddCommand(params.ConfigCmd.Command)
+
 	return
 }
-
-var Module = fx.Module("cmd",
-	fx.Provide(NewRootCmd),
-	fx.Provide(NewBuildCmd),
-	fx.Provide(NewConfigCmd),
-	fx.Provide(NewConfigGetCmd),
-)

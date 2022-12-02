@@ -26,8 +26,8 @@ func TestAll(t *testing.T) {
 				})
 				ts.Check(err)
 				require.NotNil(t, config)
-				require.NotNil(t, config.ConfigStore.Keys)
-				require.Equal(t, "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID", config.ConfigStore.Keys[0].Key)
+				require.NotNil(t, config.ConfigStore.EncryptionKeys)
+				require.Equal(t, "projects/PROJECT_ID/locations/global/keyRings/KEYRING_ID/cryptoKeys/KEY_ID", config.ConfigStore.EncryptionKeys[0].Key)
 			},
 			"determine": func(ts *testscript.TestScript, neg bool, args []string) {
 				cwd := ts.Getenv("WORK")
@@ -41,33 +41,4 @@ func TestAll(t *testing.T) {
 			},
 		},
 	})
-}
-
-func TestConfigStoreKey_String(t *testing.T) {
-	var tests = map[string]struct {
-		expected string
-		key      ConfigStoreKey
-	}{
-		"should generate correct vault key": {
-			expected: "hashivault://secret/data/devx",
-			key: ConfigStoreKey{
-				Engine: "hashivault",
-				Key:    "secret/data/devx",
-			},
-		},
-
-		"should generate correct gcp key": {
-			expected: "gcpkms://secret/data/devx",
-			key: ConfigStoreKey{
-				Engine: "gcpkms",
-				Key:    "secret/data/devx",
-			},
-		},
-	}
-
-	for s, s2 := range tests {
-		t.Run(s, func(t *testing.T) {
-			require.Equal(t, s2.expected, s2.key.String())
-		})
-	}
 }

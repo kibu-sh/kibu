@@ -16,5 +16,9 @@ func (d DirectoryFS) OpenReadable(ctx context.Context, params OpenParams) (strea
 }
 
 func (d DirectoryFS) OpenWritable(ctx context.Context, params OpenParams) (stream io.WriteCloser, err error) {
-	return os.OpenFile(filepath.Join(d.Path, params.Path), os.O_CREATE|os.O_WRONLY, 0644)
+	file := filepath.Join(d.Path, params.Path)
+	if err = os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+		return
+	}
+	return os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
 }

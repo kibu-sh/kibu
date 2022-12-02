@@ -3,31 +3,20 @@ package cmd
 import (
 	"github.com/discernhq/devx/internal/build"
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 	"os"
 )
 
-type RunE func(cmd *cobra.Command, args []string) error
-
-type NewBuildCmdParams struct {
-	fx.In
-	RootCmd *cobra.Command `name:"rootCmd"`
+type BuildCmd struct {
+	*cobra.Command
 }
 
-type NewBuildCmdResult struct {
-	fx.Out
-	BuildCmd *cobra.Command `name:"buildCmd"`
-}
-
-func NewBuildCmd(params NewBuildCmdParams) (result NewBuildCmdResult) {
-	result.BuildCmd = &cobra.Command{
+func NewBuildCmd() (cmd BuildCmd) {
+	cmd.Command = &cobra.Command{
 		Use:   "build",
 		Short: "build code",
 		Long:  `build code`,
 		RunE:  newBuildRunE(),
 	}
-
-	params.RootCmd.AddCommand(result.BuildCmd)
 	return
 }
 
