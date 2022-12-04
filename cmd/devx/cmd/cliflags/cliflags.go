@@ -1,16 +1,16 @@
 package cliflags
 
-import "github.com/discernhq/devx/pkg/clioptions"
+import "github.com/discernhq/devx/pkg/cli"
 
 var (
-	Environment = clioptions.Flag[string]{
+	Environment = cli.Flag[string]{
 		Long:    "environment",
 		Short:   "e",
 		Default: "dev",
 		Global:  true,
 	}
 
-	Debug = clioptions.Flag[bool]{
+	Debug = cli.Flag[bool]{
 		Long:    "debug",
 		Short:   "",
 		Default: false,
@@ -19,19 +19,19 @@ var (
 
 	// Config Flags
 
-	ConfigSetFromFile = clioptions.Flag[string]{
+	ConfigSetFromFile = cli.Flag[string]{
 		Long:       "from-file",
 		Short:      "",
 		Default:    "",
 		AsFilename: true,
 	}
 
-	ConfigSetFromLiteral = clioptions.Flag[[]string]{
+	ConfigSetFromLiteral = cli.Flag[[]string]{
 		Long:  "from-literal",
 		Short: "",
 	}
 
-	ConfigSetFromEnvFile = clioptions.Flag[string]{
+	ConfigSetFromEnvFile = cli.Flag[string]{
 		Long:       "from-env-file",
 		Short:      "",
 		Default:    "",
