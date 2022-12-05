@@ -16,6 +16,12 @@ func (s *SyncMap[T]) Store(key string, value *T) {
 	s.m.Store(key, value)
 }
 
+func (s *SyncMap[T]) LoadOrStore(key string, value *T) (actual *T, loaded bool) {
+	v, loaded := s.m.LoadOrStore(key, value)
+	actual = v.(*T)
+	return
+}
+
 func (s *SyncMap[T]) Delete(key string) {
 	s.m.Delete(key)
 }
