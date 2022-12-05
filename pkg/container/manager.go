@@ -2,13 +2,18 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"github.com/cenkalti/backoff"
 	"github.com/discernhq/devx/internal/utils"
+	"github.com/discernhq/devx/pkg/netx"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"io"
+	"net"
 	"time"
 
 	containerapi "github.com/docker/docker/api/types/container"
@@ -42,6 +47,49 @@ type Container struct {
 	Name   string
 	Config CreateParams
 	Info   types.ContainerJSON
+}
+
+type Address struct {
+	p  nat.Port
+	pb nat.PortBinding
+}
+
+func (a Address) Network() string {
+	return a.p.Proto()
+}
+
+func (a Address) Host() string {
+	return a.pb.HostIP
+}
+
+func (a Address) Port() string {
+	return a.pb.HostPort
+}
+
+func (a Address) String() string {
+	return fmt.Sprintf("%s://%s", a.Network(), a.HostPort())
+}
+
+func (a Address) HostPort() string {
+	return net.JoinHostPort(a.Host(), a.Port())
+}
+
+var ErrPortNotFound = errors.New("port not found")
+
+func (c *Container) Address(port string) (address netx.Address, err error) {
+	for p, bindings := range c.Info.HostConfig.PortBindings {
+		if string(p) == port {
+			for _, binding := range bindings {
+				address = Address{
+					p:  p,
+					pb: binding,
+				}
+				return
+			}
+		}
+	}
+	err = errors.Wrapf(ErrPortNotFound, "port: %s", port)
+	return
 }
 
 var DefaultPostgresImage = "postgres:14"
@@ -172,7 +220,22 @@ type StartParams struct {
 
 var ErrStartTimeout = errors.New("timeout waiting for container to start")
 
-func (p *Manager) Start(ctx context.Context, params StartParams) (container *Container, err error) {
+type StartOption func(container *Container) error
+
+func (p *Manager) Start(ctx context.Context, params StartParams, opts ...StartOption) (container *Container, err error) {
+
+	defer func() {
+		if err != nil {
+			return
+		}
+		for _, opt := range opts {
+			err = opt(container)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
 	container, ok := p.containers.Load(params.Name)
 	if !ok {
 		err = errors.Wrapf(ErrContainerNotFound, "name: %s", params.Name)
@@ -218,7 +281,33 @@ func (p *Manager) Start(ctx context.Context, params StartParams) (container *Con
 	}
 }
 
-func (p *Manager) CreateAndStart(ctx context.Context, params CreateParams) (container *Container, err error) {
+func waitForPortUsingBackoff(addr string) error {
+	return backoff.Retry(func() (err error) {
+		conn, err := net.Dial("tcp", addr)
+		if conn != nil {
+			_ = conn.Close()
+		}
+		return
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30))
+}
+
+func WaitForPort(port string) StartOption {
+	return func(container *Container) (err error) {
+		for p, bindings := range container.Info.HostConfig.PortBindings {
+			if string(p) == port {
+				for _, binding := range bindings {
+					err = waitForPortUsingBackoff(binding.HostIP + ":" + binding.HostPort)
+					if err != nil {
+						return
+					}
+				}
+			}
+		}
+		return
+	}
+}
+
+func (p *Manager) CreateAndStart(ctx context.Context, params CreateParams, opts ...StartOption) (container *Container, err error) {
 	container, err = p.Create(ctx, params)
 	if err != nil {
 		return
@@ -226,7 +315,7 @@ func (p *Manager) CreateAndStart(ctx context.Context, params CreateParams) (cont
 
 	container, err = p.Start(ctx, StartParams{
 		Name: params.Name,
-	})
+	}, opts...)
 	return
 }
 

@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -23,6 +24,14 @@ func TestManager(t *testing.T) {
 		},
 		Host: &container.HostConfig{
 			AutoRemove: true,
+			PortBindings: nat.PortMap{
+				"5432/tcp": {
+					{
+						HostIP:   "0.0.0.0",
+						HostPort: "54321",
+					},
+				},
+			},
 		},
 	}
 
@@ -34,7 +43,7 @@ func TestManager(t *testing.T) {
 	require.NoError(t, err, "create should be idempotent")
 	require.Equal(t, container.ID, container2.ID)
 
-	_, err = manager.CreateAndStart(ctx, createParams)
+	_, err = manager.CreateAndStart(ctx, createParams, WaitForPort("5432/tcp"))
 	require.NoError(t, err)
 
 	info, err := manager.client.ContainerInspect(ctx, container.ID)
