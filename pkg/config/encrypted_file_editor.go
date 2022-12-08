@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/matoous/go-nanoid"
+	"github.com/pkg/errors"
 	"io"
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 	"os"
@@ -82,7 +83,7 @@ func (e *EncryptedFileEditor) Edit(ctx context.Context, params EditParams) error
 	editorWithFlags := strings.Split(editor, " ")
 
 	tmpPath, err := e.DecryptToFile(ctx, params.Path)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
