@@ -63,4 +63,27 @@ func TestBucket(t *testing.T) {
 		err = reader.Close()
 		require.NoError(t, err)
 	})
+
+	t.Run("should be able to copy data from one bucket to another", func(t *testing.T) {
+		srcBucket, err := NewCloudBucket(ctx, tmpBucket)
+		require.NoError(t, err)
+
+		srcFile := srcBucket.FileRef("path/to/file")
+		srcWriter, err := srcBucket.CreateWriter(context.Background(), srcFile)
+		require.NoError(t, err)
+
+		_, err = srcWriter.Write([]byte("hello world"))
+		require.NoError(t, err)
+
+		err = srcWriter.Close()
+		require.NoError(t, err)
+
+		dstBucket, err := NewCloudBucket(ctx, tmpBucket)
+		require.NoError(t, err)
+
+		dstFile := dstBucket.FileRef("path/to/copy")
+		err = Copy(context.Background(), srcFile, dstFile)
+		require.NoError(t, err)
+		require.FileExists(t, filepath.Join(tmpDir, "path/to/copy"))
+	})
 }

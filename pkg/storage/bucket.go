@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"gocloud.dev/blob"
 	"io"
 	"path/filepath"
 
@@ -11,12 +10,17 @@ import (
 	_ "gocloud.dev/blob/gcsblob"
 )
 
+// URL urls usually have a protocol/schema
+// This concrete structure contains information about the storage system itself
+// When interacting with cloud systems this can be in the form of gs://bucket/fil
+// When interacting with local systems this can be in the form of file://bucket/file
 type URL struct {
 	Driver string
 	Bucket string
 	Path   string
 }
 
+// NewURL is a convenience function for creating an instance of a URL
 func NewURL(driver, bucket string) URL {
 	return URL{
 		Driver: driver,
@@ -24,10 +28,15 @@ func NewURL(driver, bucket string) URL {
 	}
 }
 
+// String serializes the URL to a string
+// Usually this is in the form of driver://bucket/path
 func (u URL) String() string {
 	return fmt.Sprintf("%s://%s", u.Driver, filepath.Join(u.Bucket, u.Path))
 }
 
+// Bucket is an abstraction for a storage bucket
+// Implementers of this interface could reside locally or over networked storage
+// This could be any cloud service or your local machines file system
 type Bucket interface {
 	Url() URL
 	FileRef(path string) FileRef
@@ -35,64 +44,36 @@ type Bucket interface {
 	CreateReader(ctx context.Context, ref FileRef) (reader io.ReadCloser, err error)
 }
 
+// FileRef is an abstraction for a file reference
+// This interface doesn't hold a handle to any specific file
+// It acts as a pointer to a file in storage
+// It is the buckets responsibility to open handles and exposing them using the std io interfaces
 type FileRef interface {
 	Url() URL
 	Path() string
+	Bucket() Bucket
 }
 
-func NewCloudBucket(ctx context.Context, url URL) (bucket *CloudBucket, err error) {
-	store, err := blob.OpenBucket(ctx, url.String())
+// Copy mimics the Go io.Copy function
+// It is possible to copy FileRefs between buckets
+//
+// TODO: implement a CopyWithin function that is optimized for copying within the same bucket
+// Most cloud providers have APIs for this
+// This will require extending the Bucket interface to support this
+// https://gocloud.dev/blob supports this
+func Copy(ctx context.Context, src, dst FileRef) (err error) {
+	reader, err := src.Bucket().CreateReader(ctx, src)
 	if err != nil {
 		return
 	}
-	return &CloudBucket{
-		store:  store,
-		bucket: url.Bucket,
-		driver: url.Driver,
-	}, nil
-}
+	defer reader.Close()
 
-type CloudBucket struct {
-	driver string
-	bucket string
-	store  *blob.Bucket
-}
-
-func (c *CloudBucket) Url() URL {
-	return URL{
-		Driver: c.driver,
-		Bucket: c.bucket,
+	writer, err := dst.Bucket().CreateWriter(ctx, dst)
+	if err != nil {
+		return
 	}
-}
+	defer writer.Close()
 
-type CloudFileRef struct {
-	path   string
-	bucket *CloudBucket
-}
-
-func (c *CloudFileRef) Path() string {
-	return c.path
-}
-
-func (c *CloudFileRef) Url() URL {
-	return URL{
-		Driver: c.bucket.driver,
-		Bucket: c.bucket.bucket,
-		Path:   c.path,
-	}
-}
-
-func (c *CloudBucket) FileRef(path string) FileRef {
-	return &CloudFileRef{
-		path:   path,
-		bucket: c,
-	}
-}
-
-func (c *CloudBucket) CreateWriter(ctx context.Context, ref FileRef) (writer io.WriteCloser, err error) {
-	return c.store.NewWriter(ctx, ref.Path(), nil)
-}
-
-func (c *CloudBucket) CreateReader(ctx context.Context, ref FileRef) (reader io.ReadCloser, err error) {
-	return c.store.NewReader(ctx, ref.Path(), nil)
+	_, err = io.Copy(writer, reader)
+	return
 }
