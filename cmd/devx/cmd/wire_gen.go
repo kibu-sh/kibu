@@ -9,17 +9,18 @@ package cmd
 import (
 	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/config"
+	"github.com/discernhq/devx/pkg/workspace"
 )
 
 // Injectors from wire.go:
 
 func InitCLI() (RootCmd, error) {
 	context := appcontext.Context()
-	workspaceConfig, err := NewWorkspaceConfig()
+	workspaceConfig, err := workspace.NewWorkspaceConfig()
 	if err != nil {
 		return RootCmd{}, err
 	}
-	fileStore, err := NewConfigFileStore(context, workspaceConfig)
+	fileStore, err := workspace.NewFileStore(context, workspaceConfig)
 	if err != nil {
 		return RootCmd{}, err
 	}

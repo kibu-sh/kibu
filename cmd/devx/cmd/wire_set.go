@@ -1,21 +1,21 @@
 package cmd
 
 import (
-	"github.com/discernhq/devx/internal/workspace"
 	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/config"
+	"github.com/discernhq/devx/pkg/workspace"
 	"github.com/google/wire"
 )
 
 var WireSet = wire.NewSet(
 	appcontext.Context,
-	NewWorkspaceConfig,
+	workspace.NewWorkspaceConfig,
 	NewRootCmd,
 	NewBuildCmd,
 	NewConfigCmd,
 	NewConfigGetCmd,
 	NewConfigSetCmd,
-	NewConfigFileStore,
+	workspace.NewFileStore,
 	NewConfigEditCmd,
 	config.NewEncryptedFileEditor,
 

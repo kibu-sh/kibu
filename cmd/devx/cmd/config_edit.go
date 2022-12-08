@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
-	"github.com/discernhq/devx/internal/workspace"
 	"github.com/discernhq/devx/pkg/config"
+	"github.com/discernhq/devx/pkg/workspace"
 	"github.com/spf13/cobra"
 )
 

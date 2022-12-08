@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/discernhq/devx/internal/cuecore"
 	"github.com/discernhq/devx/pkg/config"
@@ -159,4 +160,17 @@ func CueLoader(c *Config) (err error) {
 	)
 
 	return err
+}
+
+func NewWorkspaceConfig() (*Config, error) {
+	return LoadConfigFromCWD(LoadConfigParams{
+		DetermineRootParams: DetermineRootParams{
+			SearchSuffix: ".devx/workspace.cue",
+		},
+		LoaderFunc: CueLoader,
+	})
+}
+
+func NewFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
+	return config.NewDefaultFileStore(filepath.Join(ws.ConfigRoot(), "store/config")), nil
 }
