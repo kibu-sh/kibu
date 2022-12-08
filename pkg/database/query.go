@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"github.com/Masterminds/squirrel"
+	entity2 "github.com/discernhq/devx/pkg/database/entity"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -76,12 +77,12 @@ func NewSQLFind[E, K any](db *sqlx.DB) FindFunc[E, K] {
 	return func(ctx context.Context, key K) (entity *E, err error) {
 		entity = new(E)
 
-		def, err := ReflectEntityDefinition[E]("db")
+		def, err := entity2.ReflectEntityDefinition[E, K]("db")
 		if err != nil {
 			return nil, err
 		}
 
-		sql, args, err := squirrel.Select(def.Fields.Names()...).
+		sql, args, err := squirrel.Select(def.Fields().Names()...).
 			From("table").
 			Where(squirrel.Eq{"AlbumId": key}).
 			ToSql()

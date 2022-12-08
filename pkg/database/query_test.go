@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
-	"os"
-	"path/filepath"
 	"testing"
 
 	sq "github.com/Masterminds/squirrel"
@@ -28,15 +26,13 @@ type Album struct {
 	// Artist   Artist `db:",rel=artist,fields=[ArtistId],ref=[ArtistId]"`
 }
 
-var AlbumDefinition = EntityDefinition{
-	Table: "albums",
-}
-
 func TestQuery(t *testing.T) {
-	cwd, _ := os.Getwd()
 	ctx := context.Background()
-	testdata := filepath.Join(cwd, "testdata")
-	conn, connErr := sqlx.Open("sqlite3", filepath.Join(testdata, "chinook.conn"))
+	tmpDD, cleanup, tmpErr := copyDatabase()
+	require.NoError(t, tmpErr)
+	defer cleanup()
+
+	conn, connErr := sqlx.Open("sqlite3", tmpDD)
 	require.NoError(t, connErr)
 
 	t.Run("should be able to bind entity to query results", func(t *testing.T) {

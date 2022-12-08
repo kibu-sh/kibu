@@ -1,17 +1,41 @@
 package database
 
-type Op interface {
-	Query() Query
+import (
+	"context"
+	"github.com/discernhq/devx/pkg/database/xql"
+)
+
+type Operation int
+
+const (
+	OpFindOne Operation = iota
+	OpFindMany
+	OpCreateOne
+	OpCreateMany
+	OpSaveOne
+	OpSaveMany
+	OpUpdateOne
+	OpUpdateMany
+	OpDeleteOne
+	OpDeleteMany
+)
+
+type Context interface {
+	context.Context
+	Operation() Operation
+	Query() xql.Query
 }
 
-type OpFindOne struct {
-	query Query
+type OpContext struct {
+	context.Context
+	operation Operation
+	query     xql.Query
 }
 
-func (o OpFindOne) Query() Query { return o.query }
-
-type OpFindMany struct {
-	query Query
+func (o OpContext) Operation() Operation {
+	return o.operation
 }
 
-func (o OpFindMany) Query() Query { return o.query }
+func (o OpContext) Query() xql.Query {
+	return o.query
+}

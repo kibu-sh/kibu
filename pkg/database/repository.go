@@ -2,13 +2,14 @@ package database
 
 import (
 	"context"
+	"github.com/discernhq/devx/pkg/database/entity"
 	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/pkg/errors"
 )
 
 type QueryMethods[Entity, PK any] interface {
 	FindOne(ctx context.Context, primaryKey string) (model *Entity, err error)
-	FindMany(ctx context.Context, builder SelectBuilderFunc) (models []*Entity, err error)
+	FindMany(ctx context.Context, builder xql.SelectBuilderFunc) (models []*Entity, err error)
 }
 
 type CommandMethods[Entity, PK any] interface {
@@ -24,12 +25,12 @@ type CommandMethods[Entity, PK any] interface {
 type Repo[Entity, PK any] struct {
 	conn    Conn
 	options *RepoOptions
+	mapper  *entity.Definition[Entity, PK]
 }
 
 type RepoOptions struct {
-	Logger           Logger
-	QueryHook        HookFunc
-	EntityDefinition EntityDefinition
+	Logger    Logger
+	QueryHook HookFunc
 }
 
 type RepoOptionFunc func(options *RepoOptions) error
@@ -44,19 +45,19 @@ func WithLogger(logger Logger) RepoOptionFunc {
 	}
 }
 
-func noOpQueryHook(ctx context.Context, op Op, result any) error { return nil }
+func noOpQueryHook(ctx context.Context, op Context, result any) error { return nil }
 
 func withExecHook(conn Conn) HookFunc {
-	return func(ctx context.Context, op Op, result any) (err error) {
-		switch op.(type) {
+	return func(ctx Context, result any) (err error) {
+		switch ctx.Operation() {
 		case OpFindOne:
-			err = conn.Get(ctx, result, op.Query())
+			err = conn.Get(ctx, result, ctx.Query())
 			break
 		case OpFindMany:
-			err = conn.Select(ctx, result, op.Query())
+			err = conn.Select(ctx, result, ctx.Query())
 			break
 		default:
-			err = errors.Errorf("unsupported operation %T", op)
+			err = errors.Errorf("unsupported operation %T", ctx.Operation())
 		}
 		return
 	}
@@ -72,7 +73,7 @@ func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Enti
 		options: options,
 	}
 
-	options.EntityDefinition, err = ReflectEntityDefinition[Entity]("db")
+	repo.mapper, err = entity.ReflectEntityDefinition[Entity, PK]("db")
 	if err != nil {
 		return
 	}
@@ -85,24 +86,16 @@ func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Enti
 	return
 }
 
-type Query interface {
-	ToSql() (stm string, args []any, err error)
-}
-
-type SelectBuilderFunc func(q xql.SelectBuilder) Query
-type UpdateBuilderFunc func(q xql.UpdateBuilder) Query
-type DeleteBuilderFunc func(q xql.DeleteBuilder) Query
-
-type HookFunc func(ctx context.Context, op Op, result any) error
+type HookFunc func(ctx Context, result any) error
 type HookDecoratorFunc func(next HookFunc) HookFunc
 
 func HookDecorator(base HookFunc) HookDecoratorFunc {
 	return func(next HookFunc) HookFunc {
-		return func(ctx context.Context, op Op, result any) error {
-			if err := base(ctx, op, result); err != nil {
+		return func(ctx Context, result any) error {
+			if err := base(ctx, result); err != nil {
 				return err
 			}
-			return next(ctx, op, result)
+			return next(ctx, result)
 		}
 	}
 }
@@ -116,24 +109,28 @@ func WithHook(hook HookFunc) RepoOptionFunc {
 
 func (r *Repo[Entity, PK]) FindOne(ctx context.Context, primaryKey PK) (entity *Entity, err error) {
 	entity = new(Entity)
-	query := xql.
-		Select(r.options.EntityDefinition.Fields.Names()...).
-		From(r.options.EntityDefinition.RelationName()).
-		Where(xql.Eq{r.options.EntityDefinition.Fields.PrimaryKey().String(): primaryKey})
-
-	err = r.options.QueryHook(ctx, OpFindOne{
-		query: query,
+	err = r.options.QueryHook(&OpContext{
+		Context:   ctx,
+		operation: OpFindOne,
+		query:     r.mapper.SelectOneBuilder(primaryKey),
 	}, entity)
 	return
 }
 
-func (r *Repo[Entity, PK]) FindMany(ctx context.Context, selectBuilder SelectBuilderFunc) (entities []*Entity, err error) {
-	query := selectBuilder(xql.
-		Select(r.options.EntityDefinition.Fields.Names()...).
-		From(r.options.EntityDefinition.RelationName()))
-
-	err = r.options.QueryHook(ctx, OpFindMany{
-		query: query,
+func (r *Repo[Entity, PK]) FindMany(ctx context.Context, selectBuilder xql.SelectBuilderFunc) (entities []*Entity, err error) {
+	err = r.options.QueryHook(&OpContext{
+		Context:   ctx,
+		operation: OpFindMany,
+		query:     r.mapper.SelectBuilder(),
 	}, &entities)
+	return
+}
+
+func (r *Repo[Entity, PK]) CreateOne(ctx context.Context, entity *Entity) (err error) {
+	err = r.options.QueryHook(&OpContext{
+		Context:   ctx,
+		operation: OpCreateOne,
+		query:     r.mapper.InsertBuilder().SetMap(r.mapper.ValueMap(entity)),
+	}, entity)
 	return
 }

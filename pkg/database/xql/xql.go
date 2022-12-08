@@ -34,3 +34,25 @@ type SelectBuilder = sq.SelectBuilder
 type InsertBuilder = sq.InsertBuilder
 type UpdateBuilder = sq.UpdateBuilder
 type DeleteBuilder = sq.DeleteBuilder
+
+type QueryBuilder interface {
+	SelectBuilder() SelectBuilder
+	InsertBuilder() InsertBuilder
+	UpdateBuilder() UpdateBuilder
+	DeleteBuilder() DeleteBuilder
+}
+
+type PKQueryBuilder[Entity, PK any] interface {
+	SelectOneBuilder(primaryKey PK) SelectBuilder
+	DeleteOneBuilder(primaryKey PK) DeleteBuilder
+	UpdateOneBuilder(primaryKey PK) UpdateBuilder
+}
+
+type Query interface {
+	ToSql() (stm string, args []any, err error)
+}
+type SelectBuilderFunc func(q SelectBuilder) Query
+type InsertBuilderFunc func(q InsertBuilder) Query
+type UpdateBuilderFunc func(q UpdateBuilder) Query
+
+type DeleteBuilderFunc func(q DeleteBuilder) Query

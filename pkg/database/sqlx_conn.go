@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -20,7 +21,7 @@ func (s *SQLXConn) Close(ctx context.Context) error {
 	return s.db.Close()
 }
 
-func (s *SQLXConn) Get(ctx context.Context, dest any, query Query) (err error) {
+func (s *SQLXConn) Get(ctx context.Context, dest any, query xql.Query) (err error) {
 	stm, args, err := query.ToSql()
 	if err != nil {
 		return
@@ -28,7 +29,7 @@ func (s *SQLXConn) Get(ctx context.Context, dest any, query Query) (err error) {
 	return s.db.GetContext(ctx, dest, stm, args...)
 }
 
-func (s *SQLXConn) Select(ctx context.Context, dest any, query Query) error {
+func (s *SQLXConn) Select(ctx context.Context, dest any, query xql.Query) error {
 	stm, args, err := query.ToSql()
 	if err != nil {
 		return err
@@ -42,7 +43,7 @@ func (s *SQLXConn) BeginTxn(ctx context.Context, opts *sql.TxOptions) (txn Txn, 
 	return
 }
 
-func (s *SQLXConn) Exec(ctx context.Context, query Query) (result sql.Result, err error) {
+func (s *SQLXConn) Exec(ctx context.Context, query xql.Query) (result sql.Result, err error) {
 	stm, args, err := query.ToSql()
 	if err != nil {
 		return
