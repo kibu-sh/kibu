@@ -8,21 +8,29 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-type InMemoryRepository[T Model] struct {
+type Model interface {
+	PrimaryKey() string
+}
+
+type MemoryRepository[T Model] struct {
 	objects *utils.SyncMap[T]
 }
 
-func (t *InMemoryRepository[T]) Save(ctx context.Context, model T) (err error) {
-	t.objects.Store(model.PrimaryKey(), &model)
+func asModel(v any) Model {
+	return v.(Model)
+}
+
+func (t *MemoryRepository[T]) Save(ctx context.Context, model *T) (err error) {
+	t.objects.Store(asModel(model).PrimaryKey(), model)
 	return
 }
 
-func (t *InMemoryRepository[T]) Delete(ctx context.Context, model T) (err error) {
-	t.objects.Delete(model.PrimaryKey())
+func (t *MemoryRepository[T]) Delete(ctx context.Context, model *T) (err error) {
+	t.objects.Delete(asModel(model).PrimaryKey())
 	return
 }
 
-func (t *InMemoryRepository[T]) FindOne(ctx context.Context, primaryKey string) (model *T, err error) {
+func (t *MemoryRepository[T]) FindOne(ctx context.Context, primaryKey string) (model *T, err error) {
 	model, err = t.FindOneOrThrow(ctx, primaryKey)
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
@@ -30,7 +38,7 @@ func (t *InMemoryRepository[T]) FindOne(ctx context.Context, primaryKey string) 
 	return
 }
 
-func (t *InMemoryRepository[T]) FindOneOrThrow(ctx context.Context, primaryKey string) (model *T, err error) {
+func (t *MemoryRepository[T]) FindOneOrThrow(ctx context.Context, primaryKey string) (model *T, err error) {
 	model, ok := t.objects.Load(primaryKey)
 	if !ok {
 		err = errors.Wrapf(ErrNotFound, "%T by primary key %s", model, primaryKey)
@@ -39,8 +47,8 @@ func (t *InMemoryRepository[T]) FindOneOrThrow(ctx context.Context, primaryKey s
 	return
 }
 
-func NewMemoryRepository[T Model]() *InMemoryRepository[T] {
-	return &InMemoryRepository[T]{
+func NewMemoryRepository[T Model]() *MemoryRepository[T] {
+	return &MemoryRepository[T]{
 		objects: utils.NewSyncMap[T](),
 	}
 }
