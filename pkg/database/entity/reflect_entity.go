@@ -88,36 +88,3 @@ func parseTagOptions(tag *structtag.Tag) (options tagOptions) {
 	}
 	return
 }
-
-type ValueMap map[string]any
-
-func (d *Definition[E, PK]) ValueMap(entity *E) (values ValueMap) {
-	values = make(map[string]any)
-	reflected := reflect.ValueOf(entity).Elem()
-	for s, meta := range d.dbToStruct {
-		values[s] = reflected.Field(meta.ID).Interface()
-	}
-	return
-}
-
-func (d *Definition[E, PK]) ValueMapToEntity(valueMap ValueMap) (entity *E) {
-	entity = new(E)
-	reflected := reflect.ValueOf(entity).Elem()
-
-	for dbField, value := range valueMap {
-		if meta, ok := d.dbToStruct[dbField]; ok {
-			reflected.Field(meta.ID).Set(reflect.ValueOf(value))
-		}
-	}
-	return
-}
-
-func (d *Definition[E, PK]) ColumnValues(entity *E) (values []any) {
-	reflected := reflect.ValueOf(entity).Elem()
-	// deterministic list of values by field order
-	for _, field := range d.Fields() {
-		meta := d.dbToStruct[field.Name]
-		values = append(values, reflected.Field(meta.ID).Interface())
-	}
-	return
-}

@@ -18,7 +18,29 @@ const (
 	OpUpdateMany
 	OpDeleteOne
 	OpDeleteMany
+	OpEnd
 )
+
+var operationNames = map[Operation]string{
+	OpFindOne:    "FIND_ONE",
+	OpFindMany:   "FIND_MANY",
+	OpCreateOne:  "CREATE_ONE",
+	OpCreateMany: "CREATE_MANY",
+	OpSaveOne:    "SAVE_ONE",
+	OpSaveMany:   "SAVE_MANY",
+	OpUpdateOne:  "UPDATE_ONE",
+	OpUpdateMany: "UPDATE_MANY",
+	OpDeleteOne:  "DELETE_ONE",
+	OpDeleteMany: "DELETE_MANY",
+}
+
+func (o Operation) String() string {
+	name, ok := operationNames[o]
+	if !ok {
+		return "UNKNOWN"
+	}
+	return name
+}
 
 type Context interface {
 	context.Context

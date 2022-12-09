@@ -104,10 +104,13 @@ type SQLQuery interface {
 
 type RawSQLFunc func() (string, []any)
 
+//revive:disable:var-naming
 func (r RawSQLFunc) ToSql() (sql string, args []any, err error) {
 	sql, args = r()
 	return
 }
+
+//revive:enable:var-naming
 
 type SQLExec interface {
 	Exec(ctx context.Context, target any, query SQLQuery) error

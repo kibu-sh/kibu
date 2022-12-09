@@ -1,0 +1,25 @@
+run:
+  concurrency: 4
+  timeout: 5m
+  issues-exit-code: 2
+  tests: true
+  skip-dirs:
+    - vendor
+    - node_modules
+  modules-download-mode: readonly
+  allow-parallel-runners: false
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - revive
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: error
+        arguments: [ "checkPrivateReceivers","disableStutteringCheck" ]
+      - name: var-naming
+#        arguments: [["SQL"], []]

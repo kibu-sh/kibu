@@ -71,11 +71,10 @@ func (s *FileStore) Set(ctx context.Context, params SetParams) (ciphertext *Ciph
 	stream, err := s.FS.OpenWritable(ctx, OpenParams{
 		Path: encJsonExt(params.Path),
 	})
-	defer stream.Close()
-
 	if err != nil {
 		return
 	}
+	defer stream.Close()
 
 	encoder := json.NewEncoder(stream)
 	encoder.SetIndent("", "\t")
@@ -89,11 +88,10 @@ func (s FileStore) Get(ctx context.Context, params GetParams) (ciphertext *Ciphe
 	stream, err := s.FS.OpenReadable(ctx, OpenParams{
 		Path: encJsonExt(params.Path),
 	})
-	defer stream.Close()
-
 	if err != nil {
 		return
 	}
+	defer stream.Close()
 
 	if err = json.NewDecoder(stream).Decode(ciphertext); err != nil {
 		return

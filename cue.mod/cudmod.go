@@ -23,7 +23,7 @@ func Copy(dir string) error {
 		return err
 	}
 
-	if err := copyFile(dir, "module.cue", nil); err != nil {
+	if err := copyFile(dir, "module.cue"); err != nil {
 		return err
 	}
 
@@ -36,15 +36,14 @@ func Copy(dir string) error {
 			return os.MkdirAll(filepath.Join(dir, path), 0755)
 		}
 
-		err2 := copyFile(dir, path, err)
-		if err2 != nil {
-			return err2
+		if err = copyFile(dir, path); err != nil {
+			return err
 		}
 		return nil
 	})
 }
 
-func copyFile(dir string, path string, err error) error {
+func copyFile(dir string, path string) (err error) {
 	vf, err := cueModFS.Open(path)
 	if err != nil {
 		return err
