@@ -70,34 +70,25 @@ func WithLogger(logger Logger) RepoOptionFunc {
 
 func noOpQueryHook(ctx Context, result any) (err error) { return }
 
-func newFindOneHook(conn Conn) HookFunc {
+func newFindOneHook(conn Conn, supported map[Operation]bool) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		if ctx.Operation() == OpFindOne {
+		if _, ok := supported[ctx.Operation()]; ok {
 			err = conn.Get(ctx, result, ctx.Query())
 		}
 		return
 	}
 }
 
-func newFindManyHook(conn Conn) HookFunc {
+func newFindManyHook(conn Conn, supported map[Operation]bool) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		if ctx.Operation() == OpFindMany {
+		if _, ok := supported[ctx.Operation()]; ok {
 			err = conn.Select(ctx, result, ctx.Query())
 		}
 		return
 	}
 }
 
-func newExecHook(conn Conn) HookFunc {
-	supported := map[Operation]bool{
-		OpSaveOne:    true,
-		OpCreateOne:  true,
-		OpCreateMany: true,
-		OpUpdateOne:  true,
-		OpUpdateMany: true,
-		OpDeleteOne:  true,
-		OpDeleteMany: true,
-	}
+func newExecHook(conn Conn, supported map[Operation]bool) HookFunc {
 	return func(ctx Context, result any) (err error) {
 		if _, ok := supported[ctx.Operation()]; ok {
 			_, err = conn.Exec(ctx, ctx.Query())
@@ -157,9 +148,21 @@ func joinHookChains(chains ...HookChain) (result HookChain) {
 func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Entity, PK], err error) {
 	options := &RepoOptions{
 		ExecHookChain: HookChain{
-			newFindOneHook(conn),
-			newFindManyHook(conn),
-			newExecHook(conn),
+			newFindOneHook(conn, map[Operation]bool{
+				OpFindOne: true,
+			}),
+			newFindManyHook(conn, map[Operation]bool{
+				OpFindMany: true,
+			}),
+			newExecHook(conn, map[Operation]bool{
+				OpSaveOne:    true,
+				OpCreateOne:  true,
+				OpCreateMany: true,
+				OpUpdateOne:  true,
+				OpUpdateMany: true,
+				OpDeleteOne:  true,
+				OpDeleteMany: true,
+			}),
 		},
 	}
 
