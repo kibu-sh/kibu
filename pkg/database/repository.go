@@ -70,28 +70,31 @@ func WithLogger(logger Logger) RepoOptionFunc {
 
 func noOpQueryHook(ctx Context, result any) (err error) { return }
 
-func newFindOneHook(conn Conn, supported map[Operation]bool) HookFunc {
+func newFindOneHook(conn Conn) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		if _, ok := supported[ctx.Operation()]; ok {
-			err = conn.Get(ctx, result, ctx.Query())
-		}
+		err = conn.Get(ctx, result, ctx.Query())
 		return
 	}
 }
 
-func newFindManyHook(conn Conn, supported map[Operation]bool) HookFunc {
+func newFindManyHook(conn Conn) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		if _, ok := supported[ctx.Operation()]; ok {
-			err = conn.Select(ctx, result, ctx.Query())
-		}
+		err = conn.Select(ctx, result, ctx.Query())
 		return
 	}
 }
 
-func newExecHook(conn Conn, supported map[Operation]bool) HookFunc {
+func newExecHook(conn Conn) HookFunc {
+	return func(ctx Context, result any) (err error) {
+		_, err = conn.Exec(ctx, ctx.Query())
+		return
+	}
+}
+
+func bindHookToOperations(hook HookFunc, supported map[Operation]bool) HookFunc {
 	return func(ctx Context, result any) (err error) {
 		if _, ok := supported[ctx.Operation()]; ok {
-			_, err = conn.Exec(ctx, ctx.Query())
+			err = hook(ctx, result)
 		}
 		return
 	}
@@ -145,26 +148,30 @@ func joinHookChains(chains ...HookChain) (result HookChain) {
 	return
 }
 
-func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Entity, PK], err error) {
-	options := &RepoOptions{
+func newDefaultRepoOptions(conn Conn) *RepoOptions {
+	return &RepoOptions{
 		ExecHookChain: HookChain{
-			newFindOneHook(conn, map[Operation]bool{
+			bindHookToOperations(newFindOneHook(conn), map[Operation]bool{
 				OpFindOne: true,
 			}),
-			newFindManyHook(conn, map[Operation]bool{
+			bindHookToOperations(newFindManyHook(conn), map[Operation]bool{
 				OpFindMany: true,
 			}),
-			newExecHook(conn, map[Operation]bool{
-				OpSaveOne:    true,
+			bindHookToOperations(newExecHook(conn), map[Operation]bool{
 				OpCreateOne:  true,
+				OpSaveOne:    true,
+				OpUpdateMany: true,
 				OpCreateMany: true,
 				OpUpdateOne:  true,
-				OpUpdateMany: true,
 				OpDeleteOne:  true,
 				OpDeleteMany: true,
 			}),
 		},
 	}
+}
+
+func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Entity, PK], err error) {
+	options := newDefaultRepoOptions(conn)
 
 	repo = &Repo[Entity, PK]{
 		conn:    conn,
@@ -247,8 +254,8 @@ func (r *Repo[Entity, PK]) SaveOne(ctx context.Context, entity *Entity) (err err
 }
 
 func (r *Repo[Entity, PK]) SaveMany(ctx context.Context, entities []*Entity) (err error) {
-	for _, entity := range entities {
-		if err = r.SaveOne(ctx, entity); err != nil {
+	for _, ent := range entities {
+		if err = r.SaveOne(ctx, ent); err != nil {
 			return
 		}
 	}
