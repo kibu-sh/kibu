@@ -1,8 +1,7 @@
-package entity
+package model
 
 import (
 	"fmt"
-	"strings"
 )
 
 type Field struct {
@@ -19,10 +18,10 @@ func (f Fields) Names() (names []string) {
 	return
 }
 
-func (f Fields) PrimaryKey() (keys PrimaryKey) {
+func (f Fields) IdentityFields() (fields Fields) {
 	for _, field := range f {
 		if field.IsIdentity {
-			keys = append(keys, field)
+			fields = append(fields, field)
 		}
 	}
 	return
@@ -36,17 +35,4 @@ func (f Fields) FieldParams(prefix string) (names []any) {
 		names = append(names, fmt.Sprintf(":%s", name))
 	}
 	return
-}
-
-type PrimaryKey []Field
-
-func (p PrimaryKey) Names() (names []string) {
-	for _, field := range p {
-		names = append(names, field.Name)
-	}
-	return
-}
-
-func (p PrimaryKey) String() string {
-	return strings.Join(p.Names(), ".")
 }

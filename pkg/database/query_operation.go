@@ -11,10 +11,7 @@ const (
 	OpFindOne Operation = iota
 	OpFindMany
 	OpCreateOne
-	OpCreateMany
 	OpSaveOne
-	OpSaveMany
-	OpUpdateOne
 	OpUpdateMany
 	OpDeleteOne
 	OpDeleteMany
@@ -25,10 +22,7 @@ var operationNames = map[Operation]string{
 	OpFindOne:    "FIND_ONE",
 	OpFindMany:   "FIND_MANY",
 	OpCreateOne:  "CREATE_ONE",
-	OpCreateMany: "CREATE_MANY",
 	OpSaveOne:    "SAVE_ONE",
-	OpSaveMany:   "SAVE_MANY",
-	OpUpdateOne:  "UPDATE_ONE",
 	OpUpdateMany: "UPDATE_MANY",
 	OpDeleteOne:  "DELETE_ONE",
 	OpDeleteMany: "DELETE_MANY",

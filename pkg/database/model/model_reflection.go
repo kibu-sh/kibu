@@ -1,4 +1,4 @@
-package entity
+package model
 
 import (
 	"github.com/fatih/structtag"
@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-func ReflectEntityDefinition[E any, PK any](tagName string) (def *Definition[E, PK], err error) {
+func Reflect[E any](tagName string) (def *Definition[E], err error) {
 	r := reflect.TypeOf(new(E)).Elem()
-	def = new(Definition[E, PK])
+	def = new(Definition[E])
 	def.structToDB = make(map[string]string)
 	def.dbToStruct = make(map[string]structReflectMeta)
 

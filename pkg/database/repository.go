@@ -2,49 +2,48 @@ package database
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/database/entity"
+	"github.com/discernhq/devx/pkg/database/model"
 	"github.com/discernhq/devx/pkg/database/xql"
 )
 
-var _ QueryMethods[any, any] = (*Repo[any, any])(nil)
-var _ CommandMethods[any, any] = (*Repo[any, any])(nil)
+var _ QueryMethods[any] = (*Repo[any])(nil)
+var _ CommandMethods[any] = (*Repo[any])(nil)
 
-type QueryMethods[Entity, PK any] interface {
-	FindOne(ctx context.Context, primaryKey PK) (model *Entity, err error)
-	FindMany(ctx context.Context, builder xql.SelectBuilderFunc) (models []*Entity, err error)
+type QueryMethods[Model any] interface {
+	FindOne(ctx context.Context, model *Model) (result *Model, err error)
+	FindMany(ctx context.Context, builder xql.SelectBuilderFunc) (result []*Model, err error)
 }
 
-type CreateMethods[Entity, PK any] interface {
-	CreateOne(ctx context.Context, entity *Entity) (err error)
-	CreateMany(ctx context.Context, entities []*Entity) (err error)
+type CreateMethods[Model any] interface {
+	CreateOne(ctx context.Context, model *Model, builders ...xql.InsertBuilderFunc) (err error)
+	CreateMany(ctx context.Context, models []*Model, builders ...xql.InsertBuilderFunc) (err error)
 }
 
-type SaveMethods[Entity, PK any] interface {
-	SaveOne(ctx context.Context, model *Entity) (err error)
-	SaveMany(ctx context.Context, models []*Entity) (err error)
+type SaveMethods[Model any] interface {
+	SaveOne(ctx context.Context, model *Model, builders ...xql.UpdateBuilderFunc) (err error)
+	SaveMany(ctx context.Context, models []*Model, builders ...xql.UpdateBuilderFunc) (err error)
 }
 
-type UpdateMethods[Entity, PK any] interface {
-	UpdateOne(ctx context.Context, pk PK, builder xql.UpdateBuilderFunc) (err error)
-	UpdateMany(ctx context.Context, builder xql.UpdateBuilderFunc) (err error)
+type UpdateMethods[Model any] interface {
+	UpdateMany(ctx context.Context, builders ...xql.UpdateBuilderFunc) (err error)
 }
 
-type DeleteMethods[Entity, PK any] interface {
-	DeleteOne(ctx context.Context, pk PK) (err error)
-	DeleteMany(ctx context.Context, builder xql.DeleteBuilderFunc) (err error)
+type DeleteMethods[Model any] interface {
+	DeleteOne(ctx context.Context, model *Model, builders ...xql.DeleteBuilderFunc) (err error)
+	DeleteMany(ctx context.Context, builders ...xql.DeleteBuilderFunc) (err error)
 }
 
-type CommandMethods[Entity, PK any] interface {
-	SaveMethods[Entity, PK]
-	CreateMethods[Entity, PK]
-	UpdateMethods[Entity, PK]
-	DeleteMethods[Entity, PK]
+type CommandMethods[Model any] interface {
+	SaveMethods[Model]
+	CreateMethods[Model]
+	UpdateMethods[Model]
+	DeleteMethods[Model]
 }
 
-type Repo[Entity, PK any] struct {
-	conn          Conn
+type Repo[Model any] struct {
+	runner        xql.Runner
 	options       *RepoOptions
-	mapper        *entity.Definition[Entity, PK]
+	mapper        *model.Definition[Model]
 	queryPipeline HookFunc
 }
 
@@ -68,26 +67,37 @@ func WithLogger(logger Logger) RepoOptionFunc {
 	}
 }
 
-func noOpQueryHook(ctx Context, result any) (err error) { return }
+func noOpQueryHook(_ Context, _ any) (err error) {
+	return
+}
 
-func newFindOneHook(conn Conn) HookFunc {
-	return func(ctx Context, result any) (err error) {
-		err = conn.Get(ctx, result, ctx.Query())
-		return
+func newFindOneHook(runner xql.Runner) HookFunc {
+	return func(ctx Context, result any) error {
+		return xql.QueryWith(ctx, xql.QueryWithParams{
+			Target:       result,
+			Query:        ctx.Query(),
+			QueryStmFunc: runner.GetContext,
+		})
 	}
 }
 
-func newFindManyHook(conn Conn) HookFunc {
+func newFindManyHook(runner xql.Runner) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		err = conn.Select(ctx, result, ctx.Query())
-		return
+		return xql.QueryWith(ctx, xql.QueryWithParams{
+			Target:       result,
+			Query:        ctx.Query(),
+			QueryStmFunc: runner.SelectContext,
+		})
 	}
 }
 
-func newExecHook(conn Conn) HookFunc {
+func newExecHook(runner xql.Runner) HookFunc {
 	return func(ctx Context, result any) (err error) {
-		_, err = conn.Exec(ctx, ctx.Query())
-		return
+		return xql.QueryWith(ctx, xql.QueryWithParams{
+			Target:       result,
+			Query:        ctx.Query(),
+			QueryStmFunc: xql.ExecAsQueryStmFunc(runner.ExecContext),
+		})
 	}
 }
 
@@ -148,7 +158,7 @@ func joinHookChains(chains ...HookChain) (result HookChain) {
 	return
 }
 
-func newDefaultRepoOptions(conn Conn) *RepoOptions {
+func newDefaultRepoOptions(conn xql.Runner) *RepoOptions {
 	return &RepoOptions{
 		ExecHookChain: HookChain{
 			bindHookToOperations(newFindOneHook(conn), map[Operation]bool{
@@ -161,8 +171,6 @@ func newDefaultRepoOptions(conn Conn) *RepoOptions {
 				OpCreateOne:  true,
 				OpSaveOne:    true,
 				OpUpdateMany: true,
-				OpCreateMany: true,
-				OpUpdateOne:  true,
 				OpDeleteOne:  true,
 				OpDeleteMany: true,
 			}),
@@ -170,15 +178,15 @@ func newDefaultRepoOptions(conn Conn) *RepoOptions {
 	}
 }
 
-func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Entity, PK], err error) {
-	options := newDefaultRepoOptions(conn)
+func NewRepo[Model any](runner xql.Runner, opts ...RepoOptionFunc) (repo *Repo[Model], err error) {
+	options := newDefaultRepoOptions(runner)
 
-	repo = &Repo[Entity, PK]{
-		conn:    conn,
+	repo = &Repo[Model]{
+		runner:  runner,
 		options: options,
 	}
 
-	repo.mapper, err = entity.ReflectEntityDefinition[Entity, PK]("db")
+	repo.mapper, err = model.Reflect[Model]("db")
 	if err != nil {
 		return
 	}
@@ -201,108 +209,99 @@ func NewRepo[Entity, PK any](conn Conn, opts ...RepoOptionFunc) (repo *Repo[Enti
 	return
 }
 
-func (r *Repo[Entity, PK]) FindOne(ctx context.Context, primaryKey PK) (entity *Entity, err error) {
-	entity = new(Entity)
+func (r *Repo[Model]) FindOne(ctx context.Context, model *Model) (result *Model, err error) {
+	result = new(Model)
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpFindOne,
-		query:     r.mapper.SelectOneBuilder(primaryKey),
-	}, entity)
+		query:     r.mapper.SelectOneBuilder(model),
+	}, result)
 	return
 }
 
-func (r *Repo[Entity, PK]) FindMany(ctx context.Context, selectBuilder xql.SelectBuilderFunc) (entities []*Entity, err error) {
+func (r *Repo[Model]) FindMany(ctx context.Context, selectBuilder xql.SelectBuilderFunc) (result []*Model, err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpFindMany,
 		query:     selectBuilder(r.mapper.SelectBuilder()),
-	}, &entities)
+	}, &result)
 	return
 }
 
-func (r *Repo[Entity, PK]) CreateOne(ctx context.Context, entity *Entity) (err error) {
+func (r *Repo[Model]) CreateOne(ctx context.Context, model *Model, builders ...xql.InsertBuilderFunc) (err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpCreateOne,
-		query:     r.mapper.InsertBuilder().SetMap(r.mapper.ValueMap(entity)),
-	}, entity)
+		query: xql.ApplyInsertBuilderFuncs(
+			r.mapper.InsertBuilder().SetMap(r.mapper.ValueMap(model)),
+			builders...,
+		),
+	}, model)
 	return
 }
 
-func (r *Repo[Entity, PK]) CreateMany(ctx context.Context, entity []*Entity) (err error) {
-	query := r.mapper.InsertBuilder()
-	for _, e := range entity {
-		query = query.Values(r.mapper.ColumnValues(e)...)
-	}
-	err = r.queryPipeline(&OpContext{
-		Context:   ctx,
-		operation: OpCreateMany,
-		query:     query,
-	}, entity)
-	return
-}
-
-func (r *Repo[Entity, PK]) SaveOne(ctx context.Context, entity *Entity) (err error) {
-	err = r.queryPipeline(&OpContext{
-		Context:   ctx,
-		operation: OpSaveOne,
-		query: r.mapper.UpdateOneBuilder(
-			r.mapper.PrimaryKey(entity),
-		).SetMap(r.mapper.ValueMap(entity)),
-	}, entity)
-	return
-}
-
-func (r *Repo[Entity, PK]) SaveMany(ctx context.Context, entities []*Entity) (err error) {
-	for _, ent := range entities {
-		if err = r.SaveOne(ctx, ent); err != nil {
+func (r *Repo[Model]) CreateMany(ctx context.Context, models []*Model, builders ...xql.InsertBuilderFunc) (err error) {
+	for _, m := range models {
+		if err = r.CreateOne(ctx, m, builders...); err != nil {
 			return
 		}
 	}
 	return
 }
 
-func (r *Repo[Entity, PK]) UpdateOne(ctx context.Context, primaryKey PK, updateBuilder xql.UpdateBuilderFunc) (err error) {
+func (r *Repo[Model]) SaveOne(ctx context.Context, model *Model, builders ...xql.UpdateBuilderFunc) (err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
-		operation: OpUpdateOne,
-		query:     updateBuilder(r.mapper.UpdateOneBuilder(primaryKey)),
-	}, nil)
+		operation: OpSaveOne,
+		query: xql.ApplyUpdateBuilderFuncs(
+			r.mapper.UpdateOneBuilder(model).SetMap(r.mapper.ValueMap(model)),
+			builders...,
+		),
+	}, model)
 	return
 }
 
-func (r *Repo[Entity, PK]) UpdateMany(ctx context.Context, updateBuilder xql.UpdateBuilderFunc) (err error) {
+func (r *Repo[Model]) SaveMany(ctx context.Context, models []*Model, builders ...xql.UpdateBuilderFunc) (err error) {
+	for _, m := range models {
+		if err = r.SaveOne(ctx, m, builders...); err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (r *Repo[Model]) UpdateMany(ctx context.Context, builders ...xql.UpdateBuilderFunc) (err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpUpdateMany,
-		query:     updateBuilder(r.mapper.UpdateBuilder()),
+		query: xql.ApplyUpdateBuilderFuncs(
+			r.mapper.UpdateBuilder(),
+			builders...,
+		),
 	}, nil)
 	return
 }
 
-func (r *Repo[Entity, PK]) DeleteOne(ctx context.Context, pk PK) (err error) {
+func (r *Repo[Model]) DeleteOne(ctx context.Context, model *Model, builders ...xql.DeleteBuilderFunc) (err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpDeleteOne,
-		query:     r.mapper.DeleteOneBuilder(pk),
+		query: xql.ApplyDeleteBuilderFuncs(
+			r.mapper.DeleteOneBuilder(model),
+			builders...,
+		),
 	}, nil)
 	return
 }
 
-func (r *Repo[Entity, PK]) DeleteMany(ctx context.Context, deleteBuilder xql.DeleteBuilderFunc) (err error) {
+func (r *Repo[Model]) DeleteMany(ctx context.Context, builders ...xql.DeleteBuilderFunc) (err error) {
 	err = r.queryPipeline(&OpContext{
 		Context:   ctx,
 		operation: OpDeleteMany,
-		query:     deleteBuilder(r.mapper.DeleteBuilder()),
+		query: xql.ApplyDeleteBuilderFuncs(
+			r.mapper.DeleteBuilder(),
+			builders...,
+		),
 	}, nil)
 	return
 }
-
-// func (r *Repo[Entity, PK]) Count(ctx context.Context, selectBuilder xql.SelectBuilderFunc) (count int, err error) {
-// 	err = r.queryPipeline(&OpContext{
-// 		Context:   ctx,
-// 		operation: OpCount,
-// 		query:     selectBuilder(r.mapper.CountBuilder()),
-// 	}, &count)
-// 	return
-// }

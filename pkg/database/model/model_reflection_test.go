@@ -1,6 +1,7 @@
-package entity
+package model
 
 import (
+	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -11,8 +12,8 @@ func TestReflectEntity(t *testing.T) {
 		Name    string `db:"name"`
 		Ignored string `db:"-"`
 	}
-	t.Run("should produce an entity by reflecting a struct", func(t *testing.T) {
-		def, err := ReflectEntityDefinition[User, int]("db")
+	t.Run("should produce an model by reflecting a struct", func(t *testing.T) {
+		def, err := Reflect[User]("db")
 		require.NoError(t, err)
 		require.Equal(t, "public", def.schema)
 		require.Equal(t, "users", def.table)
@@ -38,13 +39,23 @@ func TestReflectEntity(t *testing.T) {
 		}, def.structToDB)
 	})
 
-	t.Run("should produce correct primary key as a string", func(t *testing.T) {
-		entity, err := ReflectEntityDefinition[User, int]("db")
+	t.Run("should produce correct primary key as a map", func(t *testing.T) {
+		type UserWithCompositePK struct {
+			ID   int    `db:"id,pk"`
+			Name string `db:"name,pk"`
+		}
+		entity, err := Reflect[UserWithCompositePK]("db")
 		require.NoError(t, err)
-		require.Equal(t, "id", entity.fields.PrimaryKey().String())
+		require.Equal(t, xql.Eq{
+			"id":   1,
+			"name": "John",
+		}, entity.PrimaryKeyPredicate(&UserWithCompositePK{
+			ID:   1,
+			Name: "John",
+		}))
 	})
 
-	t.Run("should be able to map to and from entity", func(t *testing.T) {
+	t.Run("should be able to map to and from model", func(t *testing.T) {
 		type User struct {
 			ID   int `db:"id"`
 			Name string
@@ -53,7 +64,7 @@ func TestReflectEntity(t *testing.T) {
 			ID:   1,
 			Name: "John",
 		}
-		def, err := ReflectEntityDefinition[User, int]("db")
+		def, err := Reflect[User]("db")
 		require.NoError(t, err)
 
 		valueMap := def.ValueMap(user)
