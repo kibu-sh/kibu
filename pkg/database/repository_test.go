@@ -256,15 +256,6 @@ func TestRepository(t *testing.T) {
 		require.Empty(t, albums)
 	})
 
-	t.Run("should be able to count", func(t *testing.T) {
-		// repo, _ := NewRepo[Album](runner)
-		// count, err := repo.Count(ctx, func(q SelectBuilder) SelectBuilder {
-		// 	return q.Where(In{"AlbumID": []int{3, 4}})
-		// })
-		// require.NoError(t, err)
-		// require.Equal(t, 2, count)
-	})
-
 	t.Run("check all operations", func(t *testing.T) {
 		for i := 0; i < int(OpEnd); i++ {
 			called := false
