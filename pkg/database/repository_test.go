@@ -322,8 +322,8 @@ func TestRepository(t *testing.T) {
 			}),
 		)
 		_, _ = repo.FindOne(ctx, &Album{AlbumID: 1})
-		require.IsType(t, OpFindOne, queryOp)
-		require.IsType(t, OpFindOne, resultOp)
+		require.Equal(t, OpFindOne, queryOp)
+		require.Equal(t, OpFindOne, resultOp)
 	})
 	t.Run("should be able to create handle transactions", func(t *testing.T) {
 		tx, err := conn.BeginTxx(ctx, nil)
