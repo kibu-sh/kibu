@@ -1,4 +1,4 @@
-package database
+package repo
 
 import (
 	"context"
@@ -39,19 +39,25 @@ func (o Operation) String() string {
 type Context interface {
 	context.Context
 	Operation() Operation
-	Query() xql.Query
+	Query() xql.StatementBuilder
+	SetQuery(query xql.StatementBuilder)
 }
 
 type OpContext struct {
 	context.Context
 	operation Operation
-	query     xql.Query
+	query     xql.StatementBuilder
 }
 
-func (o OpContext) Operation() Operation {
+func (o *OpContext) Operation() Operation {
 	return o.operation
 }
 
-func (o OpContext) Query() xql.Query {
+func (o *OpContext) Query() xql.StatementBuilder {
 	return o.query
+}
+
+func (o *OpContext) SetQuery(query xql.StatementBuilder) {
+	o.query = query
+	return
 }

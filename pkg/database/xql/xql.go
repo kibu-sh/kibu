@@ -52,7 +52,7 @@ type EntityQueryBuilder[Entity any] interface {
 	UpdateOneBuilder(entity *Entity) UpdateBuilder
 }
 
-type Query interface {
+type StatementBuilder interface {
 	ToSql() (stm string, args []any, err error)
 }
 type SelectBuilderFunc func(q SelectBuilder) SelectBuilder
@@ -60,7 +60,7 @@ type InsertBuilderFunc func(q InsertBuilder) InsertBuilder
 type UpdateBuilderFunc func(q UpdateBuilder) UpdateBuilder
 type DeleteBuilderFunc func(q DeleteBuilder) DeleteBuilder
 
-type QueryFunc func(ctx context.Context, dest any, q Query)
+type QueryFunc func(ctx context.Context, dest any, q StatementBuilder)
 type QueryStmFunc func(ctx context.Context, dest any, stm string, args ...any) error
 type ExecFunc func(ctx context.Context, stm string, args ...any) (sql.Result, error)
 
@@ -73,7 +73,7 @@ func ExecAsQueryStmFunc(execFunc ExecFunc) QueryStmFunc {
 
 type QueryWithParams struct {
 	Target       any
-	Query        Query
+	Query        StatementBuilder
 	QueryStmFunc QueryStmFunc
 }
 

@@ -6,18 +6,18 @@ import (
 	"strings"
 )
 
-var _ Mapper = (*Definition[any])(nil)
-var _ QueryBuilder = (*Definition[any])(nil)
-var _ EntityQueryBuilder[any] = (*Definition[any])(nil)
+var _ Definition = (*Mapper[any])(nil)
+var _ QueryBuilder = (*Mapper[any])(nil)
+var _ EntityQueryBuilder[any] = (*Mapper[any])(nil)
 
-type Mapper interface {
+type Definition interface {
 	Schema() string
 	Table() string
 	RelationName() string
 	Fields() Fields
 }
 
-type Definition[E any] struct {
+type Mapper[E any] struct {
 	schema     string
 	table      string
 	fields     Fields
@@ -30,19 +30,19 @@ type structReflectMeta struct {
 	ID   int
 }
 
-func (d *Definition[E]) Schema() string {
+func (d *Mapper[E]) Schema() string {
 	return d.schema
 }
 
-func (d *Definition[E]) Table() string {
+func (d *Mapper[E]) Table() string {
 	return d.table
 }
 
-func (d *Definition[E]) Fields() Fields {
+func (d *Mapper[E]) Fields() Fields {
 	return d.fields
 }
 
-func (d *Definition[E]) PrimaryKeyPredicate(entity *E) (result Eq) {
+func (d *Mapper[E]) PrimaryKeyPredicate(entity *E) (result Eq) {
 	result = make(map[string]any)
 	reflected := reflect.ValueOf(entity).Elem()
 	for _, field := range d.fields.IdentityFields() {
@@ -52,37 +52,37 @@ func (d *Definition[E]) PrimaryKeyPredicate(entity *E) (result Eq) {
 	return
 }
 
-func (d *Definition[E]) SelectOneBuilder(entity *E) SelectBuilder {
+func (d *Mapper[E]) SelectOneBuilder(entity *E) SelectBuilder {
 	return d.SelectBuilder().Where(d.PrimaryKeyPredicate(entity))
 }
 
-func (d *Definition[E]) UpdateOneBuilder(entity *E) UpdateBuilder {
+func (d *Mapper[E]) UpdateOneBuilder(entity *E) UpdateBuilder {
 	return d.UpdateBuilder().Where(d.PrimaryKeyPredicate(entity))
 }
 
-func (d *Definition[E]) DeleteOneBuilder(e *E) DeleteBuilder {
+func (d *Mapper[E]) DeleteOneBuilder(e *E) DeleteBuilder {
 	return d.DeleteBuilder().Where(d.PrimaryKeyPredicate(e))
 }
 
-func (d *Definition[E]) SelectBuilder() SelectBuilder {
+func (d *Mapper[E]) SelectBuilder() SelectBuilder {
 	return Select(d.fields.Names()...).From(d.RelationName())
 }
 
-func (d *Definition[E]) InsertBuilder() InsertBuilder {
+func (d *Mapper[E]) InsertBuilder() InsertBuilder {
 	return Insert(d.RelationName()).Columns(d.fields.Names()...)
 }
 
-func (d *Definition[E]) UpdateBuilder() UpdateBuilder {
+func (d *Mapper[E]) UpdateBuilder() UpdateBuilder {
 	return Update(d.RelationName()).Table(d.RelationName())
 }
 
-func (d *Definition[E]) DeleteBuilder() DeleteBuilder {
+func (d *Mapper[E]) DeleteBuilder() DeleteBuilder {
 	return Delete(d.RelationName()).From(d.RelationName())
 }
 
 // RelationName returns the fully qualified name of the model in the database.
 // TODO: this may be different in other dialects. We may need to wrap these.
-func (d *Definition[E]) RelationName() string {
+func (d *Mapper[E]) RelationName() string {
 	parts := []string{d.table}
 	if d.schema != "" {
 		parts = append([]string{d.schema}, parts...)
@@ -92,7 +92,7 @@ func (d *Definition[E]) RelationName() string {
 
 type ValueMap map[string]any
 
-func (d *Definition[E]) ValueMap(entity *E) (values ValueMap) {
+func (d *Mapper[E]) ValueMap(entity *E) (values ValueMap) {
 	values = make(map[string]any)
 	reflected := reflect.ValueOf(entity).Elem()
 	for s, meta := range d.dbToStruct {
@@ -101,7 +101,7 @@ func (d *Definition[E]) ValueMap(entity *E) (values ValueMap) {
 	return
 }
 
-func (d *Definition[E]) ValueMapToEntity(valueMap ValueMap) (entity *E) {
+func (d *Mapper[E]) ValueMapToEntity(valueMap ValueMap) (entity *E) {
 	entity = new(E)
 	reflected := reflect.ValueOf(entity).Elem()
 
@@ -113,7 +113,7 @@ func (d *Definition[E]) ValueMapToEntity(valueMap ValueMap) (entity *E) {
 	return
 }
 
-func (d *Definition[E]) ColumnValues(entity *E) (values []any) {
+func (d *Mapper[E]) ColumnValues(entity *E) (values []any) {
 	reflected := reflect.ValueOf(entity).Elem()
 	// deterministic list of values by field order
 	for _, field := range d.Fields() {

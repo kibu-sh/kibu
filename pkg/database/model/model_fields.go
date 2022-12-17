@@ -1,9 +1,5 @@
 package model
 
-import (
-	"fmt"
-)
-
 type Field struct {
 	Name       string
 	IsIdentity bool
@@ -23,16 +19,6 @@ func (f Fields) IdentityFields() (fields Fields) {
 		if field.IsIdentity {
 			fields = append(fields, field)
 		}
-	}
-	return
-}
-
-func (f Fields) FieldParams(prefix string) (names []any) {
-	if prefix == "" {
-		prefix = ":"
-	}
-	for _, name := range f.Names() {
-		names = append(names, fmt.Sprintf(":%s", name))
 	}
 	return
 }

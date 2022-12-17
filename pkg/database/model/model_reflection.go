@@ -6,9 +6,10 @@ import (
 	"strings"
 )
 
-func Reflect[E any](tagName string) (def *Definition[E], err error) {
+func Reflect[E any](tagName string) (def *Mapper[E], err error) {
 	r := reflect.TypeOf(new(E)).Elem()
-	def = new(Definition[E])
+	def = new(Mapper[E])
+	def.table = r.Name()
 	def.structToDB = make(map[string]string)
 	def.dbToStruct = make(map[string]structReflectMeta)
 

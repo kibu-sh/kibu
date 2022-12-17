@@ -12,6 +12,14 @@ func TestReflectEntity(t *testing.T) {
 		Name    string `db:"name"`
 		Ignored string `db:"-"`
 	}
+	type Related struct {
+		ID int `db:"id,pk"`
+	}
+	t.Run("should infer table name from struct name", func(t *testing.T) {
+		def, err := Reflect[Related]("db")
+		require.NoError(t, err)
+		require.Equal(t, "Related", def.table)
+	})
 	t.Run("should produce an model by reflecting a struct", func(t *testing.T) {
 		def, err := Reflect[User]("db")
 		require.NoError(t, err)
@@ -80,6 +88,4 @@ func TestReflectEntity(t *testing.T) {
 		values := def.ColumnValues(user)
 		require.Equal(t, []any{1, "John"}, values)
 	})
-
-	t.Run("should support composite primary keys", func(t *testing.T) {})
 }

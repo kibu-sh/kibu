@@ -1,30 +1,18 @@
-package database
+package repo
 
 import (
 	"context"
+	"database/sql"
+	"github.com/discernhq/devx/pkg/database"
+	"github.com/discernhq/devx/pkg/database/repo/testdata/testmodels"
+	. "github.com/discernhq/devx/pkg/database/xql"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
-
-	. "github.com/discernhq/devx/pkg/database/xql"
 )
-
-type Artist struct {
-	ArtistID int    `db:"ArtistId"`
-	Name     string `db:"Name"`
-	// Albums   []Album `db:",rel=albums,ref=ArtistId"`
-}
-
-type Album struct {
-	AlbumID  int    `db:"AlbumId,pk,table=albums"`
-	ArtistID int    `db:"ArtistId"`
-	Title    string `db:"Title"`
-	Omitted  string `db:"-"`
-	// Artist   Artist `db:",rel=artist,fields=[ArtistId],ref=[ArtistId]"`
-}
 
 func copyDatabase() (dbCopyPath string, cleanup func(), err error) {
 	cwd, err := os.Getwd()
@@ -64,12 +52,12 @@ func TestRepository(t *testing.T) {
 	require.NoError(t, dbCpErr)
 	defer cleanup()
 
-	conn, connErr := NewConn(ctx, Sqlite3, dbPath)
+	conn, connErr := database.NewConn(ctx, database.Sqlite3, dbPath)
 	require.NoError(t, connErr)
 
 	t.Run("should be able to find one", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		album, err := repo.FindOne(ctx, &Album{
+		repo, _ := NewRepo[testmodels.Album]()
+		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{
 			AlbumID: 1,
 		})
 
@@ -80,13 +68,13 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to find many", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		albums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		repo, _ := NewRepo[testmodels.Album]()
+		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(Like{"Title": "%rock%"})
 		})
 
 		require.NoError(t, err)
-		require.Equal(t, &Album{
+		require.Equal(t, &testmodels.Album{
 			AlbumID:  216,
 			ArtistID: 142,
 			Title:    "Hot Rocks, 1964-1971 (Disc 1)",
@@ -94,18 +82,18 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to save one", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
+		repo, _ := NewRepo[testmodels.Album]()
 
-		expected := &Album{
+		expected := &testmodels.Album{
 			AlbumID:  500,
 			ArtistID: 1,
 			Title:    "I'm new here... how are you? (Small Talk)",
 		}
 
-		err := repo.CreateOne(ctx, expected)
+		err := repo.Query(conn).CreateOne(ctx, expected)
 		require.NoError(t, err)
 
-		album, err := repo.FindOne(ctx, &Album{AlbumID: 500})
+		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 500})
 		require.NoError(t, err)
 		require.Equal(t, expected, album)
 	})
@@ -115,13 +103,13 @@ func TestRepository(t *testing.T) {
 		privacyErr := errors.New("privacy error")
 		queryHook := WithQueryHook(func(ctx Context, result any) error {
 			queryHookRun = true
-			require.Equal(t, result, &Album{}, "should intercept zero-value result")
+			require.Equal(t, result, &testmodels.Album{}, "should intercept zero-value result")
 			return nil
 		})
 
-		privacyHook := WithPrivacyHook(func(ctx Context, result any) error {
+		privacyHook := WithResultHook(func(ctx Context, result any) error {
 			require.True(t, queryHookRun, "should run query hook first")
-			require.Equal(t, &Album{
+			require.Equal(t, &testmodels.Album{
 				AlbumID:  1,
 				ArtistID: 1,
 				Title:    "For Those About To Rock We Salute You",
@@ -129,36 +117,36 @@ func TestRepository(t *testing.T) {
 			return privacyErr
 		})
 
-		repo, _ := NewRepo[Album](conn,
+		repo, _ := NewRepo[testmodels.Album](
 			privacyHook,
 			queryHook,
 		)
 
-		_, err := repo.FindOne(ctx, &Album{AlbumID: 1})
+		_, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.ErrorAs(t, err, &privacyErr)
 	})
 
 	t.Run("should be able to create one", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
+		repo, _ := NewRepo[testmodels.Album]()
 
-		expected := &Album{
+		expected := &testmodels.Album{
 			AlbumID:  600,
 			ArtistID: 1,
 			Title:    "I'm new here... how are you? (Small Talk)",
 		}
 
-		err := repo.CreateOne(ctx, expected)
+		err := repo.Query(conn).CreateOne(ctx, expected)
 		require.NoError(t, err)
 
-		album, err := repo.FindOne(ctx, &Album{AlbumID: 600})
+		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 600})
 		require.NoError(t, err)
 		require.Equal(t, expected, album)
 	})
 
 	t.Run("should be able to create many", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
+		repo, _ := NewRepo[testmodels.Album]()
 
-		expected := []*Album{
+		expected := []*testmodels.Album{
 			{
 				AlbumID:  501,
 				ArtistID: 1,
@@ -171,10 +159,10 @@ func TestRepository(t *testing.T) {
 			},
 		}
 
-		err := repo.CreateMany(ctx, expected)
+		err := repo.Query(conn).CreateMany(ctx, expected)
 		require.NoError(t, err)
 
-		albums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{501, 502}})
 		})
 		require.NoError(t, err)
@@ -182,22 +170,22 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to save one", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		album, err := repo.FindOne(ctx, &Album{AlbumID: 1})
+		repo, _ := NewRepo[testmodels.Album]()
+		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
 		album.Title = "Updated Title"
-		err = repo.SaveOne(ctx, album)
+		err = repo.Query(conn).SaveOne(ctx, album)
 		require.NoError(t, err)
 
-		updatedAlbum, err := repo.FindOne(ctx, &Album{AlbumID: 1})
+		updatedAlbum, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 		require.Equal(t, album, updatedAlbum)
 	})
 
 	t.Run("should be able to save many", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		albums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		repo, _ := NewRepo[testmodels.Album]()
+		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
 		require.NoError(t, err)
@@ -206,10 +194,10 @@ func TestRepository(t *testing.T) {
 			album.Title = "Updated Title"
 		}
 
-		err = repo.SaveMany(ctx, albums)
+		err = repo.Query(conn).SaveMany(ctx, albums)
 		require.NoError(t, err)
 
-		updatedAlbums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		updatedAlbums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
 		require.NoError(t, err)
@@ -217,15 +205,15 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to update many", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		err := repo.UpdateMany(ctx, func(q UpdateBuilder) UpdateBuilder {
+		repo, _ := NewRepo[testmodels.Album]()
+		err := repo.Query(conn).UpdateMany(ctx, func(q UpdateBuilder) UpdateBuilder {
 			return q.Where(In{
 				"AlbumID": []int{3, 4},
 			}).Set("Title", "Updated Title")
 		})
 		require.NoError(t, err)
 
-		updatedAlbums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		updatedAlbums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
 		require.NoError(t, err)
@@ -234,74 +222,33 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to delete one", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		err := repo.DeleteOne(ctx, &Album{AlbumID: 1})
+		repo, _ := NewRepo[testmodels.Album]()
+		err := repo.Query(conn).DeleteOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
-		_, err = repo.FindOne(ctx, &Album{AlbumID: 1})
+		_, err = repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.Error(t, err)
 	})
 
 	t.Run("should be able to delete many", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn)
-		err := repo.DeleteMany(ctx, func(q DeleteBuilder) DeleteBuilder {
+		repo, _ := NewRepo[testmodels.Album]()
+		err := repo.Query(conn).DeleteMany(ctx, func(q DeleteBuilder) DeleteBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
 		require.NoError(t, err)
 
-		albums, err := repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder {
+		_, err = repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 3})
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
 		require.NoError(t, err)
 		require.Empty(t, albums)
 	})
 
-	t.Run("check all operations", func(t *testing.T) {
-		for i := 0; i < int(OpEnd); i++ {
-			called := false
-			operation := Operation(i)
-			repo, _ := NewRepo[Album](conn,
-				WithQueryHook(func(ctx Context, result any) error {
-					called = true
-					require.Equal(t, operation, ctx.Operation())
-					return nil
-				}))
-
-			switch operation {
-			case OpCreateOne:
-				_ = repo.CreateOne(ctx, &Album{})
-			case OpFindOne:
-				_, _ = repo.FindOne(ctx, &Album{
-					AlbumID: 1,
-				})
-			case OpSaveOne:
-				_ = repo.SaveOne(ctx, &Album{})
-			case OpFindMany:
-				_, _ = repo.FindMany(ctx, func(q SelectBuilder) SelectBuilder { return q })
-			case OpUpdateMany:
-				_ = repo.UpdateMany(ctx, func(q UpdateBuilder) UpdateBuilder { return q })
-			case OpDeleteOne:
-				_ = repo.DeleteOne(ctx, &Album{AlbumID: 1})
-			case OpDeleteMany:
-				_ = repo.DeleteMany(ctx, func(q DeleteBuilder) DeleteBuilder { return q })
-			default:
-				t.Fatalf("unknown operation: %s", operation)
-			}
-			require.Equalf(t, true, called, "executed %s hook to be called", operation)
-		}
-
-	})
-
-	t.Run("should be able to find one to one relation", func(t *testing.T) {})
-	t.Run("should be able to find one to many relation", func(t *testing.T) {})
-	t.Run("should be able to find many to many relation", func(t *testing.T) {})
-	t.Run("should be able to find many to one relation", func(t *testing.T) {})
-	t.Run("should be able to find many to one relation", func(t *testing.T) {})
-	t.Run("should be able to find one through relation", func(t *testing.T) {})
-	t.Run("should be able to find many through relation", func(t *testing.T) {})
-
 	t.Run("should be able to create a repo with options", func(t *testing.T) {
-		repo, err := NewRepo[Album](conn,
+		repo, err := NewRepo[testmodels.Album](
 			WithLogger(noOpLogger{}),
 		)
 		require.NotNil(t, repo)
@@ -311,7 +258,7 @@ func TestRepository(t *testing.T) {
 	t.Run("repo hook should be called on find one", func(t *testing.T) {
 		var queryOp Operation
 		var resultOp Operation
-		repo, _ := NewRepo[Album](conn,
+		repo, _ := NewRepo[testmodels.Album](
 			WithQueryHook(func(ctx Context, result any) error {
 				queryOp = ctx.Operation()
 				return nil
@@ -321,7 +268,7 @@ func TestRepository(t *testing.T) {
 				return nil
 			}),
 		)
-		_, _ = repo.FindOne(ctx, &Album{AlbumID: 1})
+		_, _ = repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.Equal(t, OpFindOne, queryOp)
 		require.Equal(t, OpFindOne, resultOp)
 	})
@@ -329,27 +276,35 @@ func TestRepository(t *testing.T) {
 		tx, err := conn.BeginTxx(ctx, nil)
 		require.NoError(t, err)
 
-		repo, _ := NewRepo[Album](tx)
-		err = repo.DeleteOne(ctx, &Album{AlbumID: 1})
+		repo, _ := NewRepo[testmodels.Album]()
+		err = repo.Query(tx).DeleteOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
 		err = tx.Rollback()
 		require.NoError(t, err)
 	})
 
-	t.Run("model should be zero value when query hook returns an error", func(t *testing.T) {
-		repo, _ := NewRepo[Album](conn,
+	t.Run("testmodels should be zero value when query hook returns an error", func(t *testing.T) {
+		repo, _ := NewRepo[testmodels.Album](
 			WithQueryHook(func(ctx Context, result any) error {
 				return errors.New("FAIL")
 			}),
 		)
-		album, err := repo.FindOne(ctx, &Album{AlbumID: 1})
+		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.Error(t, err)
-		require.Equal(t, album, &Album{})
+		require.Equal(t, album, &testmodels.Album{})
 	})
 }
 
 func TestHookChain(t *testing.T) {
+	ctx := context.Background()
+	dbPath, cleanup, dbCpErr := copyDatabase()
+	require.NoError(t, dbCpErr)
+	defer cleanup()
+
+	conn, connErr := database.NewConn(ctx, database.Sqlite3, dbPath)
+	require.NoError(t, connErr)
+
 	t.Run("assert decorated hook order", func(t *testing.T) {
 		var tErr = errors.New("test error")
 		var decorate = HookDecorator(func(ctx Context, result any) error {
@@ -369,4 +324,42 @@ func TestHookChain(t *testing.T) {
 			query:     nil,
 		}, ""), &tErr)
 	})
+
+	t.Run("check all operations", func(t *testing.T) {
+		for i := 0; i < int(OpEnd); i++ {
+			called := false
+			operation := Operation(i)
+			repo, _ := NewRepo[testmodels.Album](
+				WithQueryHook(func(ctx Context, result any) error {
+					called = true
+					require.Equal(t, operation, ctx.Operation())
+					return nil
+				}))
+
+			query := repo.Query(conn)
+			switch operation {
+			case OpCreateOne:
+				_ = query.CreateOne(ctx, &testmodels.Album{})
+			case OpFindOne:
+				_, _ = query.FindOne(ctx, &testmodels.Album{
+					AlbumID: 1,
+				})
+			case OpSaveOne:
+				_ = query.SaveOne(ctx, &testmodels.Album{})
+			case OpFindMany:
+				_, _ = query.FindMany(ctx, func(q SelectBuilder) SelectBuilder { return q })
+			case OpUpdateMany:
+				_ = query.UpdateMany(ctx, func(q UpdateBuilder) UpdateBuilder { return q })
+			case OpDeleteOne:
+				_ = query.DeleteOne(ctx, &testmodels.Album{AlbumID: 1})
+			case OpDeleteMany:
+				_ = query.DeleteMany(ctx, func(q DeleteBuilder) DeleteBuilder { return q })
+			default:
+				t.Fatalf("unknown operation: %s", operation)
+			}
+			require.Equalf(t, true, called, "executed %s hook to be called", operation)
+		}
+
+	})
+
 }
