@@ -284,7 +284,7 @@ func TestRepository(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("testmodels should be zero value when query hook returns an error", func(t *testing.T) {
+	t.Run("should be zero value when query hook returns an error", func(t *testing.T) {
 		repo, _ := NewRepo[testmodels.Album](
 			WithQueryHook(func(ctx Context, result any) error {
 				return errors.New("FAIL")
