@@ -20,7 +20,7 @@ func (s *Store[T]) Load(ctx context.Context) (*T, error) {
 	if v == nil {
 		return nil, errors.Wrapf(
 			ErrNotFoundInContext,
-			"by key %T", s.key,
+			"cannot find %T by key %T", new(T), s.key,
 		)
 	}
 
