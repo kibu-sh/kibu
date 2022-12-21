@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/discernhq/devx/pkg/config"
 	"github.com/discernhq/devx/pkg/workspace"
+	"log"
 )
 
 func NewWorkspaceFileStore(ctx context.Context) (store *config.FileStore, err error) {
@@ -14,4 +15,10 @@ func NewWorkspaceFileStore(ctx context.Context) (store *config.FileStore, err er
 
 	store, err = workspace.NewFileStore(ctx, wsConfig)
 	return
+}
+
+func CheckErrFatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

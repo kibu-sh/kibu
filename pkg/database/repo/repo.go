@@ -1,29 +1,30 @@
 package repo
 
 import (
-	"github.com/discernhq/devx/pkg/database/model"
+	"context"
+	"github.com/discernhq/devx/pkg/database/table"
 	"github.com/discernhq/devx/pkg/database/xql"
 )
 
 type Repo[Model any] struct {
-	runner        xql.Runner
-	options       *Options
-	mapper        *model.Mapper[Model]
-	queryPipeline HookFunc
+	Options *Options
+	Mapper  *table.Mapper[Model]
 }
 
 type Options struct {
 	Logger          Logger
 	QueryHookChain  HookChain
-	ExecHookChain   HookChain
 	ResultHookChain HookChain
 }
 
-type HookChain []HookFunc
+type Logger interface{}
+type NoOpLogger struct{}
 type OptionFunc func(options *Options) error
 
-type Logger interface{}
-type noOpLogger struct{}
+type HookChain []HookFunc
+type HookFunc func(ctx Context, result any) error
+type ResultHookFunc func(ctx Context, result any) error
+type HookDecoratorFunc func(next HookFunc) HookFunc
 
 func WithLogger(logger Logger) OptionFunc {
 	return func(options *Options) error {
@@ -32,11 +33,11 @@ func WithLogger(logger Logger) OptionFunc {
 	}
 }
 
-func noOpQueryHook(_ Context, _ any) (err error) {
+func NoOpQueryHook(_ Context, _ any) (err error) {
 	return
 }
 
-func newFindOneHook(runner xql.Runner) HookFunc {
+func newFindOneHook(runner xql.Connection) HookFunc {
 	return func(ctx Context, result any) error {
 		return xql.QueryWith(ctx, xql.QueryWithParams{
 			Target:       result,
@@ -46,7 +47,7 @@ func newFindOneHook(runner xql.Runner) HookFunc {
 	}
 }
 
-func newFindManyHook(runner xql.Runner) HookFunc {
+func newFindManyHook(runner xql.Connection) HookFunc {
 	return func(ctx Context, result any) (err error) {
 		return xql.QueryWith(ctx, xql.QueryWithParams{
 			Target:       result,
@@ -56,7 +57,7 @@ func newFindManyHook(runner xql.Runner) HookFunc {
 	}
 }
 
-func newExecHook(runner xql.Runner) HookFunc {
+func newExecHook(runner xql.Connection) HookFunc {
 	return func(ctx Context, result any) (err error) {
 		return xql.QueryWith(ctx, xql.QueryWithParams{
 			Target:       result,
@@ -83,10 +84,6 @@ func applyHooks(base HookFunc, chain ...HookFunc) (result HookFunc) {
 	return
 }
 
-type HookFunc func(ctx Context, result any) error
-type ResultHookFunc func(ctx Context, result any) error
-type HookDecoratorFunc func(next HookFunc) HookFunc
-
 func HookDecorator(base HookFunc) HookDecoratorFunc {
 	return func(next HookFunc) HookFunc {
 		return func(ctx Context, result any) error {
@@ -100,7 +97,10 @@ func HookDecorator(base HookFunc) HookDecoratorFunc {
 
 func WithQueryHook(hook HookFunc) OptionFunc {
 	return func(options *Options) error {
-		options.QueryHookChain = append(options.QueryHookChain, hook)
+		options.QueryHookChain = append(
+			options.QueryHookChain,
+			hook,
+		)
 		return nil
 	}
 }
@@ -122,45 +122,54 @@ func joinHookChains(chains ...HookChain) (result HookChain) {
 	return
 }
 
-func newQueryHookChain(conn xql.Runner) HookChain {
+func newQueryHookChain(connection xql.Connection) HookChain {
 	return HookChain{
-		bindHookToOperations(newFindOneHook(conn), map[Operation]bool{
-			OpFindOne: true,
-		}),
-		bindHookToOperations(newFindManyHook(conn), map[Operation]bool{
-			OpFindMany: true,
-		}),
-		bindHookToOperations(newExecHook(conn), map[Operation]bool{
-			OpCreateOne:  true,
-			OpSaveOne:    true,
-			OpUpdateMany: true,
-			OpDeleteOne:  true,
-			OpDeleteMany: true,
-		}),
+		bindHookToOperations(
+			newFindOneHook(connection),
+			map[Operation]bool{
+				OpFindOne: true,
+			},
+		),
+		bindHookToOperations(
+			newFindManyHook(connection),
+			map[Operation]bool{
+				OpFindMany: true,
+			},
+		),
+		bindHookToOperations(
+			newExecHook(connection),
+			map[Operation]bool{
+				OpCreateOne:  true,
+				OpSaveOne:    true,
+				OpUpdateMany: true,
+				OpDeleteOne:  true,
+				OpDeleteMany: true,
+			},
+		),
 	}
 }
 
 func NewRepoOrPanic[Model any](opts ...OptionFunc) (repo *Repo[Model]) {
 	var err error
-	repo, err = NewRepo[Model](opts...)
+	repo, err = NewRepo[Model](xql.SQLite3, opts...)
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-func NewRepo[Model any](opts ...OptionFunc) (repo *Repo[Model], err error) {
+func NewRepo[Model any](driver xql.Driver, opts ...OptionFunc) (repo *Repo[Model], err error) {
 	repo = &Repo[Model]{
-		options: &Options{},
+		Options: &Options{},
 	}
 
-	repo.mapper, err = model.Reflect[Model]("db")
+	repo.Mapper, err = table.Reflect[Model](driver, "db")
 	if err != nil {
 		return
 	}
 
 	for _, opt := range opts {
-		if err = opt(repo.options); err != nil {
+		if err = opt(repo.Options); err != nil {
 			return
 		}
 	}
@@ -168,17 +177,25 @@ func NewRepo[Model any](opts ...OptionFunc) (repo *Repo[Model], err error) {
 	return
 }
 
-func (r *Repo[Model]) Query(runner xql.Runner) *Query[Model] {
+func (r *Repo[Model]) Query(connection xql.Connection) *Query[Model] {
 	return &Query[Model]{
-		runner: runner,
-		mapper: r.mapper,
+		connection: connection,
+		mapper:     r.Mapper,
 		pipeline: applyHooks(
-			noOpQueryHook,
+			NoOpQueryHook,
 			joinHookChains(
-				r.options.ResultHookChain,
-				newQueryHookChain(runner),
-				r.options.QueryHookChain,
+				r.Options.ResultHookChain,
+				newQueryHookChain(connection),
+				r.Options.QueryHookChain,
 			)...,
 		),
 	}
+}
+
+func (r *Repo[Model]) QueryFromCtx(ctx context.Context) (*Query[Model], error) {
+	connection, err := xql.ConnectionContextStore.Load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.Query(connection), nil
 }

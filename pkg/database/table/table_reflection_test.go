@@ -1,4 +1,4 @@
-package model
+package table
 
 import (
 	"github.com/discernhq/devx/pkg/database/xql"
@@ -15,36 +15,36 @@ func TestReflectEntity(t *testing.T) {
 	type Related struct {
 		ID int `db:"id,pk"`
 	}
-	t.Run("should infer table name from struct name", func(t *testing.T) {
-		def, err := Reflect[Related]("db")
+	t.Run("should infer Table name from struct name", func(t *testing.T) {
+		def, err := Reflect[Related](xql.SQLite3, "db")
 		require.NoError(t, err)
-		require.Equal(t, "Related", def.table)
+		require.Equal(t, "Related", def.Table)
 	})
-	t.Run("should produce an model by reflecting a struct", func(t *testing.T) {
-		def, err := Reflect[User]("db")
+	t.Run("should produce an Table by reflecting a struct", func(t *testing.T) {
+		def, err := Reflect[User](xql.SQLite3, "db")
 		require.NoError(t, err)
-		require.Equal(t, "public", def.schema)
-		require.Equal(t, "users", def.table)
-		require.Equal(t, Fields{
+		require.Equal(t, "public", def.Schema)
+		require.Equal(t, "users", def.Table)
+		require.Equal(t, Columns{
 			{Name: "id", IsIdentity: true},
 			{Name: "name"},
-		}, def.fields)
+		}, def.Columns)
 
-		require.Equal(t, map[string]structReflectMeta{
-			"id": structReflectMeta{
+		require.Equal(t, map[string]StructMetadata{
+			"id": StructMetadata{
 				Name: "ID",
 				ID:   0,
 			},
-			"name": structReflectMeta{
+			"name": StructMetadata{
 				Name: "Name",
 				ID:   1,
 			},
-		}, def.dbToStruct)
+		}, def.DBToStruct)
 
 		require.Equal(t, map[string]string{
 			"ID":   "id",
 			"Name": "name",
-		}, def.structToDB)
+		}, def.StructToDB)
 	})
 
 	t.Run("should produce correct primary key as a map", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestReflectEntity(t *testing.T) {
 			ID   int    `db:"id,pk"`
 			Name string `db:"name,pk"`
 		}
-		entity, err := Reflect[UserWithCompositePK]("db")
+		entity, err := Reflect[UserWithCompositePK](xql.SQLite3, "db")
 		require.NoError(t, err)
 		require.Equal(t, xql.Eq{
 			"id":   1,
@@ -63,7 +63,7 @@ func TestReflectEntity(t *testing.T) {
 		}))
 	})
 
-	t.Run("should be able to map to and from model", func(t *testing.T) {
+	t.Run("should be able to map to and from Table", func(t *testing.T) {
 		type User struct {
 			ID   int `db:"id"`
 			Name string
@@ -72,7 +72,7 @@ func TestReflectEntity(t *testing.T) {
 			ID:   1,
 			Name: "John",
 		}
-		def, err := Reflect[User]("db")
+		def, err := Reflect[User](xql.SQLite3, "db")
 		require.NoError(t, err)
 
 		valueMap := def.ValueMap(user)
@@ -82,7 +82,7 @@ func TestReflectEntity(t *testing.T) {
 			"Name": "John",
 		}, valueMap)
 
-		newUser := def.ValueMapToEntity(valueMap)
+		newUser := def.ValueMapToModel(valueMap)
 		require.Equal(t, user, newUser)
 
 		values := def.ColumnValues(user)

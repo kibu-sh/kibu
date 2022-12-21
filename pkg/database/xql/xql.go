@@ -4,14 +4,37 @@ import (
 	"context"
 	"database/sql"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/discernhq/devx/pkg/ctxutil"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 // builder func aliases
 
-var Select = sq.Select
-var Insert = sq.Insert
-var Update = sq.Update
-var Delete = sq.Delete
+type Driver string
+
+var (
+	Postgres Driver = "postgres"
+	SQLite3  Driver = "sqlite3"
+	MySQL    Driver = "mysql"
+)
+
+type StatementBuilderType = sq.StatementBuilderType
+
+var PostgresBuilder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+var DefaultBuilder = sq.StatementBuilder
+
+func NewBuilder(driver Driver) (StatementBuilderType, error) {
+	switch driver {
+	case Postgres:
+		return PostgresBuilder, nil
+	case SQLite3, MySQL:
+		return DefaultBuilder, nil
+	default:
+		return DefaultBuilder, errors.Errorf("%s is not a supported drievr", driver)
+	}
+}
+
 var Alias = sq.Alias
 var Case = sq.Case
 
@@ -94,7 +117,7 @@ type ExecRunner interface {
 	ExecContext(ctx context.Context, stm string, args ...any) (result sql.Result, err error)
 }
 
-type Runner interface {
+type Connection interface {
 	QueryRunner
 	ExecRunner
 }
@@ -146,3 +169,6 @@ func ApplyDeleteBuilderFuncs(s DeleteBuilder, b ...DeleteBuilderFunc) DeleteBuil
 
 	return s
 }
+
+var connectionCtxKey = struct{}{}
+var ConnectionContextStore = ctxutil.NewStore[sqlx.DB](connectionCtxKey)

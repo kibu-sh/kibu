@@ -59,7 +59,7 @@ func TestMemRepository(t *testing.T) {
 	})
 
 	// TODO: move to Update method
-	t.Run("should update a model by its id", func(t *testing.T) {
+	t.Run("should update a table by its id", func(t *testing.T) {
 		expected := &mockObject{
 			ID:   uuid.New(),
 			Data: make(map[string]string),

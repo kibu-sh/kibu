@@ -56,7 +56,7 @@ func TestRepository(t *testing.T) {
 	require.NoError(t, connErr)
 
 	t.Run("should be able to find one", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{
 			AlbumID: 1,
 		})
@@ -68,7 +68,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to find many", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(Like{"Title": "%rock%"})
 		})
@@ -82,7 +82,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to save one", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 
 		expected := &testmodels.Album{
 			AlbumID:  500,
@@ -118,6 +118,7 @@ func TestRepository(t *testing.T) {
 		})
 
 		repo, _ := NewRepo[testmodels.Album](
+			SQLite3,
 			privacyHook,
 			queryHook,
 		)
@@ -127,7 +128,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to create one", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 
 		expected := &testmodels.Album{
 			AlbumID:  600,
@@ -144,7 +145,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to create many", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 
 		expected := []*testmodels.Album{
 			{
@@ -170,7 +171,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to save one", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		album, err := repo.Query(conn).FindOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
@@ -184,7 +185,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to save many", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		albums, err := repo.Query(conn).FindMany(ctx, func(q SelectBuilder) SelectBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
@@ -205,7 +206,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to update many", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		err := repo.Query(conn).UpdateMany(ctx, func(q UpdateBuilder) UpdateBuilder {
 			return q.Where(In{
 				"AlbumID": []int{3, 4},
@@ -222,7 +223,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to delete one", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		err := repo.Query(conn).DeleteOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
@@ -231,7 +232,7 @@ func TestRepository(t *testing.T) {
 	})
 
 	t.Run("should be able to delete many", func(t *testing.T) {
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		err := repo.Query(conn).DeleteMany(ctx, func(q DeleteBuilder) DeleteBuilder {
 			return q.Where(In{"AlbumID": []int{3, 4}})
 		})
@@ -247,9 +248,10 @@ func TestRepository(t *testing.T) {
 		require.Empty(t, albums)
 	})
 
-	t.Run("should be able to create a repo with options", func(t *testing.T) {
+	t.Run("should be able to create a repo with Options", func(t *testing.T) {
 		repo, err := NewRepo[testmodels.Album](
-			WithLogger(noOpLogger{}),
+			SQLite3,
+			WithLogger(NoOpLogger{}),
 		)
 		require.NotNil(t, repo)
 		require.NoError(t, err)
@@ -259,6 +261,7 @@ func TestRepository(t *testing.T) {
 		var queryOp Operation
 		var resultOp Operation
 		repo, _ := NewRepo[testmodels.Album](
+			SQLite3,
 			WithQueryHook(func(ctx Context, result any) error {
 				queryOp = ctx.Operation()
 				return nil
@@ -276,7 +279,7 @@ func TestRepository(t *testing.T) {
 		tx, err := conn.BeginTxx(ctx, nil)
 		require.NoError(t, err)
 
-		repo, _ := NewRepo[testmodels.Album]()
+		repo, _ := NewRepo[testmodels.Album](SQLite3)
 		err = repo.Query(tx).DeleteOne(ctx, &testmodels.Album{AlbumID: 1})
 		require.NoError(t, err)
 
@@ -286,6 +289,7 @@ func TestRepository(t *testing.T) {
 
 	t.Run("should be zero value when query hook returns an error", func(t *testing.T) {
 		repo, _ := NewRepo[testmodels.Album](
+			SQLite3,
 			WithQueryHook(func(ctx Context, result any) error {
 				return errors.New("FAIL")
 			}),
@@ -330,6 +334,7 @@ func TestHookChain(t *testing.T) {
 			called := false
 			operation := Operation(i)
 			repo, _ := NewRepo[testmodels.Album](
+				SQLite3,
 				WithQueryHook(func(ctx Context, result any) error {
 					called = true
 					require.Equal(t, operation, ctx.Operation())

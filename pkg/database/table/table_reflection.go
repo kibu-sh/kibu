@@ -1,17 +1,30 @@
-package model
+package table
 
 import (
+	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/fatih/structtag"
 	"reflect"
 	"strings"
 )
 
-func Reflect[E any](tagName string) (def *Mapper[E], err error) {
+func MustReflect[E any](driver xql.Driver, tagName string) (def *Mapper[E]) {
+	def, err := Reflect[E](driver, tagName)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func Reflect[E any](driver xql.Driver, tagName string) (def *Mapper[E], err error) {
 	r := reflect.TypeOf(new(E)).Elem()
 	def = new(Mapper[E])
-	def.table = r.Name()
-	def.structToDB = make(map[string]string)
-	def.dbToStruct = make(map[string]structReflectMeta)
+	def.Table = r.Name()
+	def.StructToDB = make(map[string]string)
+	def.DBToStruct = make(map[string]StructMetadata)
+	def.Builder, err = xql.NewBuilder(driver)
+	if err != nil {
+		return
+	}
 
 	for i := 0; i < r.NumField(); i++ {
 		field := r.Field(i)
@@ -31,20 +44,20 @@ func Reflect[E any](tagName string) (def *Mapper[E], err error) {
 			options := parseTagOptions(tag)
 
 			if options.Has("table") {
-				def.table = options.Get("table")
+				def.Table = options.Get("table")
 			}
 
 			if options.Has("schema") {
-				def.schema = options.Get("schema")
+				def.Schema = options.Get("schema")
 			}
 
-			def.fields = append(def.fields, Field{
+			def.Columns = append(def.Columns, Column{
 				Name:       tag.Name,
 				IsIdentity: options.Has("pk"),
 			})
 
-			def.structToDB[field.Name] = tag.Name
-			def.dbToStruct[tag.Name] = structReflectMeta{
+			def.StructToDB[field.Name] = tag.Name
+			def.DBToStruct[tag.Name] = StructMetadata{
 				Name: field.Name,
 				ID:   i,
 			}

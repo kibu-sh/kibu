@@ -2,7 +2,7 @@ package repo
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/database/model"
+	"github.com/discernhq/devx/pkg/database/table"
 	"github.com/discernhq/devx/pkg/database/xql"
 )
 
@@ -41,10 +41,12 @@ type CommandMethods[Model any] interface {
 }
 
 type Query[Model any] struct {
-	runner   xql.Runner
-	pipeline HookFunc
-	mapper   *model.Mapper[Model]
+	connection xql.Connection
+	pipeline   HookFunc
+	mapper     *table.Mapper[Model]
 }
+
+type QueryProviderFunc[Model any] func(ctx context.Context) (*Query[Model], error)
 
 func (q *Query[Model]) FindOne(ctx context.Context, model *Model) (result *Model, err error) {
 	result = new(Model)
