@@ -11,6 +11,10 @@ type Response struct {
 	http.ResponseWriter
 }
 
+func (r Response) Headers() http.Header {
+	return r.ResponseWriter.Header()
+}
+
 func (r Response) Underlying() any {
 	return r.ResponseWriter
 }
