@@ -11,6 +11,8 @@ type Response interface {
 
 	Headers() http.Header
 
+	SetStatusCode(int)
+
 	// Underlying returns a transport specific response
 	// it should return an interface or pointer to the original response (i.e. http.ResponseWriter)
 	// this should be used with care as it couples your code to a specific transport

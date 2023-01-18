@@ -11,6 +11,10 @@ type Response struct {
 	http.ResponseWriter
 }
 
+func (r Response) SetStatusCode(i int) {
+	r.ResponseWriter.WriteHeader(i)
+}
+
 func (r Response) Headers() http.Header {
 	return r.ResponseWriter.Header()
 }
