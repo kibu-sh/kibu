@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/discernhq/devx/pkg/config"
 	"github.com/discernhq/devx/pkg/workspace"
+	"github.com/google/wire"
 	"log"
 )
 
@@ -22,3 +23,8 @@ func CheckErrFatal(err error) {
 		log.Fatal(err)
 	}
 }
+
+var LocalFileStoreSet = wire.NewSet(
+	NewWorkspaceFileStore,
+	wire.Bind(new(config.Store), new(*config.FileStore)),
+)
