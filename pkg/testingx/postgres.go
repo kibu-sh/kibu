@@ -6,7 +6,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/container"
-	"github.com/discernhq/devx/pkg/ctxutil"
+	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/discernhq/devx/pkg/netx"
 	"github.com/docker/go-connections/nat"
 	"github.com/golang-migrate/migrate/v4"
@@ -155,13 +155,6 @@ func SetupPostgresDatabaseConnection(
 	return
 }
 
-var dbConnectionCtxKey struct{}
-var DBConnectionStore = ctxutil.NewStore[sqlx.DB](dbConnectionCtxKey)
-var containerManagerCtxKey struct{}
-var ContainerManagerCtxStore = ctxutil.NewStore[container.Manager](
-	containerManagerCtxKey,
-)
-
 func Context() context.Context {
 	return appcontext.Context()
 }
@@ -175,7 +168,7 @@ func SetupTestMainWithDB(
 	sharedManager, err := container.NewManager()
 	CheckErrFatal(err)
 	appcontext.UpdateCache(
-		ContainerManagerCtxStore.Save(ctx, sharedManager),
+		container.ManagerContextStore.Save(ctx, sharedManager),
 	)
 
 	dsn, err := SetupPostgresDatabaseConnection(
@@ -187,7 +180,7 @@ func SetupTestMainWithDB(
 	db, err := sqlx.ConnectContext(ctx, "postgres", dsn.String())
 	CheckErrFatal(err)
 	appcontext.UpdateCache(
-		DBConnectionStore.Save(ctx, db),
+		xql.ConnectionContextStore.Save(ctx, db),
 	)
 
 	code = m.Run()

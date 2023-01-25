@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cenkalti/backoff"
+	"github.com/discernhq/devx/pkg/ctxutil"
 	"github.com/discernhq/devx/pkg/netx"
 	"github.com/discernhq/devx/pkg/utils"
 	"github.com/docker/docker/api/types"
@@ -334,3 +335,9 @@ func NewDefaultStopParams(id string) *StopParams {
 func (p *Manager) Stop(ctx context.Context, params StopParams) (err error) {
 	return p.client.ContainerStop(ctx, params.ID, params.Timeout)
 }
+
+type containerManagerCtxKey struct{}
+
+var ManagerContextStore = ctxutil.NewStore[Manager](
+	containerManagerCtxKey{},
+)
