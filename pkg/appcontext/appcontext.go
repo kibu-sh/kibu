@@ -39,3 +39,7 @@ func Context() context.Context {
 	})
 	return cache
 }
+
+func UpdateCache(ctx context.Context) {
+	cache = ctx
+}

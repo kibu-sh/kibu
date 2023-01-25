@@ -26,4 +26,9 @@ func TestNewContextLoader(t *testing.T) {
 		_, err := store.Load(context.Background())
 		require.ErrorIs(t, err, ErrNotFoundInContext)
 	})
+
+	t.Run("should return an error with text context", func(t *testing.T) {
+		_, err := store.Load(context.Background())
+		require.Contains(t, err.Error(), "*ctxutil.User")
+	})
 }
