@@ -1,7 +1,8 @@
-package testutilsx
+package testingx
 
 import (
 	"context"
+	"database/sql"
 	"github.com/discernhq/devx/pkg/container"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -14,12 +15,14 @@ func TestNewPostgresDB(t *testing.T) {
 	defer manager.Cleanup(ctx)
 
 	t.Run("should create a new postgres database and return a connection", func(t *testing.T) {
-		db, _, err := NewPostgresDB(ctx, manager, NewPostgresDBParams{
+		dsn, err := NewPostgresDB(ctx, manager, NewPostgresDBParams{
 			Database:      "test",
 			ImageURL:      "postgres:latest",
 			ContainerName: "test-postgres",
 		})
-		defer db.Close()
+		require.NoError(t, err)
+
+		db, err := sql.Open("postgres", dsn.String())
 		require.NoError(t, err)
 
 		err = db.PingContext(ctx)

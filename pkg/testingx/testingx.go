@@ -1,4 +1,4 @@
-package testutilsx
+package testingx
 
 import (
 	"context"

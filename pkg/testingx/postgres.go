@@ -1,13 +1,20 @@
-package testutilsx
+package testingx
 
 import (
 	"context"
 	"database/sql"
 	"github.com/cenkalti/backoff"
+	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/container"
+	"github.com/discernhq/devx/pkg/ctxutil"
 	"github.com/discernhq/devx/pkg/netx"
 	"github.com/docker/go-connections/nat"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"net/url"
+	"os"
+	"testing"
 	"time"
 
 	containerapi "github.com/docker/docker/api/types/container"
@@ -44,7 +51,7 @@ func NewPostgresDB(
 	ctx context.Context,
 	manager *container.Manager,
 	params NewPostgresDBParams,
-) (db *sql.DB, dsn *url.URL, err error) {
+) (dsn *url.URL, err error) {
 	free, err := netx.GetFreeAddr()
 	if err != nil {
 		return
@@ -98,19 +105,93 @@ func NewPostgresDB(
 
 	dsn.RawQuery = query.Encode()
 
-	db, err = sql.Open("postgres", dsn.String())
+	db, err := sql.Open("postgres", dsn.String())
 	if err != nil {
 		return
 	}
+
+	defer func() {
+		_ = db.Close()
+	}()
 
 	pgContainer, err = manager.Start(ctx, container.StartParams{
 		Name:    params.ContainerName,
 		Timeout: params.Timeout,
 	}, WaitForPostgres(ctx, db, params.Timeout))
 
+	return
+}
+
+type MigrationProvider func(dsn string) (*migrate.Migrate, error)
+
+func SetupPostgresDatabaseConnection(
+	manager *container.Manager,
+	loadMigrations MigrationProvider,
+) (dsn *url.URL, err error) {
+	dsn, err = NewPostgresDB(context.Background(), manager, NewPostgresDBParams{
+		Database:      "scan-test",
+		ImageURL:      "postgres:14",
+		ContainerName: "scan-test",
+	})
 	if err != nil {
 		return
 	}
 
+	var migrations *migrate.Migrate
+	migrations, err = loadMigrations(dsn.String())
+	if err != nil {
+		return
+	}
+
+	err = migrations.Up()
+	switch {
+	case errors.Is(err, migrate.ErrNoChange):
+		err = nil
+		break
+	case err != nil:
+		return
+	}
+
 	return
+}
+
+var dbConnectionCtxKey struct{}
+var DBConnectionStore = ctxutil.NewStore[sqlx.DB](dbConnectionCtxKey)
+var containerManagerCtxKey struct{}
+var ContainerManagerCtxStore = ctxutil.NewStore[container.Manager](
+	containerManagerCtxKey,
+)
+
+func Context() context.Context {
+	return appcontext.Context()
+}
+
+func SetupTestMainWithDB(
+	m *testing.M,
+	loadMigrations MigrationProvider,
+) {
+	var code int
+	ctx := Context()
+	sharedManager, err := container.NewManager()
+	CheckErrFatal(err)
+	appcontext.UpdateCache(
+		ContainerManagerCtxStore.Save(ctx, sharedManager),
+	)
+
+	dsn, err := SetupPostgresDatabaseConnection(
+		sharedManager,
+		loadMigrations,
+	)
+	CheckErrFatal(err)
+
+	db, err := sqlx.ConnectContext(ctx, "postgres", dsn.String())
+	CheckErrFatal(err)
+	appcontext.UpdateCache(
+		DBConnectionStore.Save(ctx, db),
+	)
+
+	code = m.Run()
+	_ = sharedManager.Cleanup(ctx)
+
+	os.Exit(code)
 }
