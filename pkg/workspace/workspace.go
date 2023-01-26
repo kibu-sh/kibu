@@ -171,6 +171,10 @@ func NewWorkspaceConfig() (*Config, error) {
 	})
 }
 
+func StorePath(ws *Config) string {
+	return filepath.Join(ws.ConfigRoot(), "store/config")
+}
+
 func NewFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
-	return config.NewDefaultFileStore(filepath.Join(ws.ConfigRoot(), "store/config")), nil
+	return config.NewDefaultFileStore(StorePath(ws)), nil
 }

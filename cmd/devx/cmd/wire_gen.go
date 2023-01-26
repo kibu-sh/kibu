@@ -46,10 +46,16 @@ func InitCLI() (RootCmd, error) {
 		EncryptedFileEditor: encryptedFileEditor,
 	}
 	configEditCmd := NewConfigEditCmd(newConfigEditCmdParams)
+	newConfigSyncCmdParams := NewConfigSyncCmdParams{
+		ConfigStoreSettings: workspaceConfigStoreSettings,
+		Store:               fileStore,
+	}
+	configSyncCmd := NewConfigSyncCmd(newConfigSyncCmdParams)
 	configCmdParams := ConfigCmdParams{
 		ConfigGetCmd:  configGetCmd,
 		ConfigSetCmd:  configSetCmd,
 		ConfigEditCmd: configEditCmd,
+		ConfigSyncCmd: configSyncCmd,
 	}
 	configCmd := NewConfigCmd(configCmdParams)
 	buildCmd := NewBuildCmd()

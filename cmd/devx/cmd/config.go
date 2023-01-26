@@ -12,6 +12,7 @@ type ConfigCmdParams struct {
 	ConfigGetCmd  ConfigGetCmd
 	ConfigSetCmd  ConfigSetCmd
 	ConfigEditCmd ConfigEditCmd
+	ConfigSyncCmd ConfigSyncCmd
 }
 
 func NewConfigCmd(params ConfigCmdParams) (cmd ConfigCmd) {
@@ -24,5 +25,6 @@ func NewConfigCmd(params ConfigCmdParams) (cmd ConfigCmd) {
 	cmd.AddCommand(params.ConfigGetCmd.Command)
 	cmd.AddCommand(params.ConfigSetCmd.Command)
 	cmd.AddCommand(params.ConfigEditCmd.Command)
+	cmd.AddCommand(params.ConfigSyncCmd.Command)
 	return
 }

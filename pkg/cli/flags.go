@@ -46,20 +46,9 @@ func (f *Flag[T]) BindToCommand(cmd *cobra.Command) error {
 	f.value = new(T)
 
 	var flags = cmd.Flags()
-	if f.Required {
-		if err := cmd.MarkFlagRequired(f.Long); err != nil {
-			return err
-		}
-	}
 
 	if f.Persistent {
 		flags = cmd.PersistentFlags()
-	}
-
-	if f.AsFilename {
-		if err := cmd.MarkFlagDirname(f.Long); err != nil {
-			return err
-		}
 	}
 
 	defaultValue := any(f.Default)
@@ -75,6 +64,18 @@ func (f *Flag[T]) BindToCommand(cmd *cobra.Command) error {
 		flags.StringSliceVarP(bind, f.Long, f.Short, defaultValue.([]string), f.Description)
 	default:
 		return errors.Errorf("unsupported cli option type %T", defaultValue)
+	}
+
+	if f.Required {
+		if err := cmd.MarkFlagRequired(f.Long); err != nil {
+			return err
+		}
+	}
+
+	if f.AsFilename {
+		if err := cmd.MarkFlagDirname(f.Long); err != nil {
+			return err
+		}
 	}
 
 	return nil

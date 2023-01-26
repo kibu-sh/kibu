@@ -10,6 +10,13 @@ var (
 		Persistent: true,
 	}
 
+	GoogleProject = cli.Flag[string]{
+		Long:     "google-project",
+		Short:    "",
+		Default:  "",
+		Required: true,
+	}
+
 	Debug = cli.Flag[bool]{
 		Long:       "debug",
 		Short:      "",
@@ -47,9 +54,10 @@ var (
 	}
 
 	MigrateDatabaseUrl = cli.Flag[string]{
-		Long:       "database-url",
-		Short:      "db",
-		Persistent: true,
-		Required:   true,
+		Long:        "database-url",
+		Short:       "",
+		Description: "The DSN connection string for the database",
+		Persistent:  true,
+		Required:    true,
 	}
 )

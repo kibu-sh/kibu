@@ -63,7 +63,7 @@ func (c GCPSecretManagerStore) Get(ctx context.Context, params GetParams) (ciphe
 }
 
 func (c GCPSecretManagerStore) Set(ctx context.Context, params SetParams) (ciphertext *CipherText, err error) {
-	data, err := json.Marshal(params.Data)
+	data, err := json.MarshalIndent(params.Data, "", "  ")
 	if err != nil {
 		return
 	}
