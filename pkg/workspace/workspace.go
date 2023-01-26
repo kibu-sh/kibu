@@ -52,7 +52,7 @@ type DetermineRootParams struct {
 	SearchSuffix string
 }
 
-// DetermineRoot recursively searches the current directory and all its parents for .ark/settings.json
+// DetermineRoot recursively searches the current directory and all its parents for DetermineRootParams.SearchSuffix
 func DetermineRoot(params DetermineRootParams) (found string, err error) {
 	configRoot, err := filepath.Abs(params.StartDir)
 	if err != nil {
@@ -162,19 +162,36 @@ func CueLoader(c *Config) (err error) {
 	return err
 }
 
+func DevxDirBase() string {
+	return ".devx"
+}
+
+func DevxDirRelPath(pathSegments ...string) string {
+	pathSegments = append([]string{DevxDirBase()}, pathSegments...)
+	return filepath.Join(pathSegments...)
+}
+
+func DevxWorkspaceCueFile() string {
+	return DevxDirRelPath("workspace.cue")
+}
+
 func NewWorkspaceConfig() (*Config, error) {
 	return LoadConfigFromCWD(LoadConfigParams{
 		DetermineRootParams: DetermineRootParams{
-			SearchSuffix: ".devx/workspace.cue",
+			SearchSuffix: DevxWorkspaceCueFile(),
 		},
 		LoaderFunc: CueLoader,
 	})
 }
 
-func StorePath(ws *Config) string {
-	return filepath.Join(ws.ConfigRoot(), "store/config")
+func DevxStoreDir() string {
+	return DevxDirRelPath("store/config")
+}
+
+func WorkspaceStorePath(ws *Config) string {
+	return filepath.Join(ws.Root(), DevxStoreDir())
 }
 
 func NewFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
-	return config.NewDefaultFileStore(StorePath(ws)), nil
+	return config.NewDefaultFileStore(WorkspaceStorePath(ws)), nil
 }

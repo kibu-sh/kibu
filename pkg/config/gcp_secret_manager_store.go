@@ -3,6 +3,7 @@ package config
 import (
 	"cloud.google.com/go/secretmanager/apiv1"
 	"encoding/json"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"path/filepath"
@@ -31,6 +32,7 @@ func (c GCPSecretManagerStore) encodeName(name string) string {
 	name = strings.Replace(name, ".", "-", -1)
 	name = strings.Replace(name, "_", "-", -1)
 	name = strings.Replace(name, "/", "-", -1)
+	name = strings.Replace(name, "-enc-json", "", -1)
 	return name
 }
 
@@ -111,6 +113,10 @@ func (c GCPSecretManagerStore) Set(ctx context.Context, params SetParams) (ciphe
 }
 
 func NewGCPSecretManagerStore(ctx context.Context, projectID string) (store *GCPSecretManagerStore, err error) {
+	if projectID == "" {
+		err = errors.New("projectID is required")
+		return
+	}
 	client, err := secretmanager.NewClient(ctx)
 	store = &GCPSecretManagerStore{
 		projectID: projectID,
