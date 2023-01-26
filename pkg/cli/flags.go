@@ -18,9 +18,9 @@ type Flag[T any] struct {
 	// Required marks a flag as required
 	Required bool
 
-	// Global marks a flag as global
+	// Persistent marks a flag as global
 	// This will persist the flag to all subcommands
-	Global bool
+	Persistent bool
 
 	// Description a brief explanation of the flag
 	Description string
@@ -52,7 +52,7 @@ func (f *Flag[T]) BindToCommand(cmd *cobra.Command) error {
 		}
 	}
 
-	if f.Global {
+	if f.Persistent {
 		flags = cmd.PersistentFlags()
 	}
 

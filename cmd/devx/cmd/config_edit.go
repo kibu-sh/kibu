@@ -35,8 +35,13 @@ func newConfigEditRunE(params NewConfigEditCmdParams) RunE {
 			return err
 		}
 
+		path := joinSecretEnvPath(joinSecretEnvParams{
+			Env:  cliflags.Environment.Value(),
+			Path: args[0],
+		})
+
 		err = params.EncryptedFileEditor.Edit(context.Background(), config.EditParams{
-			Path:          args[0],
+			Path:          path,
 			EncryptionKey: key,
 		})
 

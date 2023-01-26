@@ -113,6 +113,15 @@ func loadSetDataFromFlags() (data any, err error) {
 	return
 }
 
+type joinSecretEnvParams struct {
+	Env  string
+	Path string
+}
+
+func joinSecretEnvPath(params joinSecretEnvParams) string {
+	return filepath.Join(params.Env, params.Path)
+}
+
 func newConfigSetRunE(params NewConfigSetCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		key, err := params.Settings.KeyByEnv(cliflags.Environment.Value())
@@ -125,8 +134,13 @@ func newConfigSetRunE(params NewConfigSetCmdParams) RunE {
 			return
 		}
 
+		path := joinSecretEnvPath(joinSecretEnvParams{
+			Env:  cliflags.Environment.Value(),
+			Path: args[0],
+		})
+
 		_, err = params.Store.Set(context.Background(), config.SetParams{
-			Path:          args[0],
+			Path:          path,
 			Data:          data,
 			EncryptionKey: key,
 		})

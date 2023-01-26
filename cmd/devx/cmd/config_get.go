@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
 	"github.com/discernhq/devx/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -29,8 +30,13 @@ func NewConfigGetCmd(params NewConfigGetCmdParams) (cmd ConfigGetCmd) {
 func newConfigGetRunE(params NewConfigGetCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		var data any
+		path := joinSecretEnvPath(joinSecretEnvParams{
+			Env:  cliflags.Environment.Value(),
+			Path: args[0],
+		})
+
 		_, err = params.Store.Get(context.Background(), config.GetParams{
-			Path:   args[0],
+			Path:   path,
 			Result: &data,
 		})
 
