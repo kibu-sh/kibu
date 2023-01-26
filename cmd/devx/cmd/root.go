@@ -14,8 +14,9 @@ type RootCmd struct {
 }
 
 type RootCommandParams struct {
-	ConfigCmd ConfigCmd
-	BuildCmd  BuildCmd
+	ConfigCmd  ConfigCmd
+	BuildCmd   BuildCmd
+	MigrateCmd MigrateCmd
 }
 
 func NewRootCmd(params RootCommandParams) (root RootCmd) {
@@ -30,6 +31,7 @@ func NewRootCmd(params RootCommandParams) (root RootCmd) {
 	_ = cliflags.Debug.BindToCommand(root.Command)
 
 	root.AddCommand(params.ConfigCmd.Command)
+	root.AddCommand(params.MigrateCmd.Command)
 
 	return
 }

@@ -12,6 +12,11 @@ import (
 	"github.com/discernhq/devx/pkg/workspace"
 )
 
+import (
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/github"
+)
+
 // Injectors from wire.go:
 
 func InitCLI() (RootCmd, error) {
@@ -48,9 +53,19 @@ func InitCLI() (RootCmd, error) {
 	}
 	configCmd := NewConfigCmd(configCmdParams)
 	buildCmd := NewBuildCmd()
+	newMigrateUpCmdParams := NewMigrateUpCmdParams{}
+	migrateUpCmd := NewMigrateUpCmd(newMigrateUpCmdParams)
+	newMigrateDownCmdParams := NewMigrateDownCmdParams{}
+	migrateDownCmd := NewMigrateDownCmd(newMigrateDownCmdParams)
+	newMigrateCmdParams := NewMigrateCmdParams{
+		MigrateUpCmd:   migrateUpCmd,
+		MigrateDownCmd: migrateDownCmd,
+	}
+	migrateCmd := NewMigrateCmd(newMigrateCmdParams)
 	rootCommandParams := RootCommandParams{
-		ConfigCmd: configCmd,
-		BuildCmd:  buildCmd,
+		ConfigCmd:  configCmd,
+		BuildCmd:   buildCmd,
+		MigrateCmd: migrateCmd,
 	}
 	rootCmd := NewRootCmd(rootCommandParams)
 	return rootCmd, nil

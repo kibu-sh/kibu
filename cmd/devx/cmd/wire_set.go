@@ -10,14 +10,18 @@ import (
 var WireSet = wire.NewSet(
 	appcontext.Context,
 	workspace.NewWorkspaceConfig,
+	workspace.NewFileStore,
+	config.NewEncryptedFileEditor,
+
 	NewRootCmd,
 	NewBuildCmd,
 	NewConfigCmd,
 	NewConfigGetCmd,
 	NewConfigSetCmd,
-	workspace.NewFileStore,
 	NewConfigEditCmd,
-	config.NewEncryptedFileEditor,
+	NewMigrateCmd,
+	NewMigrateUpCmd,
+	NewMigrateDownCmd,
 
 	wire.Bind(new(config.Store), new(*config.FileStore)),
 	wire.Struct(new(RootCommandParams), "*"),
@@ -25,5 +29,8 @@ var WireSet = wire.NewSet(
 	wire.Struct(new(NewConfigGetCmdParams), "*"),
 	wire.Struct(new(NewConfigSetCmdParams), "*"),
 	wire.Struct(new(NewConfigEditCmdParams), "*"),
+	wire.Struct(new(NewMigrateCmdParams), "*"),
+	wire.Struct(new(NewMigrateDownCmdParams), "*"),
+	wire.Struct(new(NewMigrateUpCmdParams), "*"),
 	wire.FieldsOf(new(*workspace.Config), "ConfigStore"),
 )
