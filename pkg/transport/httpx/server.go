@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"golang.ngrok.com/ngrok"
-	"golang.ngrok.com/ngrok/config"
 	"net"
 	"net/http"
 	"time"
@@ -74,16 +72,7 @@ func NewTCPListener(addr ListenAddr) (net.Listener, error) {
 	return net.Listen("tcp", string(addr))
 }
 
-func NewNgrokListener(ctx context.Context, opts ...config.HTTPEndpointOption) (net.Listener, error) {
-	return ngrok.Listen(ctx,
-		config.HTTPEndpoint(opts...),
-		ngrok.WithAuthtokenFromEnv(),
-	)
-}
-
 func NewServer(params *NewServerParams) (*Server, error) {
-	// TODO: register global middleware
-	// register handlers with mux router
 	for _, handler := range params.Handlers {
 		params.Mux.Handle(handler)
 	}
