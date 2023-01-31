@@ -2,7 +2,11 @@ package httpx
 
 import (
 	"context"
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
+	"golang.ngrok.com/ngrok"
+	"golang.ngrok.com/ngrok/config"
 	"net"
 	"net/http"
 	"time"
@@ -10,28 +14,43 @@ import (
 
 type Server struct {
 	*http.Server
-	Listener        net.Listener
+	Listeners       []net.Listener
 	shutdownTimeout *time.Duration
 	shutdownChan    chan error
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	startChan := make(chan error)
 
-	go func() {
-		close(startChan)
-		_ = s.Serve(s.Listener)
-	}()
+	for _, l := range s.Listeners {
+		startChan := make(chan error)
 
-	go func() {
-		<-ctx.Done()
-		sCtx, cancel := context.WithTimeout(context.Background(), *s.shutdownTimeout)
-		defer cancel()
-		defer close(s.shutdownChan)
-		s.shutdownChan <- s.Shutdown(sCtx)
-	}()
+		go func(l net.Listener) {
+			close(startChan)
+			fmt.Println("starting server on", l.Addr().String())
+			_ = s.Serve(l)
+		}(l)
 
-	return <-startChan
+		go func() {
+			<-ctx.Done()
+			sCtx, cancel := context.WithTimeout(context.Background(), *s.shutdownTimeout)
+			defer cancel()
+			defer close(s.shutdownChan)
+			s.shutdownChan <- s.Shutdown(sCtx)
+		}()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-startChan:
+			if err != nil {
+				return err
+			}
+		case <-time.After(5 * time.Second):
+			return errors.New("timeout starting server listeners")
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
@@ -44,19 +63,25 @@ func (s *Server) Wait() error {
 }
 
 type NewServerParams struct {
-	Addr     ListenAddr
-	Mux      ServeMux
-	Handlers []*Handler
+	Mux       ServeMux
+	Handlers  []*Handler
+	Listeners []net.Listener
 }
 
 type ListenAddr string
 
-func NewServer(params *NewServerParams) (*Server, error) {
-	listener, err := net.Listen("tcp", string(params.Addr))
-	if err != nil {
-		return nil, err
-	}
+func NewTCPListener(addr ListenAddr) (net.Listener, error) {
+	return net.Listen("tcp", string(addr))
+}
 
+func NewNgrokListener(ctx context.Context, opts ...config.HTTPEndpointOption) (net.Listener, error) {
+	return ngrok.Listen(ctx,
+		config.HTTPEndpoint(opts...),
+		ngrok.WithAuthtokenFromEnv(),
+	)
+}
+
+func NewServer(params *NewServerParams) (*Server, error) {
 	// TODO: register global middleware
 	// register handlers with mux router
 	for _, handler := range params.Handlers {
@@ -65,10 +90,9 @@ func NewServer(params *NewServerParams) (*Server, error) {
 
 	return &Server{
 		Server: &http.Server{
-			Addr:    string(params.Addr),
 			Handler: params.Mux,
 		},
-		Listener: listener,
+		Listeners: params.Listeners,
 
 		// buffered to avoid blocking on shutdown
 		shutdownChan:    make(chan error, 1),

@@ -3,6 +3,7 @@ module github.com/discernhq/devx
 go 1.19
 
 require (
+	cloud.google.com/go/secretmanager v1.5.0
 	cuelang.org/go v0.4.3
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/cenkalti/backoff v2.2.1+incompatible
@@ -31,8 +32,10 @@ require (
 	go.uber.org/fx v1.18.2
 	gocloud.dev v0.27.0
 	gocloud.dev/secrets/hashivault v0.27.0
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab
+	golang.ngrok.com/ngrok v1.0.0
+	golang.org/x/sys v0.2.0
 	golang.org/x/tools v0.1.12
+	google.golang.org/genproto v0.0.0-20220802133213-ce4fa296bf78
 	k8s.io/kubernetes v1.13.0
 )
 
@@ -83,6 +86,7 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
@@ -115,13 +119,16 @@ require (
 	github.com/hashicorp/vault/api v1.7.2 // indirect
 	github.com/hashicorp/vault/sdk v0.5.3 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
+	github.com/inconshreveable/log15 v3.0.0-testing.3+incompatible // indirect
+	github.com/inconshreveable/log15/v3 v3.0.0-testing.5 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -152,15 +159,14 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.0.0-20220906165146-f3363e06e74c // indirect
+	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/term v0.2.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.2.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/api v0.91.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220802133213-ce4fa296bf78 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
