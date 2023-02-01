@@ -53,3 +53,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ http.Handler = (*Handler)(nil)
+
+type HandlerFactory interface {
+	HTTPHandlerFactory() []*Handler
+}
+type HandlerFactoryFunc func() []*Handler
+
+func (h HandlerFactoryFunc) HTTPHandlerFactory() []*Handler {
+	return h()
+}
