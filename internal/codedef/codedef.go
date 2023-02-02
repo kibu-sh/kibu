@@ -1,13 +1,13 @@
 package codedef
 
-type HTTPHandlerFactory struct {
+type Factory struct {
 	Module string
 	Name   string
 }
 
-type HTTPHandlerFactoryContainer struct {
+type FactoryContainer struct {
 	Imports   []string
-	Factories []HTTPHandlerFactory
+	Factories []Factory
 }
 
 type Module struct {

@@ -119,7 +119,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpo
 		}
 
 		for _, d := range dirs.Filter(directive.HasKey("devx", "endpoint")) {
-			ep.Path, _ = d.Options.Find("path", fmt.Sprintf("/%s", ident.Name))
+			ep.Path, _ = d.Options.Find("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
 			ep.Methods, _ = d.Options.Filter("method", http.MethodGet)
 		}
 

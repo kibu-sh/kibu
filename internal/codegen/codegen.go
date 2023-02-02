@@ -23,6 +23,7 @@ type GenerateParams struct {
 }
 
 func Generate(params GenerateParams) (err error) {
+	_ = os.RemoveAll(params.OutputDir)
 	err = os.MkdirAll(params.OutputDir, os.ModePerm)
 	if err != nil {
 		return
@@ -124,12 +125,12 @@ func GenerateWorker(pkgList parser.PackageList, params GenerateParams) (err erro
 
 func GenerateHTTPHandlerFactoryContainer(pkgList parser.PackageList, params GenerateParams) (err error) {
 	var outFile = filepath.Join(params.OutputDir, "http_handler_factories.gen.go")
-	var factory = new(codedef.HTTPHandlerFactoryContainer)
+	var factory = new(codedef.FactoryContainer)
 
 	for _, pkg := range pkgList {
 		for _, service := range pkg.Services {
 			factory.Imports = append(factory.Imports, pkg.GoPackage.PkgPath)
-			factory.Factories = append(factory.Factories, codedef.HTTPHandlerFactory{
+			factory.Factories = append(factory.Factories, codedef.Factory{
 				Module: pkg.Name,
 				Name:   service.Name,
 			})
@@ -151,10 +152,56 @@ func GenerateHTTPHandlerFactoryContainer(pkgList parser.PackageList, params Gene
 	return
 }
 
+func GenerateWorkerFactoryForType(workerType string) GeneratorFunc {
+	return func(pkgList parser.PackageList, params GenerateParams) (err error) {
+		return GenerateWorkerFactoryContainer(pkgList, params, workerType)
+	}
+}
+
+func GenerateWorkerFactoryContainer(pkgList parser.PackageList, params GenerateParams, workerType string) (err error) {
+	var outFile = filepath.Join(params.OutputDir, fmt.Sprintf("%s_factories.gen.go", workerType))
+	var factory = new(codedef.FactoryContainer)
+
+	for _, pkg := range pkgList {
+		for _, wrk := range pkg.Workers {
+			if wrk.Type != workerType {
+				continue
+			}
+			factory.Imports = append(factory.Imports, pkg.GoPackage.PkgPath)
+			factory.Factories = append(factory.Factories, codedef.Factory{
+				Module: pkg.Name,
+				Name:   wrk.Name,
+			})
+		}
+	}
+
+	if len(factory.Factories) == 0 {
+		return
+	}
+
+	fmt.Printf("generating %s factory container %s \n", workerType, outFile)
+	var exec templates.ExecFunc[codedef.FactoryContainer]
+	if workerType == "workflow" {
+		exec = templates.WorkflowFactories
+	} else {
+		exec = templates.ActivityFactories
+	}
+
+	data, err := exec(factory)
+	if err != nil {
+		return
+	}
+
+	err = os.WriteFile(outFile, data.Bytes(), os.ModePerm)
+	return
+}
+
 func DefaultPipeline() Pipeline {
 	return Pipeline{
 		GenerateService,
 		GenerateWorker,
+		GenerateWorkerFactoryForType("workflow"),
+		GenerateWorkerFactoryForType("activity"),
 		GenerateHTTPHandlerFactoryContainer,
 	}
 }
