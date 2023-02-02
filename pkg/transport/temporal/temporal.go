@@ -4,6 +4,7 @@ import (
 	"context"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 	"time"
@@ -68,3 +69,5 @@ func NewWorker(
 	}
 	return
 }
+
+type RetryPolicy = temporal.RetryPolicy
