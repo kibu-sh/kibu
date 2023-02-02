@@ -4,66 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 	"net"
 	"net/http"
 	"time"
 )
 
-type Server struct {
-	*http.Server
-	Listeners       []net.Listener
-	shutdownTimeout *time.Duration
-	shutdownChan    chan error
-}
-
-func (s *Server) Start(ctx context.Context) error {
-
-	for _, l := range s.Listeners {
-		startChan := make(chan error)
-
-		go func(l net.Listener) {
-			close(startChan)
-			fmt.Println("starting server on", l.Addr().String())
-			_ = s.Serve(l)
-		}(l)
-
-		go func() {
-			<-ctx.Done()
-			sCtx, cancel := context.WithTimeout(context.Background(), *s.shutdownTimeout)
-			defer cancel()
-			defer close(s.shutdownChan)
-			s.shutdownChan <- s.Shutdown(sCtx)
-		}()
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-startChan:
-			if err != nil {
-				return err
-			}
-		case <-time.After(5 * time.Second):
-			return errors.New("timeout starting server listeners")
-		}
-	}
-
-	return nil
-}
-
-func (s *Server) Stop(ctx context.Context) error {
-	return s.Shutdown(ctx)
-}
-
-func (s *Server) Wait() error {
-	// TODO: think about our timeouts
-	return <-s.shutdownChan
-}
-
 type NewServerParams struct {
-	Mux       ServeMux
-	Handlers  []*Handler
-	Listeners []net.Listener
+	Mux      ServeMux
+	Handlers []*Handler
 }
 
 type ListenAddr string
@@ -72,19 +20,41 @@ func NewTCPListener(addr ListenAddr) (net.Listener, error) {
 	return net.Listen("tcp", string(addr))
 }
 
-func NewServer(params *NewServerParams) (*Server, error) {
+func NewServer(params *NewServerParams) (*http.Server, error) {
 	for _, handler := range params.Handlers {
 		params.Mux.Handle(handler)
 	}
 
-	return &Server{
-		Server: &http.Server{
-			Handler: params.Mux,
-		},
-		Listeners: params.Listeners,
-
-		// buffered to avoid blocking on shutdown
-		shutdownChan:    make(chan error, 1),
-		shutdownTimeout: lo.ToPtr(time.Second * 30),
+	return &http.Server{
+		Handler: params.Mux,
 	}, nil
+}
+
+var ErrServerStartTimeout = errors.New("http server start timeout")
+
+// StartServer starts the server in a non-blocking fashion
+// It will return an error in the following cases
+// 1. The server fails to start (port conflict)
+// 2. The context is cancelled
+// 3. The server takes longer than 5 seconds to start
+// You must call server.Shutdown() to stop the server
+func StartServer(ctx context.Context, listener net.Listener, server *http.Server) error {
+	ready := make(chan struct{})
+	errCh := make(chan error)
+	go func() {
+		close(ready)
+		fmt.Println("starting server on", listener.Addr().String())
+		errCh <- server.Serve(listener)
+	}()
+
+	select {
+	case <-ready:
+		return nil
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(5 * time.Second):
+		return ErrServerStartTimeout
+	}
 }
