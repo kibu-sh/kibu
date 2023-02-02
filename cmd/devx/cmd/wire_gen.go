@@ -25,7 +25,7 @@ func InitCLI() (RootCmd, error) {
 	if err != nil {
 		return RootCmd{}, err
 	}
-	fileStore, err := workspace.NewFileStore(context, workspaceConfig)
+	fileStore, err := workspace.NewDevFileStore(context, workspaceConfig)
 	if err != nil {
 		return RootCmd{}, err
 	}

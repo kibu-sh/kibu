@@ -6,23 +6,28 @@ import (
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"os"
 )
 
 type Package struct {
-	pkg       *packages.Package
 	Name      string
 	Services  map[*ast.Ident]*Service
+	Workers   map[*ast.Ident]*Worker
 	Providers map[*ast.Ident]*Provider
+	GoPackage *packages.Package
 
 	funcIdCache    map[*types.Func]*ast.Ident
 	directiveCache map[*ast.Ident]directive.List
 }
 
+type PackageList map[string]*Package
+
 func NewPackage(p *packages.Package) *Package {
 	return &Package{
-		pkg:            p,
+		GoPackage:      p,
 		Name:           p.Name,
 		Services:       make(map[*ast.Ident]*Service),
+		Workers:        make(map[*ast.Ident]*Worker),
 		Providers:      make(map[*ast.Ident]*Provider),
 		funcIdCache:    make(map[*types.Func]*ast.Ident),
 		directiveCache: make(map[*ast.Ident]directive.List),
@@ -48,16 +53,27 @@ func walkPackage(
 	return
 }
 
-func experimentalParse(entry string) (pkgs map[string]*Package, err error) {
+func ExperimentalParse(dir string, patterns ...string) (pkgList PackageList, err error) {
+	pkgList = make(map[string]*Package)
+	stat, err := os.Stat(dir)
+	if err != nil {
+		return
+	}
+
+	if !stat.IsDir() {
+		err = errors.Errorf("parser entrypoint must be a directory got %s", dir)
+		return
+	}
+
 	config := &packages.Config{
-		Dir:   entry,
+		Dir:   dir,
 		Tests: false,
-		Mode: packages.NeedName | packages.NeedFiles |
-			packages.NeedCompiledGoFiles | packages.NeedImports |
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedModule |
+			packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps |
 			packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 	}
 
-	loaded, err := packages.Load(config)
+	loaded, err := packages.Load(config, patterns...)
 	if err != nil {
 		return
 	}
@@ -74,14 +90,13 @@ func experimentalParse(entry string) (pkgs map[string]*Package, err error) {
 		}
 	}
 
-	pkgs = make(map[string]*Package)
 	for _, l := range loaded {
 		var pkg *Package
-		pkg, err = defaultPackageWalker(l)
+		pkg, err = defaultPackageWalker(l, dir)
 		if err != nil {
 			return
 		}
-		pkgs[pkg.Name] = pkg
+		pkgList[pkg.GoPackage.PkgPath] = pkg
 	}
 
 	return

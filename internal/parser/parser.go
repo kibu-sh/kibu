@@ -2,31 +2,12 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
+	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 )
 
-func ParseDir(dir string) (pkgs map[string]*Package, err error) {
-	// fs := token.NewFileSet()
-	// p, err := parser.ParseDir(fs, dir, nil, parser.AllErrors|parser.ParseComments)
-	// if err != nil {
-	// 	return
-	// }
-	//
-	// pkgs = make(map[string]*Package, len(p))
-	// for s, a := range p {
-	// 	var pkg *Package
-	// 	pkg, err = defaultPackageWalker(a)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	pkgs[s] = pkg
-	// }
-
-	return
-}
-
-func defaultPackageWalker(pkg *packages.Package) (*Package, error) {
+func defaultPackageWalker(pkg *packages.Package, dir string) (*Package, error) {
 	return walkPackage(pkg,
 		parseDirectives,
 		buildFuncIdCache,
@@ -34,14 +15,15 @@ func defaultPackageWalker(pkg *packages.Package) (*Package, error) {
 		collectByDefinition(
 			collectServices,
 		),
-		// collectServices,
-		// collectWorkflows,
+		collectByDefinition(
+			collectWorkers,
+		),
 	)
 }
 
 func collectByDefinition(mapperFuncs packageDefMapperFunc) packageMutationFunc {
 	return func(p *Package) error {
-		for ident, object := range p.pkg.TypesInfo.Defs {
+		for ident, object := range p.GoPackage.TypesInfo.Defs {
 			if err := mapperFuncs(p)(ident, object); err != nil {
 				return err
 			}
@@ -51,17 +33,21 @@ func collectByDefinition(mapperFuncs packageDefMapperFunc) packageMutationFunc {
 }
 
 func parseDirectives(p *Package) (err error) {
-	for _, f := range p.pkg.Syntax {
-		p.directiveCache, err = directive.FromDecls(f.Decls)
+	for _, f := range p.GoPackage.Syntax {
+		var dirs = make(map[*ast.Ident]directive.List)
+		dirs, err = directive.FromDecls(f.Decls)
 		if err != nil {
 			return
+		}
+		for ident, dirList := range dirs {
+			p.directiveCache[ident] = dirList
 		}
 	}
 	return
 }
 
 func buildFuncIdCache(p *Package) (err error) {
-	for ident, object := range p.pkg.TypesInfo.Defs {
+	for ident, object := range p.GoPackage.TypesInfo.Defs {
 		if _, ok := object.(*types.Func); ok {
 			p.funcIdCache[object.(*types.Func)] = ident
 		}

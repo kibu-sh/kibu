@@ -195,3 +195,7 @@ func WorkspaceStorePath(ws *Config, env string) string {
 func NewFileStore(ctx context.Context, ws *Config, env string) (*config.FileStore, error) {
 	return config.NewDefaultFileStore(WorkspaceStorePath(ws, env)), nil
 }
+
+func NewDevFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
+	return config.NewDefaultFileStore(WorkspaceStorePath(ws, "dev")), nil
+}

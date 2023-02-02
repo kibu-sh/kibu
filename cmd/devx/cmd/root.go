@@ -32,6 +32,7 @@ func NewRootCmd(params RootCommandParams) (root RootCmd) {
 
 	root.AddCommand(params.ConfigCmd.Command)
 	root.AddCommand(params.MigrateCmd.Command)
+	root.AddCommand(params.BuildCmd.Command)
 
 	return
 }

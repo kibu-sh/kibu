@@ -19,9 +19,9 @@ type Directive struct {
 
 type OptionList map[string][]string
 
-// Get returns a single option value by its key
+// Find returns a single option value by its key
 // If the option does not exist an empty string is returned
-func (ol OptionList) Get(key, def string) (string, bool) {
+func (ol OptionList) Find(key, def string) (string, bool) {
 	vals, ok := ol[key]
 	if !ok {
 		return def, ok
@@ -34,11 +34,26 @@ func (ol OptionList) Get(key, def string) (string, bool) {
 	return vals[0], ok
 }
 
+// Filter returns a list of option values by key
+func (ol OptionList) Filter(key, def string) (vals []string, ok bool) {
+	vals, ok = ol[key]
+	return
+}
+
 // Has checks if an option is present by its key
 // it is possible for a key to be present with no value
 func (ol OptionList) Has(key string) bool {
 	_, ok := ol[key]
 	return ok
+}
+
+func (ol OptionList) HasOneOf(keys ...string) bool {
+	for _, key := range keys {
+		if ol.Has(key) {
+			return true
+		}
+	}
+	return false
 }
 
 type List []Directive
@@ -52,6 +67,21 @@ func (l List) Filter(filter FilterFunc) List {
 
 func (l List) Some(some FilterFunc) bool {
 	return lo.SomeBy(l, some)
+}
+
+func (l List) Find(predicate FilterFunc) (Directive, bool) {
+	return lo.Find(l, predicate)
+}
+
+func OneOf(filters ...FilterFunc) FilterFunc {
+	return func(d Directive) bool {
+		for _, filter := range filters {
+			if filter(d) {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 func HasKey(tool, name string) FilterFunc {

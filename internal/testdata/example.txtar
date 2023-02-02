@@ -1,9 +1,16 @@
 parse $WORK/pkg/auth
 
 -- go.mod --
-module devx
+module github.com/example/module
 
--- pkg/auth/auth.go --
+-- pkg/auth/z_auth.go --
+package auth
+
+// service handles authentication
+//devx:service
+type service struct {}
+
+-- pkg/auth/auth_verify.go --
 package auth
 
 import ("context")
@@ -18,12 +25,13 @@ func (s *service) Verify(ctx context.Context, req VerifyRequest) (res VerifyResp
 	return
 }
 
-// service handles authentication
-//devx:service
-type service struct {}
+-- pkg/auth/auth_worker.go --
+package auth
+
+import ("context")
 
 // service handles authentication
-//devx:worker
+//devx:worker workflow
 type workflows struct {}
 
 // Verify sends an authentication request
@@ -36,7 +44,7 @@ func (*workflows) Verify(ctx context.Context, req VerifyRequest) (res VerifyResp
 // TODO: add validation run that prevents activities and workflows from being in the same struct
 
 // service handles authentication
-//devx:worker
+//devx:worker activity
 type activities struct {}
 
 // Verify sends an authentication request
@@ -45,7 +53,6 @@ type activities struct {}
 func (activities) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
 	return
 }
-
 
 //devx:provider
 func initService() (*service, error) {

@@ -4,14 +4,22 @@ import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"net/http"
 )
 
+type Var struct {
+	Name string
+	Type string
+}
+
 type Endpoint struct {
-	Path       string
-	Method     string
 	Name       string
+	Path       string
+	Methods    []string
+	Request    *Var
+	Response   *Var
 	Directives directive.List
 }
 
@@ -19,6 +27,8 @@ type Service struct {
 	Name       string
 	Endpoints  map[string]*Endpoint
 	Directives directive.List
+	File       *token.File
+	Position   token.Position
 }
 
 func NewService(name string) *Service {
@@ -51,6 +61,8 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
+		// TODO: inject logger
+		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
 		if !dirs.Some(directive.HasKey("devx", "service")) {
 			return
@@ -58,6 +70,8 @@ func collectServices(pkg *Package) defMapperFunc {
 
 		svc := NewService(ident.Name)
 		svc.Directives = dirs
+		svc.File = pkg.GoPackage.Fset.File(ident.Pos())
+		svc.Position = svc.File.Position(ident.Pos())
 		svc.Endpoints, err = collectEndpoints(pkg, n)
 		if err != nil {
 			return
@@ -83,6 +97,10 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpo
 			continue
 		}
 
+		sig := m.Type().(*types.Signature)
+		req := sig.Params().At(1)
+		res := sig.Results().At(0)
+
 		if !dirs.Some(directive.HasKey("devx", "endpoint")) {
 			return
 		}
@@ -90,11 +108,19 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpo
 		ep := &Endpoint{
 			Name:       ident.Name,
 			Directives: dirs,
+			Request: &Var{
+				Name: req.Name(),
+				Type: getTypeNameWithoutPackage(pkg, req),
+			},
+			Response: &Var{
+				Name: res.Name(),
+				Type: getTypeNameWithoutPackage(pkg, res),
+			},
 		}
 
 		for _, d := range dirs.Filter(directive.HasKey("devx", "endpoint")) {
-			ep.Path, _ = d.Options.Get("path", fmt.Sprintf("/%s", ident.Name))
-			ep.Method, _ = d.Options.Get("method", http.MethodGet)
+			ep.Path, _ = d.Options.Find("path", fmt.Sprintf("/%s", ident.Name))
+			ep.Methods, _ = d.Options.Filter("method", http.MethodGet)
 		}
 
 		endpoints[ident.Name] = ep

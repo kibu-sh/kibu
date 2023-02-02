@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/discernhq/devx/internal/build"
+	"github.com/discernhq/devx/internal/codegen"
 	"github.com/spf13/cobra"
 	"os"
+	"path/filepath"
 )
 
 type BuildCmd struct {
@@ -27,13 +28,12 @@ func newBuildRunE() RunE {
 			return
 		}
 
-		b, err := build.NewWithDefaults(cwd)
-		if err != nil {
-			return
-		}
-
-		err = b.Exec()
-
+		err = codegen.Generate(codegen.GenerateParams{
+			Dir:       cwd,
+			Patterns:  args,
+			Pipeline:  codegen.DefaultPipeline(),
+			OutputDir: filepath.Join(cwd, "gen/devxgen"),
+		})
 		return
 	}
 }

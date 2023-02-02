@@ -2,16 +2,19 @@ package parser
 
 import (
 	"github.com/rogpeppe/go-internal/testscript"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestParser(t *testing.T) {
+	cwd, _ := os.Getwd()
+	testdata := filepath.Join(cwd, "../", "testdata")
 	testscript.Run(t, testscript.Params{
-		Dir: "testdata",
+		Dir: testdata,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"parse": func(ts *testscript.TestScript, neg bool, args []string) {
-				// _, err := ParseDir(args[0])
-				_, err := experimentalParse(args[0])
+				_, err := ExperimentalParse(args[0], "./...")
 				ts.Check(err)
 			},
 		},

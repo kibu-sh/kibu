@@ -12,7 +12,7 @@ var templateStdLib = template.FuncMap{
 	"to_kebab": xstrings.ToKebabCase,
 }
 
-type ExecFunc[T any] func(T) (rendered bytes.Buffer, err error)
+type ExecFunc[T any] func(*T) (rendered bytes.Buffer, err error)
 
 type Options struct {
 	Name     string
@@ -21,7 +21,7 @@ type Options struct {
 }
 
 func NewTemplateExecutor[T any](tmpl *template.Template) ExecFunc[T] {
-	return func(v T) (rendered bytes.Buffer, err error) {
+	return func(v *T) (rendered bytes.Buffer, err error) {
 		err = tmpl.Execute(&rendered, v)
 		return
 	}

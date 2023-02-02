@@ -1,8 +1,17 @@
 package codedef
 
+type HTTPHandlerFactory struct {
+	Module string
+	Name   string
+}
+
+type HTTPHandlerFactoryContainer struct {
+	Imports   []string
+	Factories []HTTPHandlerFactory
+}
+
 type Module struct {
 	Name    string
-	Types   TypeMap
 	Worker  Worker
 	Service Service
 }
@@ -16,50 +25,35 @@ type Field struct {
 
 type Type struct {
 	Name   string
-	Fields map[string]Field
+	Fields []Field
+	Type   string
 }
-
-type TypeMap map[string]Type
 
 type Worker struct {
-	TaskQueue  string
-	Workflows  map[string]Workflow
-	Activities map[string]Activity
+	Name      string
+	Type      string
+	TaskQueue string
+	Methods   []Method
 }
 
-type Workflow struct {
-	Name        string
-	Description string
-	Request     Type
-	Response    Type
-}
-
-type Activity struct {
-	Name        string
-	Description string
-	Request     Type
-	Response    Type
-}
-
-type HTTP struct {
-	Path   string
-	Method string
-}
-
-type Transports struct {
-	HTTP HTTP
+type Endpoint struct {
+	Name     string
+	Path     string
+	Methods  []string
+	Request  Type
+	Response Type
 }
 
 type Method struct {
-	Name       string
-	Request    Type
-	Response   Type
-	Transports Transports
+	Name        string
+	Description string
+	Request     Type
+	Response    Type
 }
 
 type Service struct {
 	Name        string
 	Description string
 	Type        string
-	Methods     map[string]Method
+	Endpoints   []Endpoint
 }
