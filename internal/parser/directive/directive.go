@@ -1,6 +1,7 @@
 package directive
 
 import (
+	"github.com/elliotchance/orderedmap/v2"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go/ast"
@@ -14,43 +15,58 @@ var ErrInvalidDirective = errors.New("invalid directive")
 type Directive struct {
 	Tool    string
 	Name    string
-	Options OptionList
+	Options *OptionList
 }
 
-type OptionList map[string][]string
+type OptionList struct {
+	om *orderedmap.OrderedMap[string, []string]
+}
 
-// Find returns a single option value by its key
+func NewOptionList() *OptionList {
+	return &OptionList{
+		om: orderedmap.NewOrderedMap[string, []string](),
+	}
+}
+
+func NewOptionListWithDefaults(defaults map[string][]string) *OptionList {
+	ol := NewOptionList()
+	for k, v := range defaults {
+		ol.Set(k, v)
+	}
+	return ol
+}
+
+// Set sets a single option value by its key
+func (ol *OptionList) Set(key string, val []string) bool {
+	return ol.om.Set(key, val)
+}
+
+// GetOne returns a single option value by its key
 // If the option does not exist an empty string is returned
-func (ol OptionList) Find(key, def string) (string, bool) {
-	vals, ok := ol[key]
-	if !ok {
-		return def, ok
+func (ol *OptionList) GetOne(key, def string) (val string, ok bool) {
+	v := ol.om.GetOrDefault(key, []string{def})
+	if len(v) == 0 {
+		return "", false
 	}
-
-	if len(vals) == 0 {
-		return def, ok
-	}
-
-	return vals[0], ok
+	return v[0], true
 }
 
-// Filter returns a list of option values by key
-func (ol OptionList) Filter(key, def string) (vals []string, ok bool) {
-	vals, ok = ol[key]
-	if !ok {
-		return []string{def}, ok
+// GetAll returns a list of option values by key
+func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
+	if val, ok = ol.om.Get(key); !ok {
+		val = def
 	}
 	return
 }
 
 // Has checks if an option is present by its key
 // it is possible for a key to be present with no value
-func (ol OptionList) Has(key string) bool {
-	_, ok := ol[key]
+func (ol *OptionList) Has(key string) bool {
+	_, ok := ol.om.Get(key)
 	return ok
 }
 
-func (ol OptionList) HasOneOf(keys ...string) bool {
+func (ol *OptionList) HasOneOf(keys ...string) bool {
 	for _, key := range keys {
 		if ol.Has(key) {
 			return true
@@ -184,12 +200,12 @@ func parseKey(s string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-func parseOptions(opts []string) (result OptionList, err error) {
+func parseOptions(opts []string) (result *OptionList, err error) {
 	if len(opts) == 0 {
 		return
 	}
 
-	result = make(OptionList)
+	result = NewOptionList()
 	for _, opt := range opts {
 		// clean up any leading or trailing spaces
 		opt = strings.TrimSpace(opt)
@@ -200,7 +216,8 @@ func parseOptions(opts []string) (result OptionList, err error) {
 		}
 
 		pair := strings.Split(opt, "=")
-		result[pair[0]] = append(result[pair[0]], tryIndex(pair, 1)...)
+		existing, _ := result.GetAll(pair[0], nil)
+		result.Set(pair[0], append(existing, tryIndex(pair, 1)...))
 	}
 	return result, nil
 }
@@ -213,8 +230,8 @@ func tryIndex(pair []string, i int) []string {
 }
 
 // FromDecls returns a list of directives cached by *ast.Ident
-func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
-	result = make(map[*ast.Ident]List)
+func FromDecls(decls []ast.Decl) (result *orderedmap.OrderedMap[*ast.Ident, List], err error) {
+	result = orderedmap.NewOrderedMap[*ast.Ident, List]()
 
 	for _, decl := range decls {
 		if err = applyFromDecl(decl, result); err != nil {
@@ -225,7 +242,7 @@ func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
 	return
 }
 
-func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
+func applyFromDecl(decl ast.Decl, result *orderedmap.OrderedMap[*ast.Ident, List]) (err error) {
 	var comments *ast.CommentGroup
 
 	switch decl := decl.(type) {
@@ -249,15 +266,15 @@ func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
 		for _, spec := range decl.Specs {
 			switch spec := spec.(type) {
 			case *ast.TypeSpec:
-				result[spec.Name] = dirs
+				result.Set(spec.Name, dirs)
 			case *ast.ValueSpec:
 				for _, name := range spec.Names {
-					result[name] = dirs
+					result.Set(name, dirs)
 				}
 			}
 		}
 	case *ast.FuncDecl:
-		result[decl.Name] = dirs
+		result.Set(decl.Name, dirs)
 	}
 	return
 }
