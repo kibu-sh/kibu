@@ -10,7 +10,11 @@ import (
 func (svc *{{ .Service.Name }}) HTTPHandlerFactory() []*httpx.Handler {
 	return []*httpx.Handler{
 		{{- range .Service.Endpoints }}
-		httpx.NewHandler({{.Path | printf "%q"}}, transport.NewEndpoint(svc.{{ .Name }})).
+		{{- $epFunc := "NewEndpoint" -}}
+		{{- if .Raw }}
+			{{- $epFunc = "NewRawEndpoint" -}}
+		{{- end }}
+		httpx.NewHandler({{.Path | printf "%q"}}, transport.{{$epFunc}}(svc.{{ .Name }})).
 			WithMethods(
 			{{- range .Methods}}
 				{{ . | printf "%q" }},

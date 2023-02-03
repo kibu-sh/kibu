@@ -37,6 +37,9 @@ func (ol OptionList) Find(key, def string) (string, bool) {
 // Filter returns a list of option values by key
 func (ol OptionList) Filter(key, def string) (vals []string, ok bool) {
 	vals, ok = ol[key]
+	if !ok {
+		return []string{def}, ok
+	}
 	return
 }
 

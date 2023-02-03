@@ -55,17 +55,23 @@ func GenerateService(pkgList parser.PackageList, params GenerateParams) (err err
 					Description: "This a service",
 					Type:        "",
 					Endpoints: lo.MapToSlice(svc.Endpoints, func(key string, endpoint *parser.Endpoint) codedef.Endpoint {
-						return codedef.Endpoint{
+						ep := codedef.Endpoint{
 							Name:    endpoint.Name,
 							Path:    endpoint.Path,
+							Raw:     endpoint.Raw,
 							Methods: endpoint.Methods,
-							Request: codedef.Type{
-								Name: endpoint.Request.Type,
-							},
-							Response: codedef.Type{
-								Name: endpoint.Response.Type,
-							},
 						}
+						if !endpoint.Raw {
+							ep.Request = codedef.Type{
+								Name: endpoint.Request.Name,
+								Type: endpoint.Request.Type,
+							}
+							ep.Response = codedef.Type{
+								Name: endpoint.Response.Name,
+								Type: endpoint.Response.Type,
+							}
+						}
+						return ep
 					}),
 				},
 			})

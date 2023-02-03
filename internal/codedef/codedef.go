@@ -39,6 +39,7 @@ type Worker struct {
 type Endpoint struct {
 	Name     string
 	Path     string
+	Raw      bool
 	Methods  []string
 	Request  Type
 	Response Type

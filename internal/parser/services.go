@@ -17,6 +17,7 @@ type Var struct {
 type Endpoint struct {
 	Name       string
 	Path       string
+	Raw        bool
 	Methods    []string
 	Request    *Var
 	Response   *Var
@@ -97,31 +98,34 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpo
 			continue
 		}
 
-		sig := m.Type().(*types.Signature)
-		req := sig.Params().At(1)
-		res := sig.Results().At(0)
+		dir, isEndpoint := dirs.Find(directive.HasKey("devx", "endpoint"))
 
-		if !dirs.Some(directive.HasKey("devx", "endpoint")) {
+		if !isEndpoint {
 			return
 		}
 
 		ep := &Endpoint{
 			Name:       ident.Name,
 			Directives: dirs,
-			Request: &Var{
-				Name: req.Name(),
-				Type: getTypeNameWithoutPackage(pkg, req),
-			},
-			Response: &Var{
-				Name: res.Name(),
-				Type: getTypeNameWithoutPackage(pkg, res),
-			},
+			Raw:        dir.Options.Has("raw"),
 		}
 
-		for _, d := range dirs.Filter(directive.HasKey("devx", "endpoint")) {
-			ep.Path, _ = d.Options.Find("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
-			ep.Methods, _ = d.Options.Filter("method", http.MethodGet)
+		if !ep.Raw {
+			sig := m.Type().(*types.Signature)
+			req := sig.Params().At(1)
+			res := sig.Results().At(0)
+			ep.Request = &Var{
+				Name: req.Name(),
+				Type: getTypeNameWithoutPackage(pkg, req),
+			}
+			ep.Response = &Var{
+				Name: res.Name(),
+				Type: getTypeNameWithoutPackage(pkg, res),
+			}
 		}
+
+		ep.Path, _ = dir.Options.Find("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
+		ep.Methods, _ = dir.Options.Filter("method", http.MethodGet)
 
 		endpoints[ident.Name] = ep
 	}
