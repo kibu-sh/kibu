@@ -188,14 +188,18 @@ func DevxStoreDir() string {
 	return DevxDirRelPath("store/config")
 }
 
-func WorkspaceStorePath(ws *Config, env string) string {
-	return filepath.Join(ws.Root(), DevxStoreDir(), env)
+func StoreRoot(ws *Config) string {
+	return filepath.Join(ws.Root(), DevxStoreDir())
 }
 
-func NewFileStore(ctx context.Context, ws *Config, env string) (*config.FileStore, error) {
-	return config.NewDefaultFileStore(WorkspaceStorePath(ws, env)), nil
+func StorePathWithEnv(ws *Config, env string) string {
+	return filepath.Join(StoreRoot(ws), env)
 }
 
-func NewDevFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
-	return config.NewDefaultFileStore(WorkspaceStorePath(ws, "dev")), nil
+func NewEnvScopedFileStore(ctx context.Context, ws *Config, env string) (*config.FileStore, error) {
+	return config.NewDefaultFileStore(StorePathWithEnv(ws, env)), nil
+}
+
+func NewFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
+	return config.NewDefaultFileStore(StoreRoot(ws)), nil
 }

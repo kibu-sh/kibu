@@ -14,7 +14,7 @@ func NewWorkspaceFileStore(ctx context.Context) (store *config.FileStore, err er
 		return
 	}
 
-	store, err = workspace.NewFileStore(ctx, wsConfig, "dev")
+	store, err = workspace.NewEnvScopedFileStore(ctx, wsConfig, "dev")
 	return
 }
 

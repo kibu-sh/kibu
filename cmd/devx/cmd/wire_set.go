@@ -10,7 +10,7 @@ import (
 var WireSet = wire.NewSet(
 	appcontext.Context,
 	workspace.NewWorkspaceConfig,
-	workspace.NewDevFileStore,
+	workspace.NewFileStore,
 	config.NewEncryptedFileEditor,
 
 	NewRootCmd,
