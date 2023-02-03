@@ -2,6 +2,7 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/elliotchance/orderedmap/v2"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/token"
@@ -20,7 +21,7 @@ type Worker struct {
 	Name       string
 	Type       string
 	TaskQueue  string
-	Methods    map[string]*Method
+	Methods    *orderedmap.OrderedMap[*ast.Ident, *Method]
 	Directives directive.List
 	File       *token.File
 	Position   token.Position
@@ -30,7 +31,7 @@ func NewWorker(name, queue string) *Worker {
 	return &Worker{
 		Name:      name,
 		TaskQueue: queue,
-		Methods:   make(map[string]*Method),
+		Methods:   orderedmap.NewOrderedMap[*ast.Ident, *Method](),
 	}
 }
 
@@ -51,7 +52,7 @@ func collectWorkers(pkg *Package) defMapperFunc {
 			return
 		}
 
-		dirs, ok := pkg.directiveCache[ident]
+		dirs, ok := pkg.directiveCache.Get(ident)
 		if !ok {
 			return
 		}
@@ -64,7 +65,7 @@ func collectWorkers(pkg *Package) defMapperFunc {
 			return
 		}
 
-		taskQueue, _ := dir.Options.Find("task_queue", "default")
+		taskQueue, _ := dir.Options.GetOne("task_queue", "default")
 		wrk := NewWorker(ident.Name, taskQueue)
 
 		wrk.Directives = dirs
@@ -87,23 +88,23 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		if err != nil {
 			return
 		}
-		pkg.Workers[ident] = wrk
+		pkg.Workers.Set(ident, wrk)
 
 		return
 	}
 }
 
-func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[string]*Method, err error) {
-	methods = make(map[string]*Method)
+func collectWorkerMethods(pkg *Package, n *types.Named) (methods *orderedmap.OrderedMap[*ast.Ident, *Method], err error) {
+	methods = orderedmap.NewOrderedMap[*ast.Ident, *Method]()
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)
-		ident, ok := pkg.funcIdCache[m]
+		ident, ok := pkg.funcIdCache.Get(m)
 		if !ok {
 			continue
 		}
 
-		dirs, ok := pkg.directiveCache[ident]
+		dirs, ok := pkg.directiveCache.Get(ident)
 		if !ok {
 			continue
 		}
@@ -134,7 +135,7 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[string]*Met
 			},
 		}
 
-		methods[ident.Name] = ep
+		methods.Set(ident, ep)
 	}
 	return
 }

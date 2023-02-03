@@ -13,19 +13,20 @@ type Provider struct {
 }
 
 func collectProviders(p *Package) (err error) {
-	for f, ident := range p.funcIdCache {
-		dirs, ok := p.directiveCache[ident]
+	for _, f := range p.funcIdCache.Keys() {
+		ident, _ := p.funcIdCache.Get(f)
+		dirs, ok := p.directiveCache.Get(ident)
 		if !ok {
 			return
 		}
 
 		if dirs.Some(directive.HasKey("devx", "provider")) {
-			p.Providers[ident] = &Provider{
+			p.Providers.Set(ident, &Provider{
 				Name:       f.Name(),
 				Directives: dirs,
 				File:       p.GoPackage.Fset.File(ident.Pos()),
 				Position:   p.GoPackage.Fset.Position(ident.Pos()),
-			}
+			})
 		}
 	}
 	return

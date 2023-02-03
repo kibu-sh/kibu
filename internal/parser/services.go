@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/elliotchance/orderedmap/v2"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -26,16 +27,16 @@ type Endpoint struct {
 
 type Service struct {
 	Name       string
-	Endpoints  map[string]*Endpoint
 	Directives directive.List
 	File       *token.File
 	Position   token.Position
+	Endpoints  *orderedmap.OrderedMap[*ast.Ident, *Endpoint]
 }
 
 func NewService(name string) *Service {
 	return &Service{
 		Name:      name,
-		Endpoints: make(map[string]*Endpoint),
+		Endpoints: orderedmap.NewOrderedMap[*ast.Ident, *Endpoint](),
 	}
 }
 
@@ -57,7 +58,7 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
-		dirs, ok := pkg.directiveCache[ident]
+		dirs, ok := pkg.directiveCache.Get(ident)
 		if !ok {
 			return
 		}
@@ -77,23 +78,23 @@ func collectServices(pkg *Package) defMapperFunc {
 		if err != nil {
 			return
 		}
-		pkg.Services[ident] = svc
+		pkg.Services.Set(ident, svc)
 
 		return
 	}
 }
 
-func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpoint, err error) {
-	endpoints = make(map[string]*Endpoint)
+func collectEndpoints(pkg *Package, n *types.Named) (endpoints *orderedmap.OrderedMap[*ast.Ident, *Endpoint], err error) {
+	endpoints = orderedmap.NewOrderedMap[*ast.Ident, *Endpoint]()
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)
-		ident, ok := pkg.funcIdCache[m]
+		ident, ok := pkg.funcIdCache.Get(m)
 		if !ok {
 			continue
 		}
 
-		dirs, ok := pkg.directiveCache[ident]
+		dirs, ok := pkg.directiveCache.Get(ident)
 		if !ok {
 			continue
 		}
@@ -124,10 +125,10 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[string]*Endpo
 			}
 		}
 
-		ep.Path, _ = dir.Options.Find("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
-		ep.Methods, _ = dir.Options.Filter("method", http.MethodGet)
+		ep.Path, _ = dir.Options.GetOne("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
+		ep.Methods, _ = dir.Options.GetAll("method", []string{http.MethodGet})
 
-		endpoints[ident.Name] = ep
+		endpoints.Set(ident, ep)
 	}
 	return
 }

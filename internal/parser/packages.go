@@ -2,6 +2,7 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/elliotchance/orderedmap/v2"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"
@@ -11,26 +12,26 @@ import (
 
 type Package struct {
 	Name      string
-	Services  map[*ast.Ident]*Service
-	Workers   map[*ast.Ident]*Worker
-	Providers map[*ast.Ident]*Provider
 	GoPackage *packages.Package
+	Services  *orderedmap.OrderedMap[*ast.Ident, *Service]
+	Workers   *orderedmap.OrderedMap[*ast.Ident, *Worker]
+	Providers *orderedmap.OrderedMap[*ast.Ident, *Provider]
 
-	funcIdCache    map[*types.Func]*ast.Ident
-	directiveCache map[*ast.Ident]directive.List
+	funcIdCache    *orderedmap.OrderedMap[*types.Func, *ast.Ident]
+	directiveCache *orderedmap.OrderedMap[*ast.Ident, directive.List]
 }
 
 type PackageList map[string]*Package
 
 func NewPackage(p *packages.Package) *Package {
 	return &Package{
-		GoPackage:      p,
 		Name:           p.Name,
-		Services:       make(map[*ast.Ident]*Service),
-		Workers:        make(map[*ast.Ident]*Worker),
-		Providers:      make(map[*ast.Ident]*Provider),
-		funcIdCache:    make(map[*types.Func]*ast.Ident),
-		directiveCache: make(map[*ast.Ident]directive.List),
+		GoPackage:      p,
+		Services:       orderedmap.NewOrderedMap[*ast.Ident, *Service](),
+		Workers:        orderedmap.NewOrderedMap[*ast.Ident, *Worker](),
+		Providers:      orderedmap.NewOrderedMap[*ast.Ident, *Provider](),
+		funcIdCache:    orderedmap.NewOrderedMap[*types.Func, *ast.Ident](),
+		directiveCache: orderedmap.NewOrderedMap[*ast.Ident, directive.List](),
 	}
 }
 
