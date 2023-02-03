@@ -15,6 +15,13 @@ type Request struct {
 }
 
 func (r *Request) URL() *url.URL {
+	if !r.Request.URL.IsAbs() {
+		r.Request.URL.Scheme = "http"
+		r.Request.URL.Host = r.Request.Host
+		if r.Request.TLS != nil || r.Request.Header.Get("X-Forwarded-Proto") == "https" {
+			r.Request.URL.Scheme = "https"
+		}
+	}
 	return r.Request.URL
 }
 

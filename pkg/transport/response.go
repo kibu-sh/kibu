@@ -13,6 +13,11 @@ type Response interface {
 
 	SetStatusCode(int)
 
+	DelCookie(cookie http.Cookie) Response
+	DelCookieByName(name string) Response
+	SetCookie(cookie http.Cookie) Response
+	Redirect(req Request, url string, code int)
+
 	// Underlying returns a transport specific response
 	// it should return an interface or pointer to the original response (i.e. http.ResponseWriter)
 	// this should be used with care as it couples your code to a specific transport

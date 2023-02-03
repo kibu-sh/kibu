@@ -1,7 +1,7 @@
 package temporal
 
 import (
-	"context"
+	"fmt"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
@@ -11,19 +11,17 @@ import (
 )
 
 type TaskQueue string
-type WorkflowFunc func(ctx workflow.Context, req any) (res any, err error)
-
-type ActivityFunc func(ctx context.Context, req any) (res any, err error)
 
 type Workflow struct {
 	Name    string
-	Handler func(ctx workflow.Context, req any) (res any, err error)
+	Handler any
 }
 
 type Activity struct {
 	Name    string
-	Handler func(ctx context.Context, req any) (res any, err error)
+	Handler any
 }
+
 type WorkflowFactory interface {
 	WorkflowFactory() []*Workflow
 }
@@ -32,14 +30,14 @@ type ActivityFactory interface {
 	ActivityFactory() []*Activity
 }
 
-func NewWorkflow(name string, handler WorkflowFunc) *Workflow {
+func NewWorkflow(name string, handler any) *Workflow {
 	return &Workflow{
 		Name:    name,
 		Handler: handler,
 	}
 }
 
-func NewActivity(name string, handler ActivityFunc) *Activity {
+func NewActivity(name string, handler any) *Activity {
 	return &Activity{
 		Name:    name,
 		Handler: handler,
@@ -58,11 +56,13 @@ func NewWorker(
 		WorkerStopTimeout:     time.Second * 30,
 	})
 	for _, wf := range workflows {
+		fmt.Printf("registering workflow %s\n", wf.Name)
 		w.RegisterWorkflowWithOptions(wf.Handler, workflow.RegisterOptions{
 			Name: wf.Name,
 		})
 	}
 	for _, act := range activities {
+		fmt.Printf("registering activity %s\n", act.Name)
 		w.RegisterActivityWithOptions(act.Handler, activity.RegisterOptions{
 			Name: act.Name,
 		})

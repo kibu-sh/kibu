@@ -14,7 +14,9 @@ type Request interface {
 	PathParams() url.Values
 	QueryParams() url.Values
 	Headers() http.Header
+
 	Cookies() []*http.Cookie
+	Cookie(name string) (cookie *http.Cookie, err error)
 
 	// Body exposes io.ReadCloser from the Underlying request
 	// We recommend using http.MaxBytesReader to limit the size of the body

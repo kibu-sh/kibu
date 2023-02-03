@@ -5,6 +5,9 @@ import "context"
 // EndpointFunc is a functional implementation of Endpoint
 type EndpointFunc[Req, Res any] func(ctx context.Context, request Req) (response Res, err error)
 
+// RawEndpointFunc is a functional implementation of Endpoint
+type RawEndpointFunc func(ctx Context) (err error)
+
 // Endpoint is any function that can be modeled as service call.
 // These should remain transport agnostic and are used to implement business logic.
 type Endpoint[Req, Res any] struct {
@@ -17,6 +20,17 @@ func NewEndpoint[Req, Res any](
 ) (ep *Endpoint[Req, Res]) {
 	ep = &Endpoint[Req, Res]{
 		Func: endpointFunc,
+	}
+	return
+}
+
+func NewRawEndpoint(
+	endpointFunc RawEndpointFunc,
+) (ep *Endpoint[any, any]) {
+	ep = &Endpoint[any, any]{
+		Func: func(ctx context.Context, request any) (response any, err error) {
+			return nil, endpointFunc(ctx.(Context))
+		},
 	}
 	return
 }
