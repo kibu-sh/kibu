@@ -32,7 +32,7 @@ func newBuildRunE() RunE {
 			Dir:       cwd,
 			Patterns:  args,
 			Pipeline:  codegen.DefaultPipeline(),
-			OutputDir: filepath.Join(cwd, "gen/devxgen"),
+			OutputDir: filepath.Join(cwd, "gen"),
 		})
 		return
 	}

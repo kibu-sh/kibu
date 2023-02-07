@@ -2,7 +2,7 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/elliotchance/orderedmap/v2"
+	"github.com/discernhq/devx/internal/parser/smap"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/token"
@@ -17,21 +17,28 @@ type Method struct {
 	Response   *Var
 }
 
+type WorkerType string
+
 type Worker struct {
 	Name       string
-	Type       string
+	Type       WorkerType
 	TaskQueue  string
-	Methods    *orderedmap.OrderedMap[*ast.Ident, *Method]
+	Methods    smap.Map[*ast.Ident, *Method]
 	Directives directive.List
 	File       *token.File
 	Position   token.Position
 }
 
+var (
+	WorkflowType = WorkerType("workflow")
+	ActivityType = WorkerType("activity")
+)
+
 func NewWorker(name, queue string) *Worker {
 	return &Worker{
 		Name:      name,
 		TaskQueue: queue,
-		Methods:   orderedmap.NewOrderedMap[*ast.Ident, *Method](),
+		Methods:   smap.NewMap[*ast.Ident, *Method](),
 	}
 }
 
@@ -79,9 +86,9 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		}
 
 		if dir.Options.Has("workflow") {
-			wrk.Type = "workflow"
+			wrk.Type = WorkflowType
 		} else {
-			wrk.Type = "activity"
+			wrk.Type = ActivityType
 		}
 
 		wrk.Methods, err = collectWorkerMethods(pkg, n)
@@ -94,8 +101,8 @@ func collectWorkers(pkg *Package) defMapperFunc {
 	}
 }
 
-func collectWorkerMethods(pkg *Package, n *types.Named) (methods *orderedmap.OrderedMap[*ast.Ident, *Method], err error) {
-	methods = orderedmap.NewOrderedMap[*ast.Ident, *Method]()
+func collectWorkerMethods(pkg *Package, n *types.Named) (methods smap.Map[*ast.Ident, *Method], err error) {
+	methods = smap.NewMap[*ast.Ident, *Method]()
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)

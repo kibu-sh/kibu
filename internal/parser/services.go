@@ -3,7 +3,7 @@ package parser
 import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/elliotchance/orderedmap/v2"
+	"github.com/discernhq/devx/internal/parser/smap"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -30,13 +30,13 @@ type Service struct {
 	Directives directive.List
 	File       *token.File
 	Position   token.Position
-	Endpoints  *orderedmap.OrderedMap[*ast.Ident, *Endpoint]
+	Endpoints  smap.Map[*ast.Ident, *Endpoint]
 }
 
 func NewService(name string) *Service {
 	return &Service{
 		Name:      name,
-		Endpoints: orderedmap.NewOrderedMap[*ast.Ident, *Endpoint](),
+		Endpoints: smap.NewMap[*ast.Ident, *Endpoint](),
 	}
 }
 
@@ -84,8 +84,8 @@ func collectServices(pkg *Package) defMapperFunc {
 	}
 }
 
-func collectEndpoints(pkg *Package, n *types.Named) (endpoints *orderedmap.OrderedMap[*ast.Ident, *Endpoint], err error) {
-	endpoints = orderedmap.NewOrderedMap[*ast.Ident, *Endpoint]()
+func collectEndpoints(pkg *Package, n *types.Named) (endpoints smap.Map[*ast.Ident, *Endpoint], err error) {
+	endpoints = smap.NewMap[*ast.Ident, *Endpoint]()
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)

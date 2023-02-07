@@ -2,22 +2,24 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/elliotchance/orderedmap/v2"
+	"github.com/discernhq/devx/internal/parser/smap"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 )
 
 func defaultPackageWalker(pkg *packages.Package, dir string) (*Package, error) {
-	return walkPackage(pkg,
+	return walkPackage(dir, pkg,
 		parseDirectives,
 		buildFuncIdCache,
-		collectProviders,
 		collectByDefinition(
 			collectServices,
 		),
 		collectByDefinition(
 			collectWorkers,
+		),
+		collectByDefinition(
+			collectProviders,
 		),
 	)
 }
@@ -35,14 +37,14 @@ func collectByDefinition(mapperFuncs packageDefMapperFunc) packageMutationFunc {
 
 func parseDirectives(p *Package) (err error) {
 	for _, f := range p.GoPackage.Syntax {
-		var dirs = orderedmap.NewOrderedMap[*ast.Ident, directive.List]()
+		var dirs = smap.NewMap[*ast.Ident, directive.List]()
 		dirs, err = directive.FromDecls(f.Decls)
 		if err != nil {
 			return
 		}
-		for _, ident := range dirs.Keys() {
-			dirList, _ := dirs.Get(ident)
-			p.directiveCache.Set(ident, dirList)
+		for _, elm := range dirs.Iterator() {
+			dirList, _ := dirs.Get(elm.Key)
+			p.directiveCache.Set(elm.Key, dirList)
 		}
 	}
 	return

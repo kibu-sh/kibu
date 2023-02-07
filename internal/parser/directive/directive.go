@@ -1,7 +1,7 @@
 package directive
 
 import (
-	"github.com/elliotchance/orderedmap/v2"
+	"github.com/discernhq/devx/internal/parser/smap"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go/ast"
@@ -19,12 +19,12 @@ type Directive struct {
 }
 
 type OptionList struct {
-	om *orderedmap.OrderedMap[string, []string]
+	om smap.Map[smap.String, []string]
 }
 
 func NewOptionList() *OptionList {
 	return &OptionList{
-		om: orderedmap.NewOrderedMap[string, []string](),
+		om: smap.NewMap[smap.String, []string](),
 	}
 }
 
@@ -37,14 +37,14 @@ func NewOptionListWithDefaults(defaults map[string][]string) *OptionList {
 }
 
 // Set sets a single option value by its key
-func (ol *OptionList) Set(key string, val []string) bool {
-	return ol.om.Set(key, val)
+func (ol *OptionList) Set(key string, val []string) {
+	ol.om.Set(smap.String(key), val)
 }
 
 // GetOne returns a single option value by its key
 // If the option does not exist an empty string is returned
 func (ol *OptionList) GetOne(key, def string) (val string, ok bool) {
-	v := ol.om.GetOrDefault(key, []string{def})
+	v := ol.om.GetOrDefault(smap.String(key), []string{def})
 	if len(v) == 0 {
 		return "", false
 	}
@@ -53,7 +53,7 @@ func (ol *OptionList) GetOne(key, def string) (val string, ok bool) {
 
 // GetAll returns a list of option values by key
 func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
-	if val, ok = ol.om.Get(key); !ok {
+	if val, ok = ol.om.Get(smap.String(key)); !ok {
 		val = def
 	}
 	return
@@ -62,7 +62,7 @@ func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
 // Has checks if an option is present by its key
 // it is possible for a key to be present with no value
 func (ol *OptionList) Has(key string) bool {
-	_, ok := ol.om.Get(key)
+	_, ok := ol.om.Get(smap.String(key))
 	return ok
 }
 
@@ -230,8 +230,8 @@ func tryIndex(pair []string, i int) []string {
 }
 
 // FromDecls returns a list of directives cached by *ast.Ident
-func FromDecls(decls []ast.Decl) (result *orderedmap.OrderedMap[*ast.Ident, List], err error) {
-	result = orderedmap.NewOrderedMap[*ast.Ident, List]()
+func FromDecls(decls []ast.Decl) (result smap.Map[*ast.Ident, List], err error) {
+	result = smap.NewMap[*ast.Ident, List]()
 
 	for _, decl := range decls {
 		if err = applyFromDecl(decl, result); err != nil {
@@ -242,7 +242,7 @@ func FromDecls(decls []ast.Decl) (result *orderedmap.OrderedMap[*ast.Ident, List
 	return
 }
 
-func applyFromDecl(decl ast.Decl, result *orderedmap.OrderedMap[*ast.Ident, List]) (err error) {
+func applyFromDecl(decl ast.Decl, result smap.Map[*ast.Ident, List]) (err error) {
 	var comments *ast.CommentGroup
 
 	switch decl := decl.(type) {

@@ -12,60 +12,41 @@ import (
 
 type TaskQueue string
 
-type Workflow struct {
-	Name    string
-	Handler any
+type Worker struct {
+	Name      string
+	TaskQueue string
+	Type      string
+	Handler   any
 }
-
-type Activity struct {
-	Name    string
-	Handler any
-}
-
-type WorkflowFactory interface {
-	WorkflowFactory() []*Workflow
-}
-
-type ActivityFactory interface {
-	ActivityFactory() []*Activity
-}
-
-func NewWorkflow(name string, handler any) *Workflow {
-	return &Workflow{
-		Name:    name,
-		Handler: handler,
-	}
-}
-
-func NewActivity(name string, handler any) *Activity {
-	return &Activity{
-		Name:    name,
-		Handler: handler,
-	}
+type WorkerFactory interface {
+	WorkerFactory() []*WorkerFactory
 }
 
 func NewWorker(
 	client client.Client,
-	queue TaskQueue,
-	workflows []*Workflow,
-	activities []*Activity,
-) (w worker.Worker, err error) {
-	// TODO: pre production tuning
-	w = worker.New(client, string(queue), worker.Options{
-		EnableLoggingInReplay: true,
-		WorkerStopTimeout:     time.Second * 30,
-	})
-	for _, wf := range workflows {
-		fmt.Printf("registering workflow %s\n", wf.Name)
-		w.RegisterWorkflowWithOptions(wf.Handler, workflow.RegisterOptions{
-			Name: wf.Name,
+	workerDefs []*Worker,
+) (workers []worker.Worker, err error) {
+	for _, def := range workerDefs {
+		// TODO: pre production tuning
+		w := worker.New(client, string(def.TaskQueue), worker.Options{
+			EnableLoggingInReplay: true,
+			WorkerStopTimeout:     time.Second * 30,
 		})
-	}
-	for _, act := range activities {
-		fmt.Printf("registering activity %s\n", act.Name)
-		w.RegisterActivityWithOptions(act.Handler, activity.RegisterOptions{
-			Name: act.Name,
-		})
+
+		fmt.Printf("registering %s %s\n", def.Type, def.Name)
+
+		switch def.Type {
+		case "workflow":
+			w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{
+				Name: def.Name,
+			})
+		case "activity":
+			w.RegisterActivityWithOptions(def.Handler, activity.RegisterOptions{
+				Name: def.Name,
+			})
+		}
+
+		workers = append(workers, w)
 	}
 	return
 }
