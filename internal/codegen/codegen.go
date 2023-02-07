@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"bytes"
 	"github.com/dave/jennifer/jen"
 	"github.com/discernhq/devx/internal/parser"
 	"github.com/discernhq/devx/internal/parser/smap"
@@ -77,15 +76,7 @@ func Generate(params GenerateParams) (err error) {
 			return
 		}
 
-		contents := new(bytes.Buffer)
-		if err = file.Render(contents); err != nil {
-			return
-		}
-
-		// ensure file ends with a new line
-		// this keeps the txtar format clean
-		contents.WriteString("\n")
-		if err = os.WriteFile(fp, contents.Bytes(), os.ModePerm); err != nil {
+		if err = file.Save(fp); err != nil {
 			return
 		}
 	}
