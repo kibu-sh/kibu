@@ -1,10 +1,11 @@
 parse $WORK
 cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
 cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
+! exists src/pkg/nope/nope.gen.go
 
-parse $WORK
-cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
-cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
+#parse $WORK
+#cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
+#cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
 
 -- src/go.mod --
 module github.com/example/module
@@ -230,3 +231,7 @@ func InitActivityDeps() error {
 
 //devx:provider
 type StructProvider struct {}
+-- src/pkg/nope/nope.go --
+package nope
+
+type nope struct{}

@@ -19,8 +19,8 @@ func BuildWorkerProxies(
 ) (err error) {
 	for _, path := range opts.PackageList.Iterator() {
 		pkg := path.Value
-		f := opts.FileSet.Get(packageScopedFilePath(pkg))
 		for _, ident := range pkg.Workers.Iterator() {
+			f := opts.FileSet.Get(packageScopedFilePath(pkg))
 			wrk := ident.Value
 			wrkID := jen.Id(workerTypeID(wrk.Type))
 

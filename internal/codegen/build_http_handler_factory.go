@@ -10,8 +10,8 @@ func BuildServiceHTTPHandlerFactories(
 ) (err error) {
 	for _, elem := range opts.PackageList.Iterator() {
 		pkg := elem.Value
-		f := opts.FileSet.Get(packageScopedFilePath(pkg))
 		for _, elem := range pkg.Services.Iterator() {
+			f := opts.FileSet.Get(packageScopedFilePath(pkg))
 			svc := elem.Value
 			svcID := jen.Id("svc")
 
