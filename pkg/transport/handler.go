@@ -14,6 +14,7 @@ func (h HandlerFunc) Serve(ctx Context) error {
 }
 
 type Middleware func(Handler) Handler
+type MiddlewareFunc func(ctx Context, next Handler) error
 
 func ApplyMiddleware(handler Handler, middleware ...Middleware) Handler {
 	for _, m := range middleware {
@@ -24,13 +25,10 @@ func ApplyMiddleware(handler Handler, middleware ...Middleware) Handler {
 
 // NewMiddleware is a convenience method for implementing the function middleware pattern
 // Provide a simple HandlerFunc if it doesn't return an error during a request the next Handler will be called
-func NewMiddleware(handler HandlerFunc) Middleware {
+func NewMiddleware(middlewareFunc MiddlewareFunc) Middleware {
 	return func(next Handler) Handler {
 		return HandlerFunc(func(ctx Context) error {
-			if err := handler(ctx); err != nil {
-				return err
-			}
-			return next.Serve(ctx)
+			return middlewareFunc(ctx, next)
 		})
 	}
 }
