@@ -14,6 +14,7 @@ func BuildWireSet(opts *PipelineOptions) (err error) {
 	f.Var().Id("WireSet").Op("=").Qual(googleWire, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
 		g.Id("ProvideHTTPHandlers")
 		g.Id("ProvideWorkers")
+		g.Id("ProvideMiddleware")
 		g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
 			g.New(jen.Id("HTTPHandlerFactoryDeps"))
 			g.Lit("*")
@@ -22,10 +23,10 @@ func BuildWireSet(opts *PipelineOptions) (err error) {
 			g.New(jen.Id("WorkerFactoryDeps"))
 			g.Lit("*")
 		})
-		// g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
-		// 	g.New(jen.Id("WorkerContainer"))
-		// 	g.Lit("*")
-		// })
+		g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
+			g.New(jen.Id("MiddlewareDeps"))
+			g.Lit("*")
+		})
 
 		for _, svc := range opts.Services {
 			g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {

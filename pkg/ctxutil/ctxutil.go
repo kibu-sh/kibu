@@ -7,15 +7,15 @@ import (
 
 var ErrNotFoundInContext = errors.New("not found in context")
 
-type Store[T any] struct {
-	key any
+type Store[T any, K any] struct {
+	key *K
 }
 
-func (s *Store[T]) Save(ctx context.Context, v *T) context.Context {
+func (s *Store[T, K]) Save(ctx context.Context, v *T) context.Context {
 	return context.WithValue(ctx, s.key, v)
 }
 
-func (s *Store[T]) Load(ctx context.Context) (*T, error) {
+func (s *Store[T, K]) Load(ctx context.Context) (*T, error) {
 	v := ctx.Value(s.key)
 	if v == nil {
 		return nil, errors.Wrapf(
@@ -27,8 +27,8 @@ func (s *Store[T]) Load(ctx context.Context) (*T, error) {
 	return v.(*T), nil
 }
 
-func NewStore[T any](key any) *Store[T] {
-	return &Store[T]{
-		key: key,
+func NewStore[T any, K any]() *Store[T, K] {
+	return &Store[T, K]{
+		key: new(K),
 	}
 }

@@ -77,8 +77,9 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		wrk.Directives = dirs
 
 		if !dir.Options.HasOneOf("workflow", "activity") {
-			err = errors.Errorf("worker must specify one of (activity or workflow) %s:%d",
-				wrk.Position().Filename, wrk.Position().Line)
+			err = errors.Errorf("worker must specify one of (activity or workflow) %s",
+				wrk.Position().String(),
+			)
 			return
 		}
 

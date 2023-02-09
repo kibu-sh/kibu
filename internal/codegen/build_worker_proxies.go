@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	temporalSdkWorkflow = "go.temporal.io/sdk/workflow"
-	temporalSDKClient   = "go.temporal.io/sdk/client"
-	devxTemporal        = "github.com/discernhq/devx/pkg/transport/temporal"
+	temporalSdkWorkflow     = "go.temporal.io/sdk/workflow"
+	temporalSDKClient       = "go.temporal.io/sdk/client"
+	devxTransport           = "github.com/discernhq/devx/pkg/transport"
+	devxTransportMiddleware = "github.com/discernhq/devx/pkg/transport/middleware"
+	devxTemporal            = "github.com/discernhq/devx/pkg/transport/temporal"
 )
 
 func BuildWorkerProxies(

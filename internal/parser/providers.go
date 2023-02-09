@@ -4,7 +4,6 @@ import (
 	"github.com/discernhq/devx/internal/parser/directive"
 	"github.com/pkg/errors"
 	"go/ast"
-	"go/token"
 	"go/types"
 )
 
@@ -19,8 +18,6 @@ type Provider struct {
 	*TypeMeta
 	Name       string
 	Type       ProviderType
-	File       *token.File
-	Position   token.Position
 	Directives directive.List
 }
 
@@ -47,10 +44,9 @@ func collectProviders(p *Package) defMapperFunc {
 		case *types.Signature:
 			prv.Type = FunctionProviderType
 		default:
-			err = errors.Errorf("unsupported provider type: %s at %s:%d",
+			err = errors.Errorf("unsupported provider type: %s at %s",
 				obj.Type().String(),
-				prv.Position.Filename,
-				prv.Position.Line,
+				prv.Position().String(),
 			)
 			return
 		}

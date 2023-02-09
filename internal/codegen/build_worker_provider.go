@@ -14,7 +14,7 @@ func BuildWorkerProviders(opts *PipelineOptions) (err error) {
 	f.Type().Id(workerFactoryDepsID).StructFunc(func(g *jen.Group) {
 		for _, wrk := range opts.Workers {
 			// TODO: id might collide
-			g.Id(buildPackageScopedID(wrk.Package, wrk.Name)).Op("*").Qual(wrk.PackagePath(), wrk.Name)
+			g.Id(buildPackageScopedID(wrk.PackagePath(), wrk.Name)).Op("*").Qual(wrk.PackagePath(), wrk.Name)
 		}
 		return
 	})
@@ -27,7 +27,7 @@ func BuildWorkerProviders(opts *PipelineOptions) (err error) {
 		for _, wrk := range opts.Workers {
 			g.Id("workers").Op("=").AppendFunc(func(g *jen.Group) {
 				g.Id("workers")
-				g.Id("deps").Dot(buildPackageScopedID(wrk.Package, wrk.Name)).Dot("WorkerFactory").Call().Op("...")
+				g.Id("deps").Dot(buildPackageScopedID(wrk.PackagePath(), wrk.Name)).Dot("WorkerFactory").Call().Op("...")
 			})
 		}
 

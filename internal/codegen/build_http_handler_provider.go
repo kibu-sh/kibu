@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/discernhq/devx/internal/parser"
 	"github.com/huandu/xstrings"
 	"path/filepath"
 	"strings"
@@ -13,7 +12,7 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	f.Type().Id("HTTPHandlerFactoryDeps").StructFunc(func(g *jen.Group) {
 		for _, svc := range opts.Services {
 			// TODO: id might collide
-			g.Id(buildPackageScopedID(svc.Package, svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
+			g.Id(buildPackageScopedID(svc.PackagePath(), svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
 		}
 		return
 	})
@@ -26,7 +25,7 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 		for _, svc := range opts.Services {
 			g.Id("handlers").Op("=").AppendFunc(func(g *jen.Group) {
 				g.Id("handlers")
-				g.Id("deps").Dot(buildPackageScopedID(svc.Package, svc.Name)).Dot("HTTPHandlerFactory").Call().Op("...")
+				g.Id("deps").Dot(buildPackageScopedID(svc.PackagePath(), svc.Name)).Dot("HTTPHandlerFactory").Call().Op("...")
 			})
 		}
 		g.Return()
@@ -44,11 +43,6 @@ func devxGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
 	return devxGenFilePath(opts, "wire_set.gen.go")
 }
 
-func buildPackageScopedID(pkg *parser.Package, name string) string {
-	return xstrings.ToCamelCase(
-		strings.Join([]string{
-			pkg.GoPackage.Name,
-			name,
-		}, "_"),
-	)
+func buildPackageScopedID(pkg, name string) string {
+	return xstrings.ToCamelCase(strings.Replace(jen.Qual(pkg, name).GoString(), ".", "_", -1))
 }

@@ -3,6 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/discernhq/devx/internal/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,7 @@ type PipelineOptions struct {
 	Services       []*parser.Service
 	Workers        []*parser.Worker
 	Providers      []*parser.Provider
+	Middleware     []*parser.Middleware
 }
 
 type PipelineFunc func(opts *PipelineOptions) (err error)
@@ -64,11 +66,13 @@ func NewPipelineOptions(
 		opts.Services = append(opts.Services, toSlice(pkg.Services)...)
 		opts.Workers = append(opts.Workers, toSlice(pkg.Workers)...)
 		opts.Providers = append(opts.Providers, toSlice(pkg.Providers)...)
+		opts.Middleware = append(opts.Middleware, toSlice(pkg.Middleware)...)
 	}
 
 	sort.Slice(opts.Services, sortByID(opts.Services))
 	sort.Slice(opts.Workers, sortByID(opts.Workers))
 	sort.Slice(opts.Providers, sortByID(opts.Providers))
+	sort.Slice(opts.Middleware, sortByPos(opts.Middleware))
 
 	return
 }
@@ -87,6 +91,16 @@ type idSortable interface {
 func sortByID[V idSortable](list []V) func(i, j int) bool {
 	return func(i, j int) bool {
 		return list[i].ID() < list[j].ID()
+	}
+}
+
+type posSortable interface {
+	Pos() token.Pos
+}
+
+func sortByPos[v posSortable](list []v) func(i, j int) bool {
+	return func(i, j int) bool {
+		return list[i].Pos() < list[j].Pos()
 	}
 }
 
@@ -135,6 +149,7 @@ func DefaultPipeline() Pipeline {
 		BuildWorkerProxies,
 		BuildHTTPHandlerProviders,
 		BuildWorkerProviders,
+		BuildMiddlewareProvider,
 		BuildWireSet,
 	}
 }

@@ -3,9 +3,9 @@ cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
 cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
 ! exists src/pkg/nope/nope.gen.go
 
-#parse $WORK
-#cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
-#cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
+parse $WORK
+cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
+cmp exp/gen/devxgen/wire_set.gen.go $WORK/gen/devxgen/wire_set.gen.go
 
 -- src/go.mod --
 module github.com/example/module
@@ -16,10 +16,13 @@ module github.com/example/module
 package devxgen
 
 import (
+	transport "github.com/discernhq/devx/pkg/transport"
 	httpx "github.com/discernhq/devx/pkg/transport/httpx"
+	middleware1 "github.com/discernhq/devx/pkg/transport/middleware"
 	temporal "github.com/discernhq/devx/pkg/transport/temporal"
 	auth "github.com/example/module/pkg/auth"
 	example "github.com/example/module/pkg/example"
+	middleware "github.com/example/module/pkg/middleware"
 	wire "github.com/google/wire"
 )
 
@@ -49,11 +52,47 @@ func ProvideWorkers(deps *WorkerFactoryDeps) (workers []*temporal.Worker) {
 	return
 }
 
+type MiddlewareDeps struct {
+	MiddlewareMiddleware *middleware.Middleware
+}
+
+func ProvideMiddleware(deps *MiddlewareDeps) (reg *middleware1.Registry) {
+	reg = middleware1.NewRegistry()
+	reg.Register(middleware1.RegistryItem{
+		Order:      0,
+		Tags:       []string{"global"},
+		Middleware: transport.NewMiddleware(deps.MiddlewareMiddleware.GlobalMiddleware),
+	})
+	reg.Register(middleware1.RegistryItem{
+		Order:      0,
+		Tags:       []string{"auth"},
+		Middleware: transport.NewMiddleware(deps.MiddlewareMiddleware.LoadUser),
+	})
+	reg.Register(middleware1.RegistryItem{
+		Order:      1,
+		Tags:       []string{"auth"},
+		Middleware: transport.NewMiddleware(deps.MiddlewareMiddleware.LoadCustomer),
+	})
+	reg.Register(middleware1.RegistryItem{
+		Order:      2,
+		Tags:       []string{"auth"},
+		Middleware: transport.NewMiddleware(deps.MiddlewareMiddleware.CheckPermissions),
+	})
+	reg.Register(middleware1.RegistryItem{
+		Order:      0,
+		Tags:       []string{"cache"},
+		Middleware: transport.NewMiddleware(deps.MiddlewareMiddleware.CacheMiddleware),
+	})
+	return
+}
+
 var WireSet = wire.NewSet(
 	ProvideHTTPHandlers,
 	ProvideWorkers,
+	ProvideMiddleware,
 	wire.Struct(new(HTTPHandlerFactoryDeps), "*"),
 	wire.Struct(new(WorkerFactoryDeps), "*"),
+	wire.Struct(new(MiddlewareDeps), "*"),
 	wire.Struct(new(auth.service), "*"),
 	wire.Struct(new(example.Service), "*"),
 	wire.Struct(new(auth.activities), "*"),
@@ -235,3 +274,26 @@ type StructProvider struct {}
 package nope
 
 type nope struct{}
+-- src/pkg/middleware/middleware.go --
+package middleware
+
+import (
+	"github.com/discernhq/devx/pkg/transport"
+)
+
+type Middleware struct {}
+
+//devx:middleware
+func (m *Middleware) GlobalMiddleware(ctx transport.Context, next transport.Handler) error { return }
+
+//devx:middleware tag=auth order=0
+func (m *Middleware) LoadUser(ctx transport.Context, next transport.Handler) error { return }
+
+//devx:middleware tag=auth order=1
+func (m *Middleware) LoadCustomer(ctx transport.Context, next transport.Handler) error { return }
+
+//devx:middleware tag=auth order=2
+func (m *Middleware) CheckPermissions(ctx transport.Context, next transport.Handler) error { return }
+
+//devx:middleware tag=cache
+func (m *Middleware) CacheMiddleware(ctx transport.Context, next transport.Handler) error { return }

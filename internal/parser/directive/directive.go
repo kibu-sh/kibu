@@ -200,11 +200,11 @@ func parseKey(s string) (string, string, error) {
 }
 
 func parseOptions(opts []string) (result *OptionList, err error) {
+	result = NewOptionList()
 	if len(opts) == 0 {
 		return
 	}
 
-	result = NewOptionList()
 	for _, opt := range opts {
 		// clean up any leading or trailing spaces
 		opt = strings.TrimSpace(opt)

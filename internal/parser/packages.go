@@ -1,8 +1,9 @@
 package parser
 
 import (
+	"errors"
+	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -13,12 +14,13 @@ import (
 )
 
 type Package struct {
-	Name      string
-	Path      PackagePath
-	GoPackage *packages.Package
-	Services  map[*ast.Ident]*Service
-	Workers   map[*ast.Ident]*Worker
-	Providers map[*ast.Ident]*Provider
+	Name       string
+	Path       PackagePath
+	GoPackage  *packages.Package
+	Services   map[*ast.Ident]*Service
+	Workers    map[*ast.Ident]*Worker
+	Providers  map[*ast.Ident]*Provider
+	Middleware map[*ast.Ident]*Middleware
 
 	funcIdCache    map[*types.Func]*ast.Ident
 	directiveCache map[*ast.Ident]directive.List
@@ -41,6 +43,7 @@ func NewPackage(p *packages.Package, dir string) *Package {
 		Services:       make(map[*ast.Ident]*Service),
 		Workers:        make(map[*ast.Ident]*Worker),
 		Providers:      make(map[*ast.Ident]*Provider),
+		Middleware:     make(map[*ast.Ident]*Middleware),
 		funcIdCache:    make(map[*types.Func]*ast.Ident),
 		directiveCache: make(map[*ast.Ident]directive.List),
 	}
@@ -74,7 +77,7 @@ func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]
 	}
 
 	if !stat.IsDir() {
-		err = errors.Errorf("parser entrypoint must be a directory got %s", dir)
+		err = fmt.Errorf("parser entrypoint must be a directory got %s", dir)
 		return
 	}
 
@@ -99,7 +102,12 @@ func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]
 	for _, pkg := range loaded {
 		if pkg.Errors != nil {
 			for _, e := range pkg.Errors {
-				err = errors.Wrap(e, "error loading package")
+				// TODO: revisit this behavior
+				// ignore type errors (imports)
+				// parsing errors should fail the build
+				if e.Kind != packages.TypeError {
+					err = errors.Join(err, e)
+				}
 			}
 		}
 	}

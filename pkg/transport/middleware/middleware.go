@@ -1,8 +1,12 @@
 package middleware
 
-import "github.com/discernhq/devx/pkg/transport"
+import (
+	"github.com/discernhq/devx/pkg/transport"
+	"sort"
+)
 
 type RegistryItem struct {
+	Order      int
 	Tags       []string
 	Middleware transport.Middleware
 }
@@ -15,6 +19,9 @@ type Registry struct {
 func (r Registry) Register(item RegistryItem) {
 	for _, tag := range item.Tags {
 		r.cache[tag] = append(r.cache[tag], &item)
+		sort.Slice(r.cache[tag], func(i, j int) bool {
+			return r.cache[tag][i].Order < r.cache[tag][j].Order
+		})
 	}
 }
 

@@ -20,7 +20,44 @@ type TypeMeta struct {
 	Package *Package
 }
 
+// Recv returns the receiver of a method, or nil if the object is not a method.
+func (t TypeMeta) Recv() *types.Var {
+	if sig, ok := t.Object.Type().(*types.Signature); ok {
+		return sig.Recv()
+	}
+	return nil
+}
+
+func (t TypeMeta) RecvNamed() *types.Named {
+	if rec := t.Recv(); rec != nil {
+		switch n := rec.Type().(type) {
+		case *types.Pointer:
+			return n.Elem().(*types.Named)
+		case *types.Named:
+			return n
+		}
+	}
+	return nil
+}
+
+// QualifiedName returns the qualified name of the object.
+// If the object is a method, the receiver type is prepended to the name.
+// MyType.Name is the qualified name.
+// where MyType is a receiver of the method Name.
+func (t TypeMeta) QualifiedName() string {
+	name := t.Object.Name()
+	if rec := t.Recv(); rec != nil {
+		name = rec.Origin().Name() + "." + name
+	}
+
+	return name
+}
+
 func (t TypeMeta) ID() string {
+	return t.PackagePath() + "." + t.QualifiedName()
+}
+
+func (t TypeMeta) PackagePath() string {
 	path := "_"
 	pkg := t.Object.Pkg()
 	// pkg is nil for objects in Universe scope and possibly types
@@ -28,11 +65,7 @@ func (t TypeMeta) ID() string {
 	if pkg != nil && pkg.Path() != "" {
 		path = pkg.Path()
 	}
-	return path + "." + t.Object.Name()
-}
-
-func (t TypeMeta) PackagePath() string {
-	return t.Package.GoPackage.PkgPath
+	return path
 }
 
 func (t TypeMeta) File() *token.File {
@@ -41,6 +74,10 @@ func (t TypeMeta) File() *token.File {
 
 func (t TypeMeta) Position() token.Position {
 	return t.Package.GoPackage.Fset.PositionFor(t.Ident.Pos(), false)
+}
+
+func (t TypeMeta) Pos() token.Pos {
+	return t.Ident.Pos()
 }
 
 func NewTypeMeta(

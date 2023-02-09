@@ -20,6 +20,9 @@ func defaultPackageWalker(pkg *packages.Package, dir string) (*Package, error) {
 		collectByDefinition(
 			collectProviders,
 		),
+		collectByDefinition(
+			collectMiddleware,
+		),
 	)
 }
 
@@ -50,8 +53,8 @@ func parseDirectives(p *Package) (err error) {
 
 func buildFuncIdCache(p *Package) (err error) {
 	for ident, object := range p.GoPackage.TypesInfo.Defs {
-		if _, ok := object.(*types.Func); ok {
-			p.funcIdCache[object.(*types.Func)] = ident
+		if f, ok := object.(*types.Func); ok {
+			p.funcIdCache[f] = ident
 		}
 	}
 	return

@@ -6,13 +6,17 @@ import (
 	"testing"
 )
 
+type key1 struct{}
+type key2 struct{}
+
 func TestNewContextLoader(t *testing.T) {
-	key := struct{}{}
+
 	type User struct {
 		ID string
 	}
 
-	store := NewStore[User](key)
+	store := NewStore[User, key1]()
+	store2 := NewStore[User, key2]()
 
 	t.Run("should be able to save and load a value from a context", func(t *testing.T) {
 		expected := &User{ID: "test"}
@@ -30,5 +34,12 @@ func TestNewContextLoader(t *testing.T) {
 	t.Run("should return an error with text context", func(t *testing.T) {
 		_, err := store.Load(context.Background())
 		require.Contains(t, err.Error(), "*ctxutil.User")
+	})
+
+	t.Run("keys should not collide", func(t *testing.T) {
+		expected := &User{ID: "test"}
+		ctx := store.Save(context.Background(), expected)
+		_, err := store2.Load(ctx)
+		require.ErrorIs(t, err, ErrNotFoundInContext)
 	})
 }
