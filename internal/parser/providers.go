@@ -16,6 +16,7 @@ var (
 )
 
 type Provider struct {
+	*TypeMeta
 	Name       string
 	Type       ProviderType
 	File       *token.File
@@ -25,7 +26,7 @@ type Provider struct {
 
 func collectProviders(p *Package) defMapperFunc {
 	return func(ident *ast.Ident, obj types.Object) (err error) {
-		dirs, ok := p.directiveCache.Get(ident)
+		dirs, ok := p.directiveCache[ident]
 		if !ok {
 			return
 		}
@@ -37,8 +38,7 @@ func collectProviders(p *Package) defMapperFunc {
 		prv := &Provider{
 			Name:       ident.Name,
 			Directives: dirs,
-			File:       p.GoPackage.Fset.File(obj.Pos()),
-			Position:   p.GoPackage.Fset.Position(obj.Pos()),
+			TypeMeta:   NewTypeMeta(ident, obj, p),
 		}
 
 		switch obj.Type().(type) {
@@ -55,7 +55,7 @@ func collectProviders(p *Package) defMapperFunc {
 			return
 		}
 
-		p.Providers.Set(ident, prv)
+		p.Providers[ident] = prv
 		return
 	}
 }

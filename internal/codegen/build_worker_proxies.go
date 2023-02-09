@@ -5,6 +5,7 @@ import (
 	"github.com/discernhq/devx/internal/parser"
 	"github.com/huandu/xstrings"
 	"github.com/pkg/errors"
+	"sort"
 	"strings"
 )
 
@@ -15,42 +16,40 @@ var (
 )
 
 func BuildWorkerProxies(
-	opts *GeneratorOptions,
+	opts *PipelineOptions,
 ) (err error) {
-	for _, path := range opts.PackageList.Iterator() {
-		pkg := path.Value
-		for _, ident := range pkg.Workers.Iterator() {
-			f := opts.FileSet.Get(packageScopedFilePath(pkg))
-			wrk := ident.Value
-			wrkID := jen.Id(workerTypeID(wrk.Type))
+	for _, wrk := range opts.Workers {
+		f := opts.FileSet.Get(packageScopedFilePath(wrk.Package))
+		wrkID := jen.Id(workerTypeID(wrk.Type))
 
-			f.Func().Params(wrkID.Clone().Op("*").Id(wrk.Name)).
-				Id("WorkerFactory").Params().
-				Params(jen.Index().Op("*").Qual(devxTemporal, "Worker")).
-				BlockFunc(buildWorkerFactoryBlockFunc(wrk, pkg))
+		f.Func().Params(wrkID.Clone().Op("*").Id(wrk.Name)).
+			Id("WorkerFactory").Params().
+			Params(jen.Index().Op("*").Qual(devxTemporal, "Worker")).
+			BlockFunc(buildWorkerFactoryBlockFunc(wrk))
 
-			switch wrk.Type {
-			case parser.WorkflowType:
-				buildWorkflowProxy(f, wrk, pkg, opts)
-			case parser.ActivityType:
-				buildActivityProxy(f, wrk, pkg, opts)
-			default:
-				err = errors.Errorf("unknown worker type: %s", wrk.Type)
-				return
-			}
+		switch wrk.Type {
+		case parser.WorkflowType:
+			buildWorkflowProxy(f, wrk)
+		case parser.ActivityType:
+			buildActivityProxy(f, wrk)
+		default:
+			err = errors.Errorf("unknown worker type: %s", wrk.Type)
+			return
 		}
 	}
 	return
 }
 
-func buildWorkerFactoryBlockFunc(wrk *parser.Worker, pkg *parser.Package) func(g *jen.Group) {
+func buildWorkerFactoryBlockFunc(wrk *parser.Worker) func(g *jen.Group) {
 	return func(g *jen.Group) {
 		g.ReturnFunc(func(g *jen.Group) {
 			g.Index().Op("*").Qual(devxTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
-				for _, elem := range wrk.Methods.Iterator() {
-					method, _ := wrk.Methods.Get(elem.Key)
+				methods := toSlice(wrk.Methods)
+				sort.Slice(methods, sortByID(methods))
+
+				for _, method := range methods {
 					g.Op("&").Qual(devxTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
-						g.Id("Name").Op(":").Lit(workerRegistrationName(pkg, wrk, method))
+						g.Id("Name").Op(":").Lit(workerRegistrationName(wrk.Package, wrk, method))
 						g.Id("Type").Op(":").Lit(string(wrk.Type))
 						g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 						g.Id("Handler").Op(":").Id(workerTypeID(wrk.Type)).Dot(method.Name)
@@ -62,13 +61,15 @@ func buildWorkerFactoryBlockFunc(wrk *parser.Worker, pkg *parser.Package) func(g
 		return
 	}
 }
-func buildWorkflowProxy(f *jen.File, wrk *parser.Worker, pkg *parser.Package, opts *GeneratorOptions) {
+func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
-	for _, elem := range wrk.Methods.Iterator() {
-		method := elem.Value
+	methods := toSlice(wrk.Methods)
+	sort.Slice(methods, sortByID(methods))
+
+	for _, method := range methods {
 		f.Func().
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
@@ -84,7 +85,7 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker, pkg *parser.Package, op
 						g.Id("ID").Op(":").Id("id")
 						g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 					})
-					g.Lit(workerRegistrationName(pkg, wrk, method))
+					g.Lit(workerRegistrationName(wrk.Package, wrk, method))
 					g.Id(method.Request.Name)
 					return
 				})
@@ -95,11 +96,12 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker, pkg *parser.Package, op
 	}
 }
 
-func buildActivityProxy(f *jen.File, wrk *parser.Worker, pkg *parser.Package, opts *GeneratorOptions) {
+func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {})
+	methods := toSlice(wrk.Methods)
+	sort.Slice(methods, sortByID(methods))
 
-	for _, elem := range wrk.Methods.Iterator() {
-		method := elem.Value
+	for _, method := range methods {
 		f.Func().
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
@@ -115,7 +117,7 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker, pkg *parser.Package, op
 							g.Id("StartToCloseTimeout").Op(":").Qual("time", "Second").Op("*").Lit(30)
 						})
 					})
-					g.Lit(workerRegistrationName(pkg, wrk, method))
+					g.Lit(workerRegistrationName(wrk.Package, wrk, method))
 					g.Id(method.Request.Name)
 					return
 				}).Dot("Get").Call(jen.Id("ctx"), jen.Op("&").Id(method.Response.Name))

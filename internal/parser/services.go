@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/discernhq/devx/internal/parser/smap"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -15,7 +14,49 @@ type Var struct {
 	Type string
 }
 
+type TypeMeta struct {
+	Ident   *ast.Ident
+	Object  types.Object
+	Package *Package
+}
+
+func (t TypeMeta) ID() string {
+	path := "_"
+	pkg := t.Object.Pkg()
+	// pkg is nil for objects in Universe scope and possibly types
+	// introduced via Eval (see also comment in object.sameId)
+	if pkg != nil && pkg.Path() != "" {
+		path = pkg.Path()
+	}
+	return path + "." + t.Object.Name()
+}
+
+func (t TypeMeta) PackagePath() string {
+	return t.Package.GoPackage.PkgPath
+}
+
+func (t TypeMeta) File() *token.File {
+	return t.Package.GoPackage.Fset.File(t.Ident.Pos())
+}
+
+func (t TypeMeta) Position() token.Position {
+	return t.Package.GoPackage.Fset.PositionFor(t.Ident.Pos(), false)
+}
+
+func NewTypeMeta(
+	ident *ast.Ident,
+	obj types.Object,
+	pkg *Package,
+) *TypeMeta {
+	return &TypeMeta{
+		Ident:   ident,
+		Object:  obj,
+		Package: pkg,
+	}
+}
+
 type Endpoint struct {
+	*TypeMeta
 	Name       string
 	Path       string
 	Raw        bool
@@ -26,17 +67,17 @@ type Endpoint struct {
 }
 
 type Service struct {
+	*TypeMeta
 	Name       string
 	Directives directive.List
-	File       *token.File
-	Position   token.Position
-	Endpoints  smap.Map[*ast.Ident, *Endpoint]
+	Endpoints  map[*ast.Ident]*Endpoint
 }
 
-func NewService(name string) *Service {
+func NewService(name string, meta *TypeMeta) *Service {
 	return &Service{
 		Name:      name,
-		Endpoints: smap.NewMap[*ast.Ident, *Endpoint](),
+		TypeMeta:  meta,
+		Endpoints: make(map[*ast.Ident]*Endpoint),
 	}
 }
 
@@ -58,7 +99,7 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
-		dirs, ok := pkg.directiveCache.Get(ident)
+		dirs, ok := pkg.directiveCache[ident]
 		if !ok {
 			return
 		}
@@ -70,31 +111,29 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
-		svc := NewService(ident.Name)
+		svc := NewService(ident.Name, NewTypeMeta(ident, obj, pkg))
 		svc.Directives = dirs
-		svc.File = pkg.GoPackage.Fset.File(ident.Pos())
-		svc.Position = svc.File.Position(ident.Pos())
 		svc.Endpoints, err = collectEndpoints(pkg, n)
 		if err != nil {
 			return
 		}
-		pkg.Services.Set(ident, svc)
+		pkg.Services[ident] = svc
 
 		return
 	}
 }
 
-func collectEndpoints(pkg *Package, n *types.Named) (endpoints smap.Map[*ast.Ident, *Endpoint], err error) {
-	endpoints = smap.NewMap[*ast.Ident, *Endpoint]()
+func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*Endpoint, err error) {
+	endpoints = make(map[*ast.Ident]*Endpoint)
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)
-		ident, ok := pkg.funcIdCache.Get(m)
+		ident, ok := pkg.funcIdCache[m]
 		if !ok {
 			continue
 		}
 
-		dirs, ok := pkg.directiveCache.Get(ident)
+		dirs, ok := pkg.directiveCache[ident]
 		if !ok {
 			continue
 		}
@@ -109,6 +148,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints smap.Map[*ast.Ide
 			Name:       ident.Name,
 			Directives: dirs,
 			Raw:        dir.Options.Has("raw"),
+			TypeMeta:   NewTypeMeta(ident, pkg.GoPackage.TypesInfo.Defs[ident], pkg),
 		}
 
 		if !ep.Raw {
@@ -128,7 +168,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints smap.Map[*ast.Ide
 		ep.Path, _ = dir.Options.GetOne("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
 		ep.Methods, _ = dir.Options.GetAll("method", []string{http.MethodGet})
 
-		endpoints.Set(ident, ep)
+		endpoints[ident] = ep
 	}
 	return
 }

@@ -2,15 +2,14 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/discernhq/devx/internal/parser/smap"
 	"github.com/pkg/errors"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"strings"
 )
 
 type Method struct {
+	*TypeMeta
 	Name       string
 	Directives directive.List
 	Request    *Var
@@ -20,13 +19,12 @@ type Method struct {
 type WorkerType string
 
 type Worker struct {
+	*TypeMeta
 	Name       string
 	Type       WorkerType
 	TaskQueue  string
-	Methods    smap.Map[*ast.Ident, *Method]
+	Methods    map[*ast.Ident]*Method
 	Directives directive.List
-	File       *token.File
-	Position   token.Position
 }
 
 var (
@@ -34,11 +32,12 @@ var (
 	ActivityType = WorkerType("activity")
 )
 
-func NewWorker(name, queue string) *Worker {
+func NewWorker(name, queue string, meta *TypeMeta) *Worker {
 	return &Worker{
 		Name:      name,
 		TaskQueue: queue,
-		Methods:   smap.NewMap[*ast.Ident, *Method](),
+		Methods:   make(map[*ast.Ident]*Method),
+		TypeMeta:  meta,
 	}
 }
 
@@ -59,7 +58,7 @@ func collectWorkers(pkg *Package) defMapperFunc {
 			return
 		}
 
-		dirs, ok := pkg.directiveCache.Get(ident)
+		dirs, ok := pkg.directiveCache[ident]
 		if !ok {
 			return
 		}
@@ -73,15 +72,13 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		}
 
 		taskQueue, _ := dir.Options.GetOne("task_queue", "default")
-		wrk := NewWorker(ident.Name, taskQueue)
+		wrk := NewWorker(ident.Name, taskQueue, NewTypeMeta(ident, obj, pkg))
 
 		wrk.Directives = dirs
-		wrk.File = pkg.GoPackage.Fset.File(ident.Pos())
-		wrk.Position = wrk.File.Position(ident.Pos())
 
 		if !dir.Options.HasOneOf("workflow", "activity") {
 			err = errors.Errorf("worker must specify one of (activity or workflow) %s:%d",
-				wrk.Position.Filename, wrk.Position.Line)
+				wrk.Position().Filename, wrk.Position().Line)
 			return
 		}
 
@@ -95,23 +92,23 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		if err != nil {
 			return
 		}
-		pkg.Workers.Set(ident, wrk)
+		pkg.Workers[ident] = wrk
 
 		return
 	}
 }
 
-func collectWorkerMethods(pkg *Package, n *types.Named) (methods smap.Map[*ast.Ident, *Method], err error) {
-	methods = smap.NewMap[*ast.Ident, *Method]()
+func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]*Method, err error) {
+	methods = make(map[*ast.Ident]*Method)
 
 	for i := 0; i < n.NumMethods(); i++ {
 		m := n.Method(i)
-		ident, ok := pkg.funcIdCache.Get(m)
+		ident, ok := pkg.funcIdCache[m]
 		if !ok {
 			continue
 		}
 
-		dirs, ok := pkg.directiveCache.Get(ident)
+		dirs, ok := pkg.directiveCache[ident]
 		if !ok {
 			continue
 		}
@@ -129,7 +126,7 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods smap.Map[*ast.I
 			return
 		}
 
-		ep := &Method{
+		method := &Method{
 			Name:       ident.Name,
 			Directives: dirs,
 			Request: &Var{
@@ -140,9 +137,10 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods smap.Map[*ast.I
 				Name: res.Name(),
 				Type: getTypeNameWithoutPackage(pkg, res),
 			},
+			TypeMeta: NewTypeMeta(ident, m, pkg),
 		}
 
-		methods.Set(ident, ep)
+		methods[ident] = method
 	}
 	return
 }

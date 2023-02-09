@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/discernhq/devx/internal/parser/smap"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -37,14 +36,13 @@ func collectByDefinition(mapperFuncs packageDefMapperFunc) packageMutationFunc {
 
 func parseDirectives(p *Package) (err error) {
 	for _, f := range p.GoPackage.Syntax {
-		var dirs = smap.NewMap[*ast.Ident, directive.List]()
+		var dirs = make(map[*ast.Ident]directive.List)
 		dirs, err = directive.FromDecls(f.Decls)
 		if err != nil {
 			return
 		}
-		for _, elm := range dirs.Iterator() {
-			dirList, _ := dirs.Get(elm.Key)
-			p.directiveCache.Set(elm.Key, dirList)
+		for key, dirList := range dirs {
+			p.directiveCache[key] = dirList
 		}
 	}
 	return
@@ -53,7 +51,7 @@ func parseDirectives(p *Package) (err error) {
 func buildFuncIdCache(p *Package) (err error) {
 	for ident, object := range p.GoPackage.TypesInfo.Defs {
 		if _, ok := object.(*types.Func); ok {
-			p.funcIdCache.Set(object.(*types.Func), ident)
+			p.funcIdCache[object.(*types.Func)] = ident
 		}
 	}
 	return

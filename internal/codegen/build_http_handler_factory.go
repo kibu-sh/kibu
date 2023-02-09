@@ -3,23 +3,20 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/discernhq/devx/internal/parser"
+	"sort"
 )
 
 func BuildServiceHTTPHandlerFactories(
-	opts *GeneratorOptions,
+	opts *PipelineOptions,
 ) (err error) {
-	for _, elem := range opts.PackageList.Iterator() {
-		pkg := elem.Value
-		for _, elem := range pkg.Services.Iterator() {
-			f := opts.FileSet.Get(packageScopedFilePath(pkg))
-			svc := elem.Value
-			svcID := jen.Id("svc")
+	for _, svc := range opts.Services {
+		f := opts.FileSet.Get(packageScopedFilePath(svc.Package))
+		svcID := jen.Id("svc")
 
-			f.Func().Params(svcID.Clone().Id("*" + svc.Name)).
-				Id("HTTPHandlerFactory").Params().
-				Params(jen.Id("[]*httpx.Handler")).
-				BlockFunc(buildHTTPHandlerGroup(svc, svcID))
-		}
+		f.Func().Params(svcID.Clone().Id("*" + svc.Name)).
+			Id("HTTPHandlerFactory").Params().
+			Params(jen.Id("[]*httpx.Handler")).
+			BlockFunc(buildHTTPHandlerGroup(svc, svcID))
 	}
 	return
 }
@@ -28,8 +25,11 @@ func buildHTTPHandlerGroup(svc *parser.Service, svcID *jen.Statement) func(g *je
 	return func(g *jen.Group) {
 		g.ReturnFunc(func(g *jen.Group) {
 			g.Index().Op("*").Id("httpx.Handler").CustomFunc(multiLineCurly(), func(g *jen.Group) {
-				for _, elm := range svc.Endpoints.Iterator() {
-					buildHTTPHandlerStatement(g, elm.Value, svcID)
+				endpoints := toSlice(svc.Endpoints)
+				sort.Slice(endpoints, sortByID(endpoints))
+
+				for _, endpoint := range endpoints {
+					buildHTTPHandlerStatement(g, endpoint, svcID)
 				}
 			})
 			return

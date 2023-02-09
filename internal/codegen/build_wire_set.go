@@ -3,15 +3,13 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/discernhq/devx/internal/parser"
-	"github.com/discernhq/devx/internal/parser/smap"
-	"go/ast"
 )
 
 var (
 	googleWire = "github.com/google/wire"
 )
 
-func BuildWireSet(opts *GeneratorOptions) (err error) {
+func BuildWireSet(opts *PipelineOptions) (err error) {
 	f := opts.FileSet.Get(devxGenWireSetPath(opts))
 	f.Var().Id("WireSet").Op("=").Qual(googleWire, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
 		g.Id("ProvideHTTPHandlers")
@@ -29,63 +27,35 @@ func BuildWireSet(opts *GeneratorOptions) (err error) {
 		// 	g.Lit("*")
 		// })
 
-		services := smap.NewMap[*ast.Ident, *parser.Service]()
-		workers := smap.NewMap[*ast.Ident, *parser.Worker]()
-		providers := smap.NewMap[*ast.Ident, *parser.Provider]()
-		pkgCache := smap.NewMap[*ast.Ident, *parser.Package]()
-
-		for _, path := range opts.PackageList {
-			pkg := path.Value
-			for _, ident := range pkg.Services.Iterator() {
-				pkgCache.Set(ident.Key, pkg)
-				services.Set(ident.Key, ident.Value)
-			}
-			for _, ident := range pkg.Workers.Iterator() {
-				pkgCache.Set(ident.Key, pkg)
-				workers.Set(ident.Key, ident.Value)
-			}
-			for _, ident := range pkg.Providers.Iterator() {
-				pkgCache.Set(ident.Key, pkg)
-				providers.Set(ident.Key, ident.Value)
-			}
-		}
-
-		for _, ident := range services.Iterator() {
-			svc := ident.Value
-			pkg, _ := pkgCache.Get(ident.Key)
+		for _, svc := range opts.Services {
 			g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
-				g.New(jen.Qual(pkg.GoPackage.PkgPath, svc.Name))
+				g.New(jen.Qual(svc.PackagePath(), svc.Name))
 				g.Lit("*")
 			})
 		}
 
-		for _, ident := range workers.Iterator() {
-			wrk := ident.Value
-			pkg, _ := pkgCache.Get(ident.Key)
+		for _, wrk := range opts.Workers {
 			g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
-				g.New(jen.Qual(pkg.GoPackage.PkgPath, wrk.Name))
+				g.New(jen.Qual(wrk.PackagePath(), wrk.Name))
 				g.Lit("*")
 			})
 
 			g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
-				g.New(jen.Qual(pkg.GoPackage.PkgPath, workerProxyName(wrk)))
+				g.New(jen.Qual(wrk.PackagePath(), workerProxyName(wrk)))
 				g.Lit("*")
 			})
 		}
 
-		for _, ident := range providers.Iterator() {
-			prv := ident.Value
-			pkg, _ := pkgCache.Get(ident.Key)
+		for _, prv := range opts.Providers {
 			switch prv.Type {
 			case parser.FunctionProviderType:
-				g.Qual(pkg.GoPackage.PkgPath, prv.Name)
+				g.Qual(prv.PackagePath(), prv.Name)
 			case parser.StructProviderType:
 				g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
-					g.New(jen.Qual(pkg.GoPackage.PkgPath, prv.Name))
+					g.New(jen.Qual(prv.PackagePath(), prv.Name))
 					g.Lit("*")
 				})
 			}
-
 		}
 	})
 	return

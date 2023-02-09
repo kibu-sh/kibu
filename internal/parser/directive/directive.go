@@ -1,7 +1,6 @@
 package directive
 
 import (
-	"github.com/discernhq/devx/internal/parser/smap"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go/ast"
@@ -19,12 +18,12 @@ type Directive struct {
 }
 
 type OptionList struct {
-	om smap.Map[smap.String, []string]
+	om map[string][]string
 }
 
 func NewOptionList() *OptionList {
 	return &OptionList{
-		om: smap.NewMap[smap.String, []string](),
+		om: make(map[string][]string),
 	}
 }
 
@@ -38,22 +37,22 @@ func NewOptionListWithDefaults(defaults map[string][]string) *OptionList {
 
 // Set sets a single option value by its key
 func (ol *OptionList) Set(key string, val []string) {
-	ol.om.Set(smap.String(key), val)
+	ol.om[key] = val
 }
 
 // GetOne returns a single option value by its key
 // If the option does not exist an empty string is returned
 func (ol *OptionList) GetOne(key, def string) (val string, ok bool) {
-	v := ol.om.GetOrDefault(smap.String(key), []string{def})
+	v, ok := ol.om[key]
 	if len(v) == 0 {
-		return "", false
+		return def, false
 	}
 	return v[0], true
 }
 
 // GetAll returns a list of option values by key
 func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
-	if val, ok = ol.om.Get(smap.String(key)); !ok {
+	if val, ok = ol.om[key]; !ok {
 		val = def
 	}
 	return
@@ -62,7 +61,7 @@ func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
 // Has checks if an option is present by its key
 // it is possible for a key to be present with no value
 func (ol *OptionList) Has(key string) bool {
-	_, ok := ol.om.Get(smap.String(key))
+	_, ok := ol.om[key]
 	return ok
 }
 
@@ -230,8 +229,8 @@ func tryIndex(pair []string, i int) []string {
 }
 
 // FromDecls returns a list of directives cached by *ast.Ident
-func FromDecls(decls []ast.Decl) (result smap.Map[*ast.Ident, List], err error) {
-	result = smap.NewMap[*ast.Ident, List]()
+func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
+	result = make(map[*ast.Ident]List)
 
 	for _, decl := range decls {
 		if err = applyFromDecl(decl, result); err != nil {
@@ -242,7 +241,7 @@ func FromDecls(decls []ast.Decl) (result smap.Map[*ast.Ident, List], err error) 
 	return
 }
 
-func applyFromDecl(decl ast.Decl, result smap.Map[*ast.Ident, List]) (err error) {
+func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
 	var comments *ast.CommentGroup
 
 	switch decl := decl.(type) {
@@ -266,15 +265,15 @@ func applyFromDecl(decl ast.Decl, result smap.Map[*ast.Ident, List]) (err error)
 		for _, spec := range decl.Specs {
 			switch spec := spec.(type) {
 			case *ast.TypeSpec:
-				result.Set(spec.Name, dirs)
+				result[spec.Name] = dirs
 			case *ast.ValueSpec:
 				for _, name := range spec.Names {
-					result.Set(name, dirs)
+					result[name] = dirs
 				}
 			}
 		}
 	case *ast.FuncDecl:
-		result.Set(decl.Name, dirs)
+		result[decl.Name] = dirs
 	}
 	return
 }

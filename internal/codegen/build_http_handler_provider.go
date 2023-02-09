@@ -8,16 +8,12 @@ import (
 	"strings"
 )
 
-func BuildHTTPHandlerProviders(opts *GeneratorOptions) (err error) {
+func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	f := opts.FileSet.Get(devxGenWireSetPath(opts))
 	f.Type().Id("HTTPHandlerFactoryDeps").StructFunc(func(g *jen.Group) {
-		for _, elem := range opts.PackageList.Iterator() {
-			pkg := elem.Value
-			for _, ident := range pkg.Services.Iterator() {
-				svc := ident.Value
-				// TODO: id might collide
-				g.Id(buildPackageScopedID(pkg, svc.Name)).Op("*").Qual(pkg.GoPackage.PkgPath, svc.Name)
-			}
+		for _, svc := range opts.Services {
+			// TODO: id might collide
+			g.Id(buildPackageScopedID(svc.Package, svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
 		}
 		return
 	})
@@ -27,17 +23,12 @@ func BuildHTTPHandlerProviders(opts *GeneratorOptions) (err error) {
 	).ParamsFunc(func(g *jen.Group) {
 		g.Id("handlers").Index().Op("*").Qual("github.com/discernhq/devx/pkg/transport/httpx", "Handler")
 	}).BlockFunc(func(g *jen.Group) {
-		for _, elem := range opts.PackageList.Iterator() {
-			pkg := elem.Value
-			for _, ident := range pkg.Services.Iterator() {
-				svc := ident.Value
-				g.Id("handlers").Op("=").AppendFunc(func(g *jen.Group) {
-					g.Id("handlers")
-					g.Id("deps").Dot(buildPackageScopedID(pkg, svc.Name)).Dot("HTTPHandlerFactory").Call().Op("...")
-				})
-			}
+		for _, svc := range opts.Services {
+			g.Id("handlers").Op("=").AppendFunc(func(g *jen.Group) {
+				g.Id("handlers")
+				g.Id("deps").Dot(buildPackageScopedID(svc.Package, svc.Name)).Dot("HTTPHandlerFactory").Call().Op("...")
+			})
 		}
-
 		g.Return()
 		return
 	})
@@ -45,11 +36,11 @@ func BuildHTTPHandlerProviders(opts *GeneratorOptions) (err error) {
 	return
 }
 
-func devxGenFilePath(opts *GeneratorOptions, fileName string) (FilePath, PackageName) {
+func devxGenFilePath(opts *PipelineOptions, fileName string) (FilePath, PackageName) {
 	return FilePath(filepath.Join(opts.GenerateParams.OutputDir, "devxgen", fileName)), PackageName("devxgen")
 }
 
-func devxGenWireSetPath(opts *GeneratorOptions) (FilePath, PackageName) {
+func devxGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
 	return devxGenFilePath(opts, "wire_set.gen.go")
 }
 

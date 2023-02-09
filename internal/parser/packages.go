@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/discernhq/devx/internal/parser/smap"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"
@@ -17,12 +16,12 @@ type Package struct {
 	Name      string
 	Path      PackagePath
 	GoPackage *packages.Package
-	Services  smap.Map[*ast.Ident, *Service]
-	Workers   smap.Map[*ast.Ident, *Worker]
-	Providers smap.Map[*ast.Ident, *Provider]
+	Services  map[*ast.Ident]*Service
+	Workers   map[*ast.Ident]*Worker
+	Providers map[*ast.Ident]*Provider
 
-	funcIdCache    smap.Map[*types.Func, *ast.Ident]
-	directiveCache smap.Map[*ast.Ident, directive.List]
+	funcIdCache    map[*types.Func]*ast.Ident
+	directiveCache map[*ast.Ident]directive.List
 }
 
 type PackagePath string
@@ -33,17 +32,17 @@ func (p PackagePath) String() string {
 
 func NewPackage(p *packages.Package, dir string) *Package {
 	return &Package{
-		Name:      p.Name,
-		GoPackage: p,
+		Name: p.Name,
 		Path: PackagePath(filepath.Join(
 			dir,
 			strings.Replace(p.PkgPath, p.Module.Path, "", 1),
 		)),
-		Services:       smap.NewMap[*ast.Ident, *Service](),
-		Workers:        smap.NewMap[*ast.Ident, *Worker](),
-		Providers:      smap.NewMap[*ast.Ident, *Provider](),
-		funcIdCache:    smap.NewMap[*types.Func, *ast.Ident](),
-		directiveCache: smap.NewMap[*ast.Ident, directive.List](),
+		GoPackage:      p,
+		Services:       make(map[*ast.Ident]*Service),
+		Workers:        make(map[*ast.Ident]*Worker),
+		Providers:      make(map[*ast.Ident]*Provider),
+		funcIdCache:    make(map[*types.Func]*ast.Ident),
+		directiveCache: make(map[*ast.Ident]directive.List),
 	}
 }
 
@@ -67,8 +66,8 @@ func walkPackage(
 	return
 }
 
-func ExperimentalParse(dir string, patterns ...string) (pkgList smap.Map[PackagePath, *Package], err error) {
-	pkgList = smap.NewMap[PackagePath, *Package]()
+func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]*Package, err error) {
+	pkgList = make(map[PackagePath]*Package)
 	stat, err := os.Stat(dir)
 	if err != nil {
 		return
@@ -118,7 +117,7 @@ func ExperimentalParse(dir string, patterns ...string) (pkgList smap.Map[Package
 		if err != nil {
 			return
 		}
-		pkgList.Set(pkg.Path, pkg)
+		pkgList[pkg.Path] = pkg
 	}
 
 	return
