@@ -127,7 +127,6 @@ import (
 	temporal "github.com/discernhq/devx/pkg/transport/temporal"
 	client "go.temporal.io/sdk/client"
 	workflow "go.temporal.io/sdk/workflow"
-	"time"
 )
 
 func (svc *service) HTTPHandlerFactory(middlewareReg *middleware.Registry) []*httpx.Handler {
@@ -153,11 +152,10 @@ func (act *activities) WorkerFactory() []*temporal.Worker {
 
 type activities__Proxy struct{}
 
-func (p activities__Proxy) Verify(ctx workflow.Context, req VerifyRequest) (res VerifyResponse, err error) {
-	err = workflow.ExecuteActivity(workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: time.Second * 30,
-	}), "auth.activities.Verify", req).Get(ctx, &res)
-	return
+func (p activities__Proxy) Verify(ctx workflow.Context, req VerifyRequest) temporal.Future[VerifyResponse] {
+	return temporal.NewFuture[VerifyResponse](
+		workflow.ExecuteActivity(ctx, "auth.activities.Verify", req),
+	)
 }
 func (wkr *workflows) WorkerFactory() []*temporal.Worker {
 	return []*temporal.Worker{

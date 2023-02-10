@@ -110,20 +110,18 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
 				jen.Id(method.Request.Name).Id(method.Request.Type),
 			).
-			Params(jen.Id(method.Response.Name).Id(method.Response.Type), jen.Id("err").Error()).
+			Params(
+				jen.Qual(devxTemporal, "Future").Types(jen.Id(method.Response.Type)),
+			).
 			BlockFunc(func(g *jen.Group) {
-				g.Id("err").Op("=").Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
-					g.Qual(temporalSdkWorkflow, "WithActivityOptions").CallFunc(func(g *jen.Group) {
+				g.Return(jen.Qual(devxTemporal, "NewFuture").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+					g.Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
-						g.Qual(temporalSdkWorkflow, "ActivityOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
-							g.Id("StartToCloseTimeout").Op(":").Qual("time", "Second").Op("*").Lit(30)
-						})
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						g.Id(method.Request.Name)
+						return
 					})
-					g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-					g.Id(method.Request.Name)
-					return
-				}).Dot("Get").Call(jen.Id("ctx"), jen.Op("&").Id(method.Response.Name))
-				g.Return()
+				}))
 			})
 	}
 }
