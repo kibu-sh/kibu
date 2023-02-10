@@ -38,8 +38,13 @@ func TestNewContextLoader(t *testing.T) {
 
 	t.Run("keys should not collide", func(t *testing.T) {
 		expected := &User{ID: "test"}
-		ctx := store.Save(context.Background(), expected)
-		_, err := store2.Load(ctx)
+		isolated := context.Background()
+		isolated = store.Save(isolated, expected)
+		_, err := store2.Load(isolated)
 		require.ErrorIs(t, err, ErrNotFoundInContext)
+
+		got, err := store.Load(isolated)
+		require.NoError(t, err)
+		require.Equal(t, got.ID, expected.ID)
 	})
 }
