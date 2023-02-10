@@ -18,6 +18,15 @@ type FileStore struct {
 	CrypterFactoryFunc CrypterFactoryFunc
 }
 
+// GetByKey is a convenience method for getting a value by key
+// A simpler alias interface to Get
+func (s *FileStore) GetByKey(ctx context.Context, key string, target any) (*CipherText, error) {
+	return s.Get(ctx, GetParams{
+		Result: target,
+		Path:   key,
+	})
+}
+
 func NewDefaultFileStore(dir string) (store *FileStore) {
 	store = &FileStore{
 		FS: DirectoryFS{

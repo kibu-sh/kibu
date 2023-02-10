@@ -18,4 +18,5 @@ type SetParams struct {
 type Store interface {
 	Get(ctx context.Context, params GetParams) (ciphertext *CipherText, err error)
 	Set(ctx context.Context, params SetParams) (ciphertext *CipherText, err error)
+	GetByKey(ctx context.Context, key string, target any) (ciphertext *CipherText, err error)
 }

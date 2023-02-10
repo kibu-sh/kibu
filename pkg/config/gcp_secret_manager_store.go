@@ -12,9 +12,20 @@ import (
 	"context"
 )
 
+var _ Store = (*GCPSecretManagerStore)(nil)
+
 type GCPSecretManagerStore struct {
 	projectID string
 	client    *secretmanager.Client
+}
+
+// GetByKey is a convenience method for getting a value by key
+// A simpler alias interface to Get
+func (c GCPSecretManagerStore) GetByKey(ctx context.Context, key string, target any) (*CipherText, error) {
+	return c.Get(ctx, GetParams{
+		Result: target,
+		Path:   key,
+	})
 }
 
 func (c GCPSecretManagerStore) basePath() string {
