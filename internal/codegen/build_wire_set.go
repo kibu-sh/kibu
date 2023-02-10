@@ -45,6 +45,13 @@ func BuildWireSet(opts *PipelineOptions) (err error) {
 				g.New(jen.Qual(wrk.PackagePath(), workerProxyName(wrk)))
 				g.Lit("*")
 			})
+
+			if wrk.Type == parser.WorkflowType {
+				g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
+					g.New(jen.Qual(wrk.PackagePath(), workerClientName(wrk)))
+					g.Lit("*")
+				})
+			}
 		}
 
 		for _, prv := range opts.Providers {

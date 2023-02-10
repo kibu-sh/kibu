@@ -30,10 +30,11 @@ func BuildWorkerProxies(
 			BlockFunc(buildWorkerFactoryBlockFunc(wrk))
 
 		switch wrk.Type {
-		case parser.WorkflowType:
-			buildWorkflowProxy(f, wrk)
 		case parser.ActivityType:
 			buildActivityProxy(f, wrk)
+		case parser.WorkflowType:
+			buildWorkflowClient(f, wrk)
+			buildWorkflowProxy(f, wrk)
 		default:
 			err = errors.Errorf("unknown worker type: %s", wrk.Type)
 			return
@@ -63,8 +64,8 @@ func buildWorkerFactoryBlockFunc(wrk *parser.Worker) func(g *jen.Group) {
 		return
 	}
 }
-func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
-	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
+func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
+	f.Type().Id(workerClientName(wrk)).StructFunc(func(g *jen.Group) {
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
@@ -73,27 +74,61 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 
 	for _, method := range methods {
 		f.Func().
-			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
+			Params(jen.Id("p").Id(workerClientName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
 				jen.Id("id").String(),
 				jen.Id(method.Request.Name).Id(method.Request.Type),
 			).
-			Params(jen.Id(method.Response.Name).Id(method.Response.Type), jen.Id("err").Error()).
+			Params(
+				jen.Qual(devxTemporal, "WorkflowRun").Types(
+					jen.Id(method.Response.Type),
+				),
+				jen.Error(),
+			).
 			BlockFunc(func(g *jen.Group) {
-				g.List(jen.Id("run"), jen.Id("err")).Op(":=").Id("p").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
-					g.Id("ctx")
-					g.Qual(temporalSDKClient, "StartWorkflowOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
-						g.Id("ID").Op(":").Id("id")
-						g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
+				g.Return().Qual(devxTemporal, "NewWorkflowRunWithErr").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+					g.Id("p").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
+						g.Id("ctx")
+						g.Qual(temporalSDKClient, "StartWorkflowOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
+							g.Id("ID").Op(":").Id("id")
+							g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
+						})
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						g.Id(method.Request.Name)
+						return
 					})
-					g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-					g.Id(method.Request.Name)
-					return
 				})
-				g.If(jen.Err().Op("!=").Nil()).Block(jen.Return())
-				g.Id("err").Op("=").Id("run").Dot("Get").Call(jen.Id("ctx"), jen.Op("&").Id(method.Response.Name))
-				g.Return()
+			})
+	}
+}
+func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
+	f.Type().Id(workerProxyName(wrk)).Struct()
+
+	methods := toSlice(wrk.Methods)
+	sort.Slice(methods, sortByID(methods))
+
+	for _, method := range methods {
+		f.Func().
+			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
+			Params(
+				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
+				jen.Id(method.Request.Name).Id(method.Request.Type),
+			).
+			Params(
+				jen.Qual(devxTemporal, "Future").Types(
+					jen.Id(method.Response.Type),
+				),
+			).
+			BlockFunc(func(g *jen.Group) {
+				g.Return().Qual(devxTemporal, "NewFuture").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
+						g.Id("ctx")
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						g.Id(method.Request.Name)
+						return
+					})
+				})
 			})
 	}
 }
@@ -171,5 +206,12 @@ func workerProxyName(wrk *parser.Worker) string {
 	return strings.Join([]string{
 		wrk.Name,
 		"Proxy",
+	}, "__")
+}
+
+func workerClientName(wrk *parser.Worker) string {
+	return strings.Join([]string{
+		wrk.Name,
+		"Client",
 	}, "__")
 }

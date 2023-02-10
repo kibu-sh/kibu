@@ -104,10 +104,12 @@ var WireSet = wire.NewSet(
 	wire.Struct(new(auth.activities__Proxy), "*"),
 	wire.Struct(new(auth.workflows), "*"),
 	wire.Struct(new(auth.workflows__Proxy), "*"),
+	wire.Struct(new(auth.workflows__Client), "*"),
 	wire.Struct(new(example.Activities), "*"),
 	wire.Struct(new(example.Activities__Proxy), "*"),
 	wire.Struct(new(example.Workflows), "*"),
 	wire.Struct(new(example.Workflows__Proxy), "*"),
+	wire.Struct(new(example.Workflows__Client), "*"),
 	auth.InitActivityDeps,
 	auth.InitServiceDeps,
 	auth.InitWorkflowDeps,
@@ -168,20 +170,25 @@ func (wkr *workflows) WorkerFactory() []*temporal.Worker {
 	}
 }
 
-type workflows__Proxy struct {
+type workflows__Client struct {
 	Temporal client.Client
 }
 
-func (p workflows__Proxy) Verify(ctx context.Context, id string, req VerifyRequest) (res VerifyResponse, err error) {
-	run, err := p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
-		ID:        id,
-		TaskQueue: "default",
-	}, "auth.workflows.Verify", req)
-	if err != nil {
-		return
-	}
-	err = run.Get(ctx, &res)
-	return
+func (p workflows__Client) Verify(ctx context.Context, id string, req VerifyRequest) (temporal.WorkflowRun[VerifyResponse], error) {
+	return temporal.NewWorkflowRunWithErr[VerifyResponse](
+		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+			ID:        id,
+			TaskQueue: "default",
+		}, "auth.workflows.Verify", req),
+	)
+}
+
+type workflows__Proxy struct{}
+
+func (p workflows__Proxy) Verify(ctx workflow.Context, req VerifyRequest) temporal.Future[VerifyResponse] {
+	return temporal.NewFuture[VerifyResponse](
+		workflow.ExecuteChildWorkflow(ctx, "auth.workflows.Verify", req),
+	)
 }
 -- src/pkg/example/example.go --
 package example
