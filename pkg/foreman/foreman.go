@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/discernhq/devx/pkg/utils"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"time"
 )
@@ -21,17 +22,37 @@ type Manager struct {
 	errGroup *errgroup.Group
 	ctx      context.Context
 	cancel   context.CancelFunc
+	logger   zerolog.Logger
 }
 
-func NewManager(ctx context.Context) *Manager {
+type Option func(m *Manager)
+
+func DefaultOptions() []Option {
+	return []Option{
+		WithLogger(zerolog.Nop()),
+	}
+}
+
+func WithLogger(nop zerolog.Logger) Option {
+	return func(m *Manager) {
+		m.logger = nop
+	}
+}
+
+func NewManager(ctx context.Context, opts ...Option) *Manager {
+	opts = append(DefaultOptions(), opts...)
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
-	return &Manager{
+	m := &Manager{
 		errGroup: eg,
 		ctx:      ctx,
 		cancel:   cancel,
 		tasks:    utils.NewSyncMap[Process](),
 	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
 
 var ErrProcessExists = errors.New("process already exists")
@@ -47,6 +68,8 @@ func (m *Manager) Register(p Process) (err error) {
 		return
 	}
 
+	m.logger.Info().Str("proc", p.Name).Msg("registered process")
+
 	m.tasks.Store(p.Name, &p)
 	ready := make(chan struct{})
 
@@ -58,6 +81,7 @@ func (m *Manager) Register(p Process) (err error) {
 
 	select {
 	case <-ready:
+		m.logger.Info().Str("proc", p.Name).Msg("ready")
 		return nil
 	case <-m.ctx.Done():
 		err = errors.Wrapf(m.ctx.Err(), "failed to start proc: %s", p.Name)
