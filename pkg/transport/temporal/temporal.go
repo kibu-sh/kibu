@@ -1,7 +1,8 @@
 package temporal
 
 import (
-	"fmt"
+	"github.com/rs/zerolog"
+	"github.com/samber/lo"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
@@ -19,34 +20,45 @@ type Worker struct {
 	Handler   any
 }
 type WorkerFactory interface {
-	WorkerFactory() []*WorkerFactory
+	WorkerFactory() []*Worker
 }
 
 func NewWorker(
 	client client.Client,
 	workerDefs []*Worker,
+	logger zerolog.Logger,
 ) (workers []worker.Worker, err error) {
-	w := worker.New(client, "default", worker.Options{
-		Identity:              "my-worker",
-		EnableLoggingInReplay: true,
-		WorkerStopTimeout:     time.Second * 30,
+	defByTaskQueue := lo.GroupBy(workerDefs, func(def *Worker) string {
+		return def.TaskQueue
 	})
-	for _, def := range workerDefs {
-		// TODO: pre production tuning
-		fmt.Printf("registering %s %s\n", def.Type, def.Name)
 
-		switch def.Type {
-		case "workflow":
-			w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{
-				Name: def.Name,
-			})
-		case "activity":
-			w.RegisterActivityWithOptions(def.Handler, activity.RegisterOptions{
-				Name: def.Name,
-			})
+	for queue, workerDefs := range defByTaskQueue {
+		w := worker.New(client, queue, worker.Options{
+			EnableLoggingInReplay: true,
+			WorkerStopTimeout:     time.Second * 30,
+		})
+
+		for _, def := range workerDefs {
+			logger.Info().
+				Str("queue", queue).
+				Str("type", def.Type).
+				Str("name", def.Name).
+				Msg("registering worker")
+
+			switch def.Type {
+			case "workflow":
+				w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{
+					Name: def.Name,
+				})
+			case "activity":
+				w.RegisterActivityWithOptions(def.Handler, activity.RegisterOptions{
+					Name: def.Name,
+				})
+			}
 		}
+
+		workers = append(workers, w)
 	}
-	workers = append(workers, w)
 	return
 }
 
