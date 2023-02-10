@@ -26,13 +26,13 @@ func NewWorker(
 	client client.Client,
 	workerDefs []*Worker,
 ) (workers []worker.Worker, err error) {
+	w := worker.New(client, "default", worker.Options{
+		Identity:              "my-worker",
+		EnableLoggingInReplay: true,
+		WorkerStopTimeout:     time.Second * 30,
+	})
 	for _, def := range workerDefs {
 		// TODO: pre production tuning
-		w := worker.New(client, string(def.TaskQueue), worker.Options{
-			EnableLoggingInReplay: true,
-			WorkerStopTimeout:     time.Second * 30,
-		})
-
 		fmt.Printf("registering %s %s\n", def.Type, def.Name)
 
 		switch def.Type {
@@ -45,9 +45,8 @@ func NewWorker(
 				Name: def.Name,
 			})
 		}
-
-		workers = append(workers, w)
 	}
+	workers = append(workers, w)
 	return
 }
 
