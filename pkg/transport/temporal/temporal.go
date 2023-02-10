@@ -1,6 +1,7 @@
 package temporal
 
 import (
+	"context"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"go.temporal.io/sdk/activity"
@@ -63,3 +64,41 @@ func NewWorker(
 }
 
 type RetryPolicy = temporal.RetryPolicy
+
+type Future[T any] struct {
+	workflow.Future
+}
+
+func (f Future[T]) Get(ctx workflow.Context) (res *T, err error) {
+	res = new(T)
+	err = f.Future.Get(ctx, res)
+	return
+}
+
+func NewFuture[T any](f workflow.Future) Future[T] {
+	return Future[T]{f}
+}
+
+type WorkflowRun[T any] struct {
+	client.WorkflowRun
+}
+
+func NewWorkflowRun[T any](run client.WorkflowRun) WorkflowRun[T] {
+	return WorkflowRun[T]{run}
+}
+
+func NewWorkflowRunWithErr[T any](run client.WorkflowRun, err error) (WorkflowRun[T], error) {
+	return NewWorkflowRun[T](run), err
+}
+
+func (w WorkflowRun[T]) Get(ctx context.Context) (res *T, err error) {
+	res = new(T)
+	err = w.WorkflowRun.Get(ctx, res)
+	return
+}
+
+func (w WorkflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (res *T, err error) {
+	res = new(T)
+	err = w.WorkflowRun.GetWithOptions(ctx, res, options)
+	return
+}
