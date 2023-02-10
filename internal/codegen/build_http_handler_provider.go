@@ -14,6 +14,7 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 			// TODO: id might collide
 			g.Id(buildPackageScopedID(svc.PackagePath(), svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
 		}
+		g.Id("MiddlewareRegistry").Op("*").Qual(devxTransportMiddleware, "Registry")
 		return
 	})
 
@@ -25,7 +26,9 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 		for _, svc := range opts.Services {
 			g.Id("handlers").Op("=").AppendFunc(func(g *jen.Group) {
 				g.Id("handlers")
-				g.Id("deps").Dot(buildPackageScopedID(svc.PackagePath(), svc.Name)).Dot("HTTPHandlerFactory").Call().Op("...")
+				g.Id("deps").Dot(buildPackageScopedID(svc.PackagePath(), svc.Name)).Dot("HTTPHandlerFactory").CustomFunc(multiLineParen(), func(g *jen.Group) {
+					g.Id("deps").Dot("MiddlewareRegistry")
+				}).Op("...")
 			})
 		}
 		g.Return()

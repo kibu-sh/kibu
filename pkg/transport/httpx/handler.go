@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"github.com/discernhq/devx/pkg/transport"
+	"github.com/discernhq/devx/pkg/transport/middleware"
 	"net/http"
 )
 
@@ -47,15 +48,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		codec:   h.Codec,
 	}
 
-	if err := h.Handler.Serve(ctx); err != nil && h.OnError != nil {
-		h.OnError(err)
+	if err := h.Handler.Serve(ctx); err != nil {
+		_ = ctx.Codec().EncodeError(ctx, ctx.Response(), err)
 	}
 }
 
 var _ http.Handler = (*Handler)(nil)
 
 type HandlerFactory interface {
-	HTTPHandlerFactory() []*Handler
+	HTTPHandlerFactory(*middleware.Registry) []*Handler
 }
 type HandlerFactoryFunc func() []*Handler
 

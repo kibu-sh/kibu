@@ -58,6 +58,13 @@ func BuildWireSet(opts *PipelineOptions) (err error) {
 				})
 			}
 		}
+
+		for _, named := range getMiddlewareReceivers(opts) {
+			g.Qual(googleWire, "Struct").CallFunc(func(g *jen.Group) {
+				g.New(jen.Qual(named.Obj().Pkg().Path(), named.Obj().Name()))
+				g.Lit("*")
+			})
+		}
 	})
 	return
 }

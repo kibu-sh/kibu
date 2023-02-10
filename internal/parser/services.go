@@ -97,10 +97,12 @@ type Endpoint struct {
 	Name       string
 	Path       string
 	Raw        bool
+	Tags       []string
 	Methods    []string
 	Request    *Var
 	Response   *Var
 	Directives directive.List
+	Public     bool
 }
 
 type Service struct {
@@ -181,10 +183,14 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			return
 		}
 
+		tags, _ := dir.Options.GetAll("tag", []string{})
+
 		ep := &Endpoint{
 			Name:       ident.Name,
 			Directives: dirs,
+			Tags:       tags,
 			Raw:        dir.Options.Has("raw"),
+			Public:     dir.Options.Has("public"),
 			TypeMeta:   NewTypeMeta(ident, pkg.GoPackage.TypesInfo.Defs[ident], pkg),
 		}
 
