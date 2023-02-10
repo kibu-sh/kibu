@@ -12,6 +12,5 @@ func NewJSONRequest[T any](httpMethod string, url string, object *T) (req *http.
 	if err != nil {
 		return
 	}
-	//http.MethodGet
 	return http.NewRequest(httpMethod, url, payload)
 }
