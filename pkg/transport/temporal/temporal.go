@@ -99,3 +99,12 @@ func (w WorkflowRun[T]) GetWithOptions(ctx context.Context, options client.Workf
 	err = w.WorkflowRun.GetWithOptions(ctx, res, options)
 	return
 }
+
+func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: time.Second * 30,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 5,
+		},
+	})
+}
