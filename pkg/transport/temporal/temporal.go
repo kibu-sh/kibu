@@ -69,9 +69,8 @@ type Future[T any] struct {
 	workflow.Future
 }
 
-func (f Future[T]) Get(ctx workflow.Context) (res *T, err error) {
-	res = new(T)
-	err = f.Future.Get(ctx, res)
+func (f Future[T]) Get(ctx workflow.Context) (res T, err error) {
+	err = f.Future.Get(ctx, &res)
 	return
 }
 
@@ -91,14 +90,12 @@ func NewWorkflowRunWithErr[T any](run client.WorkflowRun, err error) (WorkflowRu
 	return NewWorkflowRun[T](run), err
 }
 
-func (w WorkflowRun[T]) Get(ctx context.Context) (res *T, err error) {
-	res = new(T)
-	err = w.WorkflowRun.Get(ctx, res)
+func (w WorkflowRun[T]) Get(ctx context.Context) (res T, err error) {
+	err = w.WorkflowRun.Get(ctx, &res)
 	return
 }
 
-func (w WorkflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (res *T, err error) {
-	res = new(T)
+func (w WorkflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (res T, err error) {
 	err = w.WorkflowRun.GetWithOptions(ctx, res, options)
 	return
 }
