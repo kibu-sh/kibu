@@ -7,4 +7,5 @@ type Context interface {
 	Codec() Codec
 	Request() Request
 	Response() Response
+	WithContext(ctx context.Context) Context
 }

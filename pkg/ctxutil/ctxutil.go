@@ -7,6 +7,23 @@ import (
 
 var ErrNotFoundInContext = errors.New("not found in context")
 
+type Loader[T any] interface {
+	Load(ctx context.Context) (*T, error)
+}
+
+type Saver[T any] interface {
+	Save(ctx context.Context, v *T) context.Context
+}
+
+type Provider[T any] interface {
+	Loader[T]
+	Saver[T]
+}
+
+type LoaderFunc[T any] func(ctx context.Context) (*T, error)
+
+var _ Provider[any] = (*Store[any, any])(nil)
+
 type Store[T any, K any] struct {
 	key *K
 }
