@@ -20,7 +20,7 @@ func (r Registry) Register(item RegistryItem) {
 	for _, tag := range item.Tags {
 		r.cache[tag] = append(r.cache[tag], &item)
 		sort.Slice(r.cache[tag], func(i, j int) bool {
-			return r.cache[tag][i].Order < r.cache[tag][j].Order
+			return r.cache[tag][i].Order > r.cache[tag][j].Order
 		})
 	}
 }
