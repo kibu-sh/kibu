@@ -125,13 +125,15 @@ func NewPostgresDB(
 type MigrationProvider func(dsn string) (*migrate.Migrate, error)
 
 func SetupPostgresDatabaseConnection(
+	ctx context.Context,
 	manager *container.Manager,
 	loadMigrations MigrationProvider,
+	containerName string,
 ) (dsn *url.URL, err error) {
-	dsn, err = NewPostgresDB(context.Background(), manager, NewPostgresDBParams{
-		Database:      "scan-test",
+	dsn, err = NewPostgresDB(ctx, manager, NewPostgresDBParams{
 		ImageURL:      "postgres:14",
-		ContainerName: "scan-test",
+		Database:      containerName,
+		ContainerName: containerName,
 	})
 	if err != nil {
 		return
@@ -162,6 +164,7 @@ func Context() context.Context {
 func SetupTestMainWithDB(
 	m *testing.M,
 	loadMigrations MigrationProvider,
+	containerName string,
 ) {
 	var code int
 	ctx := Context()
@@ -172,8 +175,10 @@ func SetupTestMainWithDB(
 	)
 
 	dsn, err := SetupPostgresDatabaseConnection(
+		ctx,
 		sharedManager,
 		loadMigrations,
+		containerName,
 	)
 	CheckErrFatal(err)
 
