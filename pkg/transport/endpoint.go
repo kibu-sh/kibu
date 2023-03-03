@@ -1,6 +1,12 @@
 package transport
 
-import "context"
+import (
+	"context"
+	"github.com/pkg/errors"
+)
+
+// ErrResponseIntercepted should be returned by any endpoint that wants to overload the default response behavior
+var ErrResponseIntercepted = errors.New("raw response")
 
 // EndpointFunc is a functional implementation of Endpoint
 type EndpointFunc[Req, Res any] func(ctx context.Context, request Req) (response Res, err error)
@@ -25,11 +31,22 @@ func NewRawEndpoint(
 	endpointFunc HandlerFunc,
 ) (ep *Endpoint[any, any]) {
 	ep = &Endpoint[any, any]{
-		Func: func(ctx context.Context, request any) (response any, err error) {
-			return nil, endpointFunc(ctx.(Context))
-		},
+		Func: newRawEndpointFunc(endpointFunc),
 	}
 	return
+}
+
+func newRawEndpointFunc(endpointFunc HandlerFunc) EndpointFunc[any, any] {
+	return func(ctx context.Context, request any) (response any, err error) {
+		tCtx, err := ContextStore.Load(ctx)
+		if err != nil {
+			return
+		}
+		if err = endpointFunc(tCtx); err == nil {
+			err = ErrResponseIntercepted
+		}
+		return
+	}
 }
 
 func (endpoint Endpoint[Req, Res]) AsHandler() Handler {
@@ -49,30 +66,40 @@ func (endpoint Endpoint[Req, Res]) WithMiddleware(middleware ...Middleware) Hand
 // TODO: benchmark value receiver vs pointer receiver (maybe have request overhead)
 func (endpoint Endpoint[Req, Res]) Serve(ctx Context) (err error) {
 	decoded := new(Req)
+	codec := ctx.Codec()
+	rawReq := ctx.Request()
+	rawRes := ctx.Response()
+	rawCtx := ctx.Request().Context()
+	// allows upstream middleware to access the transport context even when it's masquerading as a context.Context
+	envelopedTransportCtx := ContextStore.Save(rawCtx, ctx)
 
-	err = ctx.Codec().Decode(ctx, ctx.Request(), decoded)
-	if err != nil {
-		return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+	if err = codec.Decode(rawCtx, rawReq, decoded); err != nil {
+		return codec.EncodeError(rawCtx, rawRes, err)
 	}
 
 	if endpoint.Validator != nil {
-		if err = endpoint.Validator.Validate(ctx, decoded); err != nil {
-			return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+		if err = endpoint.Validator.Validate(rawCtx, decoded); err != nil {
+			return codec.EncodeError(rawCtx, rawRes, err)
 		}
 	}
 
 	if v, ok := asAny(decoded).(PayloadValidator); ok {
 		if err = v.Validate(); err != nil {
-			return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+			return codec.EncodeError(rawCtx, rawRes, err)
 		}
 	}
 
-	response, err := endpoint.Func(ctx, *decoded)
-	if err != nil {
-		return ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+	response, err := endpoint.Func(envelopedTransportCtx, *decoded)
+	if errors.Is(err, ErrResponseIntercepted) {
+		err = nil
+		return
 	}
 
-	return ctx.Codec().Encode(ctx, ctx.Response(), response)
+	if err != nil {
+		return codec.EncodeError(rawCtx, rawRes, err)
+	}
+
+	return ctx.Codec().Encode(rawCtx, rawRes, response)
 }
 
 func asAny[T any](t *T) any {

@@ -30,13 +30,13 @@ type NewPostgresDBParams struct {
 }
 
 func BackoffWithTimeout(
-	ctx context.Context,
+	tctx context.Context,
 	timeout *time.Duration,
 ) backoff.BackOffContext {
 	policy := backoff.NewExponentialBackOff()
 	policy.MaxElapsedTime = *timeout
 	policy.Reset()
-	return backoff.WithContext(policy, ctx)
+	return backoff.WithContext(policy, tctx)
 }
 
 func WaitForPostgres(ctx context.Context, db *sql.DB, timeout *time.Duration) container.StartOption {

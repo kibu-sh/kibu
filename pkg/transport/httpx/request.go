@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"github.com/discernhq/devx/pkg/transport"
 	"io"
 	"mime"
@@ -12,6 +13,11 @@ var _ transport.Request = (*Request)(nil)
 
 type Request struct {
 	*http.Request
+}
+
+func (r *Request) WithContext(ctx context.Context) transport.Request {
+	r.Request = r.Request.WithContext(ctx)
+	return r
 }
 
 func (r *Request) URL() *url.URL {

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,9 +15,10 @@ type Request interface {
 	PathParams() url.Values
 	QueryParams() url.Values
 	Headers() http.Header
-
+	Context() context.Context
 	Cookies() []*http.Cookie
 	Cookie(name string) (cookie *http.Cookie, err error)
+	WithContext(ctx context.Context) Request
 
 	// Body exposes io.ReadCloser from the Underlying request
 	// We recommend using http.MaxBytesReader to limit the size of the body

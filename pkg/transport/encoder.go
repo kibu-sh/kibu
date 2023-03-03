@@ -33,3 +33,11 @@ type ErrorEncoderFunc func(ctx context.Context, writer Response, err error) erro
 func (e ErrorEncoderFunc) EncodeError(ctx context.Context, writer Response, err error) error {
 	return e(ctx, writer, err)
 }
+
+// ErrorResponse is a contract for controlling the status code and response body when an error is raised by an Endpoint
+// Any error that implements this will have the result of PrepareResponse() written to the Response by an Encoder
+// If the transport supports it, the status code will be set to the value returned by GetStatusCode()
+type ErrorResponse interface {
+	GetStatusCode() int
+	PrepareResponse() any
+}

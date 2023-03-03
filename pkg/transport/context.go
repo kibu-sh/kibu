@@ -1,11 +1,13 @@
 package transport
 
-import "context"
+import "github.com/discernhq/devx/pkg/ctxutil"
 
 type Context interface {
-	context.Context
 	Codec() Codec
 	Request() Request
 	Response() Response
-	WithContext(ctx context.Context) Context
 }
+
+type contextKey struct{}
+
+var ContextStore = ctxutil.NewStore[Context, contextKey]()

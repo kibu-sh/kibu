@@ -338,4 +338,4 @@ func (p *Manager) Stop(ctx context.Context, params StopParams) (err error) {
 
 type containerManagerCtxKey struct{}
 
-var ManagerContextStore = ctxutil.NewStore[Manager, containerManagerCtxKey]()
+var ManagerContextStore = ctxutil.NewStore[*Manager, containerManagerCtxKey]()

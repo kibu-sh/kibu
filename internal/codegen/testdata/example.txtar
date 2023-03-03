@@ -301,16 +301,16 @@ import (
 type Middleware struct {}
 
 //devx:middleware
-func (m *Middleware) GlobalMiddleware(ctx transport.Context, next transport.Handler) error { return }
+func (m *Middleware) GlobalMiddleware(tctx transport.Context, next transport.Handler) error { return }
 
 //devx:middleware tag=auth order=0
-func (m *Middleware) LoadUser(ctx transport.Context, next transport.Handler) error { return }
+func (m *Middleware) LoadUser(tctx transport.Context, next transport.Handler) error { return }
 
 //devx:middleware tag=auth order=1
-func (m *Middleware) LoadCustomer(ctx transport.Context, next transport.Handler) error { return }
+func (m *Middleware) LoadCustomer(tctx transport.Context, next transport.Handler) error { return }
 
 //devx:middleware tag=auth order=2
-func (m *Middleware) CheckPermissions(ctx transport.Context, next transport.Handler) error { return }
+func (m *Middleware) CheckPermissions(tctx transport.Context, next transport.Handler) error { return }
 
 //devx:middleware tag=cache
-func (m *Middleware) CacheMiddleware(ctx transport.Context, next transport.Handler) error { return }
+func (m *Middleware) CacheMiddleware(tctx transport.Context, next transport.Handler) error { return }

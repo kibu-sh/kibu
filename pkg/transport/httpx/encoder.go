@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// JSONEncoder encodes any response as JSON and writes it to the Response
+// JSONEncoder encodes any response as JSON and writes it to the ResponseWriter
 func JSONEncoder() transport.EncoderFunc {
 	return func(ctx context.Context, writer transport.Response, response any) error {
 		writer.Headers().Set("Content-Type", "application/json")
@@ -15,44 +15,32 @@ func JSONEncoder() transport.EncoderFunc {
 	}
 }
 
-// TODO: define concrete API error types
-
-type errResponse struct {
+type DefaultJSONError struct {
 	Message string `json:"message"`
+	Status  int    `json:"status"`
 }
 
-func (e errResponse) ErrResponse() any {
-	return e
+func (d DefaultJSONError) GetStatusCode() int {
+	return d.Status
 }
 
-type ErrStatus interface {
-	Status() int
+func (d DefaultJSONError) PrepareResponse() any {
+	return d
 }
 
-type ErrResponse interface {
-	ErrResponse() any
-}
-
-// JSONErrorEncoder encodes any response as JSON and writes it to the Response
+// JSONErrorEncoder encodes any response as JSON and writes it to the ResponseWriter
 func JSONErrorEncoder() transport.ErrorEncoderFunc {
 	return func(ctx context.Context, writer transport.Response, err error) error {
-		// TODO: inherit status code from err if type is *ApiError
-		var res ErrResponse = &errResponse{
-			Message: err.Error(),
+		res, ok := err.(transport.ErrorResponse)
+		if !ok {
+			res = DefaultJSONError{
+				Status:  http.StatusInternalServerError,
+				Message: err.Error(),
+			}
 		}
 
-		status := http.StatusInternalServerError
-		if err, ok := err.(ErrStatus); ok {
-			status = err.Status()
-		}
-
-		// prefer custom error response
-		if errRes, ok := err.(ErrResponse); ok {
-			res = errRes
-		}
-
-		writer.SetStatusCode(status)
+		writer.SetStatusCode(res.GetStatusCode())
 		writer.Headers().Set("Content-Type", "application/json")
-		return json.NewEncoder(writer).Encode(res)
+		return json.NewEncoder(writer).Encode(res.PrepareResponse())
 	}
 }

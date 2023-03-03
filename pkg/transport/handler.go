@@ -2,19 +2,19 @@ package transport
 
 // Handler is a transport agnostic handler the request could be cast back
 type Handler interface {
-	Serve(ctx Context) (err error)
+	Serve(tctx Context) (err error)
 }
 
 // HandlerFunc is a functional alias to the Handler interface
-type HandlerFunc func(ctx Context) (err error)
+type HandlerFunc func(tctx Context) (err error)
 
 // Serve implements Handler
-func (h HandlerFunc) Serve(ctx Context) error {
-	return h(ctx)
+func (h HandlerFunc) Serve(tctx Context) error {
+	return h(tctx)
 }
 
 type Middleware func(Handler) Handler
-type MiddlewareFunc func(ctx Context, next Handler) error
+type MiddlewareFunc func(tctx Context, next Handler) error
 
 func ApplyMiddleware(handler Handler, middleware ...Middleware) Handler {
 	for _, m := range middleware {
@@ -27,8 +27,8 @@ func ApplyMiddleware(handler Handler, middleware ...Middleware) Handler {
 // Provide a simple HandlerFunc if it doesn't return an error during a request the next Handler will be called
 func NewMiddleware(middlewareFunc MiddlewareFunc) Middleware {
 	return func(next Handler) Handler {
-		return HandlerFunc(func(ctx Context) error {
-			return middlewareFunc(ctx, next)
+		return HandlerFunc(func(tctx Context) error {
+			return middlewareFunc(tctx, next)
 		})
 	}
 }

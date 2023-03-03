@@ -172,4 +172,4 @@ func ApplyDeleteBuilderFuncs(s DeleteBuilder, b ...DeleteBuilderFunc) DeleteBuil
 
 type connectionCtxKey struct{}
 
-var ConnectionContextStore = ctxutil.NewStore[sqlx.DB, connectionCtxKey]()
+var ConnectionContextStore = ctxutil.NewStore[*sqlx.DB, connectionCtxKey]()

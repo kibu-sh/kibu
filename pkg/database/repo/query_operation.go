@@ -37,6 +37,8 @@ func (o Operation) String() string {
 }
 
 type Context interface {
+	// FIXME: this is a ticking time bomb
+	// embeding context causes stack overflow
 	context.Context
 	Operation() Operation
 	Query() xql.StatementBuilder

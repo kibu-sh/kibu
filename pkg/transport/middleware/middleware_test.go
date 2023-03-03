@@ -8,8 +8,8 @@ import (
 )
 
 func newTestMW(example string) transport.Middleware {
-	return transport.NewMiddleware(func(ctx transport.Context, next transport.Handler) error {
-		return next.Serve(ctx)
+	return transport.NewMiddleware(func(tctx transport.Context, next transport.Handler) error {
+		return next.Serve(tctx)
 	})
 }
 

@@ -42,14 +42,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	req := NewRequest(r)
 	res := NewResponse(w)
 	ctx := &Context{
-		Context: r.Context(),
-		req:     req,
-		writer:  res,
-		codec:   h.Codec,
+		req:    req,
+		writer: res,
+		codec:  h.Codec,
 	}
 
 	if err := h.Handler.Serve(ctx); err != nil {
-		_ = ctx.Codec().EncodeError(ctx, ctx.Response(), err)
+		_ = ctx.Codec().EncodeError(ctx.Request().Context(), ctx.Response(), err)
 	}
 }
 
