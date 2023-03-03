@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
 )
 
@@ -68,89 +67,64 @@ func TestJSONRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("valid request", func(t *testing.T) {
-
 		result, err := JSONRequest[response](context.Background(), params)
-		if !reflect.DeepEqual(result.Message, expected.Message) {
-			t.Errorf("unexpected result: got %v, want %v", result, expected)
-		}
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-
+		require.NoError(t, err)
+		require.Equal(t, expected.Message, result.Message)
 	})
-	t.Run("invalid method on request, use custom status check and error message", func(t *testing.T) {
 
+	t.Run("invalid method on request, use custom status check and error message", func(t *testing.T) {
 		params.Method = http.MethodGet
-		params.StatusCheck = func(statusCode int, status string) (err error) {
-			if statusCode == http.StatusMethodNotAllowed {
-				err = errors.New("method is not allowed")
+		var customStatusErr = errors.New("method is not allowed")
+		params.StatusCheck = func(status string, code int) (err error) {
+			if code == http.StatusMethodNotAllowed {
+				err = customStatusErr
 			}
 			return
 		}
-		expectedErrMsg := "method is not allowed"
 		_, err := JSONRequest[response](context.Background(), params)
-		if err.Error() != expectedErrMsg {
-			t.Errorf("unexpected error: %v", err)
-		}
+		require.ErrorIs(t, err, customStatusErr)
 	})
-	t.Run("invalid method on request,when custom status check is nil ,use the default status check and err message", func(t *testing.T) {
 
-		expectedErrMsg := "failed with status:405 Method Not Allowed:code(405): unable to send http request"
+	t.Run("invalid method on request,when custom status check is nil ,use the default status check and err message", func(t *testing.T) {
 		params.Method = http.MethodGet
 		params.StatusCheck = nil
 		_, err = JSONRequest[response](context.Background(), params)
-		if err.Error() != expectedErrMsg {
-			t.Errorf("unexpected error: %v", err)
-		}
+		require.ErrorIs(t, err, ErrStatusCheckFailed)
 	})
 
 	t.Run("when client is nil,should use default client", func(t *testing.T) {
-
 		params.Client = nil
 		params.Method = http.MethodPost
 		result, err := JSONRequest[response](context.Background(), params)
-		if !reflect.DeepEqual(result.Message, expected.Message) {
-			t.Errorf("unexpected result: got %v, want %v", result, expected)
-		}
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		require.Equal(t, result.Message, expected.Message)
+		require.NoError(t, err)
 	})
-	t.Run("invalid request, wrong header", func(t *testing.T) {
 
+	t.Run("invalid request, wrong header", func(t *testing.T) {
 		params.Client = nil
 		params.Method = http.MethodPost
 		params.Headers["Content-Type"] = []string{"test"}
-		expMsg := "failed with status:415 Unsupported Media Type:code(415): unable to send http request"
 		_, err := JSONRequest[response](context.Background(), params)
-		if err.Error() != expMsg {
-			t.Errorf("unexpected error: %v", err)
-		}
+		errRes := err.(*ErrorResponse)
+		require.Equal(t, errRes.StatusCode, http.StatusUnsupportedMediaType)
 	})
-	t.Run("valid request. wrong custom struct", func(t *testing.T) {
 
+	t.Run("valid request. wrong custom struct", func(t *testing.T) {
 		params.Headers["Content-Type"] = []string{"application/json"}
 		type res struct {
 			Message string `json:"cmsg"`
 		}
 		result, err := JSONRequest[res](context.Background(), params)
 		require.NoError(t, err)
-		if result.Message != "" {
-			t.Errorf("unexpected error %v", result.Message)
-		}
-
+		require.Empty(t, result.Message)
 	})
+
 	t.Run("invalid request,wrong body ", func(t *testing.T) {
-
-		params.Client = nil
 		params.Method = http.MethodPost
-
+		params.Client = nil
 		params.Body = nil
-		expMsg := "failed with status:400 Bad Request:code(400): unable to send http request"
 		_, err := JSONRequest[response](context.Background(), params)
-		if err.Error() != expMsg {
-			t.Errorf("unexpected error: %v", err)
-		}
+		errRes := err.(*ErrorResponse)
+		require.Equal(t, errRes.StatusCode, http.StatusBadRequest)
 	})
-
 }
