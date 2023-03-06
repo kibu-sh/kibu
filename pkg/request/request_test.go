@@ -59,9 +59,7 @@ func TestRequest(t *testing.T) {
 	t.Run("should send and receive request as JSON", func(t *testing.T) {
 		c := client.
 			WithPost().
-			WithStatusCheckFunc(
-				NewExactStatusCheckFunc(201),
-			).
+			WithExpectStatus(201).
 			WithJSONBody(echo{
 				Code: 201,
 				Data: message{

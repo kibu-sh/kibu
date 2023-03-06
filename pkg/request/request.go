@@ -129,6 +129,18 @@ func (c Client) WithBody(body io.Reader) *Client {
 	return &c
 }
 
+// WithExpectStatus returns a new instance of Client by replacing its status check function.
+// The supplied code must exactly match the response status code.
+func (c Client) WithExpectStatus(code int) *Client {
+	return c.WithStatusCheckFunc(NewExactStatusCheckFunc(code))
+}
+
+// WithExpectStatusInRange returns a new instance of Client by replacing its status check function.
+// The supplied code must be within the specified range matching the response status code.
+func (c Client) WithExpectStatusInRange(min, max int) *Client {
+	return c.WithStatusCheckFunc(NewStatusRangeCheckFunc(min, max))
+}
+
 // WithDeferredBody returns a new instance of Client by replacing its deferrable body.
 // The supplied function isn't executed until the request is made.
 // This is preferred to the default `
