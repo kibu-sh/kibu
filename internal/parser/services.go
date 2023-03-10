@@ -7,11 +7,27 @@ import (
 	"go/token"
 	"go/types"
 	"net/http"
+	"strings"
 )
 
 type Var struct {
-	Name string
-	Type string
+	*types.Var
+}
+
+func (v *Var) TypePkgPath() string {
+	switch t := v.Type().(type) {
+	case *types.Named:
+		return t.Obj().Pkg().Path()
+	default:
+		panic(fmt.Sprintf("cannot find package path for type: %T", t))
+	}
+}
+
+func (v *Var) TypeName() string {
+	pkgPath := v.TypePkgPath()
+	base := v.Type().String()
+	result := strings.Replace(base, pkgPath+".", "", 1)
+	return result
 }
 
 type TypeMeta struct {
@@ -198,14 +214,8 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			sig := m.Type().(*types.Signature)
 			req := sig.Params().At(1)
 			res := sig.Results().At(0)
-			ep.Request = &Var{
-				Name: req.Name(),
-				Type: getTypeNameWithoutPackage(pkg, req),
-			}
-			ep.Response = &Var{
-				Name: res.Name(),
-				Type: getTypeNameWithoutPackage(pkg, res),
-			}
+			ep.Request = &Var{req}
+			ep.Response = &Var{res}
 		}
 
 		ep.Path, _ = dir.Options.GetOne("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))

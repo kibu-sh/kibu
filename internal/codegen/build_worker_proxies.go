@@ -5,6 +5,7 @@ import (
 	"github.com/discernhq/devx/internal/parser"
 	"github.com/huandu/xstrings"
 	"github.com/pkg/errors"
+	"golang.org/x/tools/go/packages"
 	"sort"
 	"strings"
 )
@@ -65,11 +66,12 @@ func buildWorkerFactoryBlockFunc(wrk *parser.Worker) func(g *jen.Group) {
 	}
 }
 func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
+	methods := toSlice(wrk.Methods)
+	scope := wrk.Package.GoPackage
 	f.Type().Id(workerClientName(wrk)).StructFunc(func(g *jen.Group) {
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
-	methods := toSlice(wrk.Methods)
 	sort.Slice(methods, sortByID(methods))
 
 	for _, method := range methods {
@@ -78,16 +80,16 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
 				jen.Id("id").String(),
-				jen.Id(method.Request.Name).Id(method.Request.Type),
+				parserVarAsNamedParam(scope, method.Request),
 			).
 			Params(
 				jen.Qual(devxTemporal, "WorkflowRun").Types(
-					jen.Id(method.Response.Type),
+					parserVarAsTypeParam(scope, method.Response),
 				),
 				jen.Error(),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return().Qual(devxTemporal, "NewWorkflowRunWithErr").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return().Qual(devxTemporal, "NewWorkflowRunWithErr").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Id("p").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Qual(temporalSDKClient, "StartWorkflowOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
@@ -95,7 +97,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 							g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 						})
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name)
+						g.Id(method.Request.Name())
 						return
 					})
 				})
@@ -103,6 +105,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 	}
 }
 func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
+	scope := wrk.Package.GoPackage
 	f.Type().Id(workerProxyName(wrk)).Struct()
 
 	methods := toSlice(wrk.Methods)
@@ -113,19 +116,19 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
-				jen.Id(method.Request.Name).Id(method.Request.Type),
+				parserVarAsNamedParam(scope, method.Request),
 			).
 			Params(
 				jen.Qual(devxTemporal, "Future").Types(
-					jen.Id(method.Response.Type),
+					parserVarAsTypeParam(scope, method.Response),
 				),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return().Qual(devxTemporal, "NewFuture").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return().Qual(devxTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name)
+						g.Id(method.Request.Name())
 						return
 					})
 				})
@@ -134,8 +137,9 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 }
 
 func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
-	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {})
 	methods := toSlice(wrk.Methods)
+	scope := wrk.Package.GoPackage
+	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {})
 	sort.Slice(methods, sortByID(methods))
 
 	for _, method := range methods {
@@ -143,17 +147,19 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
-				jen.Id(method.Request.Name).Id(method.Request.Type),
+				parserVarAsNamedParam(scope, method.Request),
 			).
 			Params(
-				jen.Qual(devxTemporal, "Future").Types(jen.Id(method.Response.Type)),
+				jen.Qual(devxTemporal, "Future").Types(
+					parserVarAsTypeParam(scope, method.Response),
+				),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return(jen.Qual(devxTemporal, "NewFuture").Types(jen.Id(method.Response.Type)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return(jen.Qual(devxTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name)
+						g.Id(method.Request.Name())
 						return
 					})
 				}))
@@ -214,4 +220,18 @@ func workerClientName(wrk *parser.Worker) string {
 		wrk.Name,
 		"Client",
 	}, "__")
+}
+
+func parserVarAsNamedParam(scope *packages.Package, v *parser.Var) *jen.Statement {
+	if scope.PkgPath == v.TypePkgPath() {
+		return jen.Id(v.Name()).Id(v.TypeName())
+	}
+	return jen.Id(v.Name()).Qual(v.TypePkgPath(), v.TypeName())
+}
+
+func parserVarAsTypeParam(scope *packages.Package, v *parser.Var) *jen.Statement {
+	if scope.PkgPath == v.TypePkgPath() {
+		return jen.Id(v.TypeName())
+	}
+	return jen.Qual(v.TypePkgPath(), v.TypeName())
 }

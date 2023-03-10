@@ -130,15 +130,9 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 		method := &Method{
 			Name:       ident.Name,
 			Directives: dirs,
-			Request: &Var{
-				Name: req.Name(),
-				Type: getTypeNameWithoutPackage(pkg, req),
-			},
-			Response: &Var{
-				Name: res.Name(),
-				Type: getTypeNameWithoutPackage(pkg, res),
-			},
-			TypeMeta: NewTypeMeta(ident, m, pkg),
+			Request:    &Var{req},
+			Response:   &Var{res},
+			TypeMeta:   NewTypeMeta(ident, m, pkg),
 		}
 
 		methods[ident] = method
@@ -149,5 +143,4 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 func getTypeNameWithoutPackage(pkg *Package, v *types.Var) string {
 	return strings.Replace(
 		strings.Replace(v.Type().String(), pkg.GoPackage.PkgPath, "", 1), ".", "", 1)
-
 }
