@@ -18,8 +18,10 @@ func (v *Var) TypePkgPath() string {
 	switch t := v.Type().(type) {
 	case *types.Named:
 		return t.Obj().Pkg().Path()
+	case *types.Pointer:
+		return t.Elem().(*types.Named).Obj().Pkg().Path()
 	default:
-		panic(fmt.Sprintf("cannot find package path for type: %T", t))
+		return ""
 	}
 }
 
