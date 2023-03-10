@@ -20,8 +20,13 @@ func TestStatusCheckFunc(t *testing.T) {
 			code:      201,
 			checkFunc: NewOkayRangeCheckFunc(),
 		},
-		"should error if status is >= 300": {
+		"should error if status is 300": {
 			code:      300,
+			checkFunc: NewOkayRangeCheckFunc(),
+			expectErr: ErrStatusCheckFailed,
+		},
+		"should error if status is > 300": {
+			code:      400,
 			checkFunc: NewOkayRangeCheckFunc(),
 			expectErr: ErrStatusCheckFailed,
 		},
