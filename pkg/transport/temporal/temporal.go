@@ -35,8 +35,9 @@ func NewWorker(
 
 	for queue, workerDefs := range defByTaskQueue {
 		w := worker.New(client, queue, worker.Options{
-			EnableLoggingInReplay: true,
-			WorkerStopTimeout:     time.Second * 30,
+			EnableLoggingInReplay:       true,
+			WorkerStopTimeout:           time.Second * 30,
+			DisableRegistrationAliasing: true,
 		})
 
 		for _, def := range workerDefs {
