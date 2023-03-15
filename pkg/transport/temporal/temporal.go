@@ -66,39 +66,63 @@ func NewWorker(
 
 type RetryPolicy = temporal.RetryPolicy
 
-type Future[T any] struct {
-	workflow.Future
+type Future[T any] interface {
+	Get(ctx workflow.Context) (res T, err error)
+	IsReady() bool
 }
 
-func (f Future[T]) Get(ctx workflow.Context) (res T, err error) {
-	err = f.Future.Get(ctx, &res)
+type future[T any] struct {
+	wf workflow.Future
+}
+
+func (f future[T]) Get(ctx workflow.Context) (res T, err error) {
+	err = f.wf.Get(ctx, &res)
 	return
 }
 
-func NewFuture[T any](f workflow.Future) Future[T] {
-	return Future[T]{f}
+func (f future[T]) IsReady() bool {
+	return f.wf.IsReady()
 }
 
-type WorkflowRun[T any] struct {
-	client.WorkflowRun
+func NewFuture[T any](f workflow.Future) Future[T] {
+	return future[T]{f}
+}
+
+type WorkflowRun[T any] interface {
+	GetID() string
+	GetRunID() string
+	Get(ctx context.Context) (result T, err error)
+	GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error)
+}
+
+type workflowRun[T any] struct {
+	wfr client.WorkflowRun
+}
+
+func (w workflowRun[T]) GetID() string {
+	return w.wfr.GetID()
+}
+
+func (w workflowRun[T]) GetRunID() string {
+	return w.wfr.GetRunID()
+}
+
+func (w workflowRun[T]) Get(ctx context.Context) (result T, err error) {
+	err = w.wfr.Get(ctx, &result)
+	return
+}
+
+func (w workflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error) {
+	err = w.wfr.GetWithOptions(ctx, &result, options)
+	return
 }
 
 func NewWorkflowRun[T any](run client.WorkflowRun) WorkflowRun[T] {
-	return WorkflowRun[T]{run}
+	return workflowRun[T]{run}
 }
 
 func NewWorkflowRunWithErr[T any](run client.WorkflowRun, err error) (WorkflowRun[T], error) {
 	return NewWorkflowRun[T](run), err
-}
-
-func (w WorkflowRun[T]) Get(ctx context.Context) (res T, err error) {
-	err = w.WorkflowRun.Get(ctx, &res)
-	return
-}
-
-func (w WorkflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (res T, err error) {
-	err = w.WorkflowRun.GetWithOptions(ctx, res, options)
-	return
 }
 
 func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {
