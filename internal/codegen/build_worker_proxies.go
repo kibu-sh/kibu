@@ -80,7 +80,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
 				jen.Id("id").String(),
-				parserVarAsNamedParam(scope, method.Request),
+				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
 				jen.Qual(devxTemporal, "WorkflowRun").Types(
@@ -97,7 +97,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 							g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 						})
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name())
+						g.Id("req")
 						return
 					})
 				})
@@ -116,7 +116,7 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
-				parserVarAsNamedParam(scope, method.Request),
+				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
 				jen.Qual(devxTemporal, "Future").Types(
@@ -128,7 +128,7 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name())
+						g.Id("req")
 						return
 					})
 				})
@@ -147,7 +147,7 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 			Params(jen.Id("p").Id(workerProxyName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual(temporalSdkWorkflow, "Context"),
-				parserVarAsNamedParam(scope, method.Request),
+				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
 				jen.Qual(devxTemporal, "Future").Types(
@@ -159,7 +159,7 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 					g.Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
-						g.Id(method.Request.Name())
+						g.Id("req")
 						return
 					})
 				}))
@@ -222,11 +222,11 @@ func workerClientName(wrk *parser.Worker) string {
 	}, "__")
 }
 
-func parserVarAsNamedParam(scope *packages.Package, v *parser.Var) *jen.Statement {
+func parserVarAsNamedParam(id string, scope *packages.Package, v *parser.Var) *jen.Statement {
 	if scope.PkgPath == v.TypePkgPath() {
-		return jen.Id(v.Name()).Id(v.TypeName())
+		return jen.Id(id).Id(v.TypeName())
 	}
-	return jen.Id(v.Name()).Qual(v.TypePkgPath(), v.TypeName())
+	return jen.Id(id).Qual(v.TypePkgPath(), v.TypeName())
 }
 
 func parserVarAsTypeParam(scope *packages.Package, v *parser.Var) *jen.Statement {

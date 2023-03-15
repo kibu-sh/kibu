@@ -115,6 +115,14 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 		}
 
 		sig := m.Type().(*types.Signature)
+		if sig.Params().Len() != 2 {
+			err = errors.Errorf("%s worker methods must match func %s(ctx context.Context, req T)",
+				pkg.GoPackage.Fset.Position(ident.Pos()).String(),
+				ident.Name,
+			)
+			return
+		}
+
 		req := sig.Params().At(1)
 		res := sig.Results().At(0)
 
