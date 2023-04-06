@@ -212,6 +212,15 @@ func (c Client) DoAsJSON(ctx context.Context, result any) (err error) {
 	return
 }
 
+// WithUrlValues returns a new instance of Client with an updated url query parameters.
+// The supplied path is joined to the base URL.
+// A baseURL of "http://test.com" using WithUrlValues("{"key":"value"}") will produce a
+// new URL of "http://test.com/?key=value"
+func (c Client) WithUrlValues(values url.Values) *Client {
+	c.baseURL.RawQuery = values.Encode()
+	return &c
+}
+
 // NewClient returns a new instance of Client with default options.
 func NewClient(baseURL *url.URL) *Client {
 	return (&Client{}).
