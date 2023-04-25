@@ -24,6 +24,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/opencontainers/image-spec v1.0.2
+	github.com/pb33f/libopenapi v0.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/go-internal v1.9.0
 	github.com/rs/zerolog v1.28.0
@@ -83,6 +84,7 @@ require (
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/emicklei/proto v1.11.0 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -161,6 +163,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
+	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.temporal.io/api v1.16.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect

@@ -1,0 +1,36 @@
+parse $WORK
+cmp exp/gen/openapi.yaml $WORK/gen/openapi.yaml
+
+-- src/go.mod --
+module github.com/example/module
+
+-- src/systems/foo/foo.go --
+package foo
+
+import (
+	"context"
+)
+
+//devx:worker workflow
+type Service struct {}
+
+type Request struct {
+  Name string `json:"name"`
+}
+
+type Response struct {
+  Name string `json:"name"`
+}
+
+//devx:workflow
+func (wf *Workflow) Example(ctx context.Context, req Request) (res Response, err error) {return}
+
+-- exp/gen/openapi.yaml --
+openapi: 3.1.0
+info:
+    title: Discern API
+    contact:
+        name: MN3, Inc.
+        email: support@discern.com
+    version: 0.0.1
+paths: {}

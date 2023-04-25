@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/fatih/structtag"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -12,6 +13,7 @@ import (
 
 type Var struct {
 	*types.Var
+	StructTags *structtag.Tags
 }
 
 func (v *Var) TypePkgPath() string {
@@ -23,6 +25,32 @@ func (v *Var) TypePkgPath() string {
 	default:
 		return ""
 	}
+}
+
+func (v *Var) IsStruct() bool {
+	_, ok := v.Type().Underlying().(*types.Struct)
+	return ok
+}
+
+func (v *Var) Fields() (fields []*Var) {
+	underlying := v.Type().Underlying()
+	if underlying == nil {
+		return
+	}
+
+	structType, ok := underlying.(*types.Struct)
+	if !ok {
+		return
+	}
+
+	for i := 0; i < structType.NumFields(); i++ {
+		tags, _ := structtag.Parse(structType.Tag(i))
+		fields = append(fields, &Var{
+			Var:        structType.Field(i),
+			StructTags: tags,
+		})
+	}
+	return
 }
 
 func (v *Var) TypeName() string {
@@ -216,8 +244,8 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			sig := m.Type().(*types.Signature)
 			req := sig.Params().At(1)
 			res := sig.Results().At(0)
-			ep.Request = &Var{req}
-			ep.Response = &Var{res}
+			ep.Request = &Var{Var: req}
+			ep.Response = &Var{Var: res}
 		}
 
 		ep.Path, _ = dir.Options.GetOne("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))

@@ -138,8 +138,8 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 		method := &Method{
 			Name:       ident.Name,
 			Directives: dirs,
-			Request:    &Var{req},
-			Response:   &Var{res},
+			Request:    &Var{Var: req},
+			Response:   &Var{Var: res},
 			TypeMeta:   NewTypeMeta(ident, m, pkg),
 		}
 

@@ -133,3 +133,12 @@ func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {
 		},
 	})
 }
+
+func WithInfiniteRetryActivityPolicy(ctx workflow.Context) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: time.Second * 30,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 0,
+		},
+	})
+}

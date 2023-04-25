@@ -151,5 +151,6 @@ func DefaultPipeline() Pipeline {
 		BuildWorkerProviders,
 		BuildMiddlewareProvider,
 		BuildWireSet,
+		BuildOpenAPISpec,
 	}
 }
