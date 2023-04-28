@@ -2,8 +2,10 @@ package temporal
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
+	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
@@ -69,23 +71,13 @@ type RetryPolicy = temporal.RetryPolicy
 type Future[T any] interface {
 	Get(ctx workflow.Context) (res T, err error)
 	IsReady() bool
+	UnderlyingFuture() workflow.Future
 }
 
-type future[T any] struct {
-	wf workflow.Future
-}
-
-func (f future[T]) Get(ctx workflow.Context) (res T, err error) {
-	err = f.wf.Get(ctx, &res)
-	return
-}
-
-func (f future[T]) IsReady() bool {
-	return f.wf.IsReady()
-}
-
-func NewFuture[T any](f workflow.Future) Future[T] {
-	return future[T]{f}
+type ChildWorkflowFuture[T any] interface {
+	Future[T]
+	UnderlyingChildWorkflowFuture() workflow.ChildWorkflowFuture
+	GetChildWorkflowExecution() Future[T]
 }
 
 type WorkflowRun[T any] interface {
@@ -93,36 +85,7 @@ type WorkflowRun[T any] interface {
 	GetRunID() string
 	Get(ctx context.Context) (result T, err error)
 	GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error)
-}
-
-type workflowRun[T any] struct {
-	wfr client.WorkflowRun
-}
-
-func (w workflowRun[T]) GetID() string {
-	return w.wfr.GetID()
-}
-
-func (w workflowRun[T]) GetRunID() string {
-	return w.wfr.GetRunID()
-}
-
-func (w workflowRun[T]) Get(ctx context.Context) (result T, err error) {
-	err = w.wfr.Get(ctx, &result)
-	return
-}
-
-func (w workflowRun[T]) GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error) {
-	err = w.wfr.GetWithOptions(ctx, &result, options)
-	return
-}
-
-func NewWorkflowRun[T any](run client.WorkflowRun) WorkflowRun[T] {
-	return workflowRun[T]{run}
-}
-
-func NewWorkflowRunWithErr[T any](run client.WorkflowRun, err error) (WorkflowRun[T], error) {
-	return NewWorkflowRun[T](run), err
+	UnderlyingWorkflowRun() client.WorkflowRun
 }
 
 func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {
@@ -141,4 +104,19 @@ func WithInfiniteRetryActivityPolicy(ctx workflow.Context) workflow.Context {
 			MaximumAttempts: 0,
 		},
 	})
+}
+
+func WithChildWorkflowParentClosePolicy_ABANDON(ctx workflow.Context) workflow.Context {
+	return workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
+	})
+}
+
+func ErrorIs(err, target error) (match bool) {
+	var receivedErr *temporal.ApplicationError
+	var targetErr *temporal.ApplicationError
+	if errors.As(err, &receivedErr) && errors.As(target, &targetErr) {
+		return receivedErr.Type() == targetErr.Type()
+	}
+	return false
 }

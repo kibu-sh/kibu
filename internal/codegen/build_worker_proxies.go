@@ -119,12 +119,12 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
-				jen.Qual(devxTemporal, "Future").Types(
+				jen.Qual(devxTemporal, "ChildWorkflowFuture").Types(
 					parserVarAsTypeParam(scope, method.Response),
 				),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return().Qual(devxTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return().Qual(devxTemporal, "NewChildWorkflowFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))

@@ -55,8 +55,8 @@ func (p Workflow__Client) Example(ctx context.Context, id string, req any) (temp
 
 type Workflow__Proxy struct{}
 
-func (p Workflow__Proxy) Example(ctx workflow.Context, req any) temporal.Future[any] {
-	return temporal.NewFuture[any](
+func (p Workflow__Proxy) Example(ctx workflow.Context, req any) temporal.ChildWorkflowFuture[any] {
+	return temporal.NewChildWorkflowFuture[any](
 		workflow.ExecuteChildWorkflow(ctx, "foo.Workflow.Example", req),
 	)
 }

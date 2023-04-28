@@ -116,13 +116,13 @@ func (p Workflow__Client) Example2(ctx context.Context, id string, req spec1.Req
 
 type Workflow__Proxy struct{}
 
-func (p Workflow__Proxy) Example1(ctx workflow.Context, req spec.Request) temporal.Future[spec.Response] {
-	return temporal.NewFuture[spec.Response](
+func (p Workflow__Proxy) Example1(ctx workflow.Context, req spec.Request) temporal.ChildWorkflowFuture[spec.Response] {
+	return temporal.NewChildWorkflowFuture[spec.Response](
 		workflow.ExecuteChildWorkflow(ctx, "foo.Workflow.Example1", req),
 	)
 }
-func (p Workflow__Proxy) Example2(ctx workflow.Context, req spec1.Request) temporal.Future[spec1.Response] {
-	return temporal.NewFuture[spec1.Response](
+func (p Workflow__Proxy) Example2(ctx workflow.Context, req spec1.Request) temporal.ChildWorkflowFuture[spec1.Response] {
+	return temporal.NewChildWorkflowFuture[spec1.Response](
 		workflow.ExecuteChildWorkflow(ctx, "foo.Workflow.Example2", req),
 	)
 }

@@ -15,6 +15,10 @@ type Future[T any] struct {
 	Ready  bool
 }
 
+func (f Future[T]) UnderlyingFuture() workflow.Future {
+	panic("this is a mock and doesn't support method UnderlyingFuture")
+}
+
 func (f Future[T]) Get(ctx workflow.Context) (res T, err error) {
 	return f.Result, nil
 }
@@ -31,6 +35,10 @@ type WorkflowRun[T any] struct {
 	ID     string
 	RunID  string
 	Result T
+}
+
+func (w WorkflowRun[T]) UnderlyingWorkflowRun() client.WorkflowRun {
+	panic("this is a mock and doesn't support method UnderlyingWorkflowRun")
 }
 
 func (w WorkflowRun[T]) GetID() string {

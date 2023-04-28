@@ -185,8 +185,8 @@ func (p workflows__Client) Verify(ctx context.Context, id string, req VerifyRequ
 
 type workflows__Proxy struct{}
 
-func (p workflows__Proxy) Verify(ctx workflow.Context, req VerifyRequest) temporal.Future[VerifyResponse] {
-	return temporal.NewFuture[VerifyResponse](
+func (p workflows__Proxy) Verify(ctx workflow.Context, req VerifyRequest) temporal.ChildWorkflowFuture[VerifyResponse] {
+	return temporal.NewChildWorkflowFuture[VerifyResponse](
 		workflow.ExecuteChildWorkflow(ctx, "auth.workflows.Verify", req),
 	)
 }
