@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"errors"
+	"fmt"
 	"github.com/discernhq/devx/internal/parser"
 	"github.com/fatih/structtag"
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func BuildOpenAPISpec(opts *PipelineOptions) (err error) {
@@ -27,6 +29,9 @@ func BuildOpenAPISpec(opts *PipelineOptions) (err error) {
 		},
 		Paths: &v3.Paths{
 			PathItems: make(map[string]*v3.PathItem),
+		},
+		Components: &v3.Components{
+			Schemas: make(map[string]*base.SchemaProxy),
 		},
 	}
 
@@ -74,28 +79,33 @@ func buildOpenAPIEndpoint(endpoint *parser.Endpoint, doc *v3.Document) (err erro
 		return
 	}
 
-	request, err := buildOpenAPIRequest(endpoint)
+	request, err := buildOpenAPIRequest(endpoint, doc)
 	if err != nil {
 		return
 	}
 
-	response, err := buildOpenAPIResponses(endpoint)
+	response, err := buildOpenAPIResponses(endpoint, doc)
 	if err != nil {
 		return
 	}
 
 	operation := &v3.Operation{
 		Tags:        []string{endpoint.Package.Name},
-		Summary:     "TODO",
-		Description: "TODO",
+		Summary:     "TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?",
+		Description: "TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?",
 		OperationId: endpoint.Name,
 		Parameters:  parameters,
 		RequestBody: request,
 		Responses:   response,
 	}
+
 	// create a new path item for this endpoint.
-	pathItem := &v3.PathItem{}
-	doc.Paths.PathItems[endpoint.Path] = pathItem
+	// reuse existing path item (allows for GET/POST) on the same path
+	pathItem, hasPathItem := doc.Paths.PathItems[endpoint.Path]
+	if !hasPathItem {
+		pathItem = &v3.PathItem{}
+		doc.Paths.PathItems[endpoint.Path] = pathItem
+	}
 
 	for _, method := range endpoint.Methods {
 		switch method {
@@ -123,12 +133,12 @@ func buildOpenApiParameters(endpoint *parser.Endpoint) (result []*v3.Parameter, 
 		return
 	}
 
-	for _, v := range endpoint.Request.Fields() {
-		queryTag, _ := v.StructTags.Get("query")
+	for _, field := range structFields(endpoint.Request.Type()) {
+		queryTag, _ := field.Tags.Get("query")
 		if queryTag == nil {
-			continue
+			return
 		}
-		validateTag, _ := v.StructTags.Get("validate")
+		validateTag, _ := field.Tags.Get("validate")
 		required := validateTagHasRequiredAnnotation(validateTag)
 		result = append(result, &v3.Parameter{
 			Name:     queryTag.Name,
@@ -140,6 +150,33 @@ func buildOpenApiParameters(endpoint *parser.Endpoint) (result []*v3.Parameter, 
 			}),
 		})
 	}
+
+	return
+}
+
+type structField struct {
+	Var  *types.Var
+	Tags *structtag.Tags
+}
+
+func structFields(ty types.Type) (result []*structField) {
+	underlying := ty.Underlying()
+	if underlying == nil {
+		return
+	}
+
+	structType, ok := underlying.(*types.Struct)
+	if !ok {
+		return
+	}
+
+	for i := 0; i < structType.NumFields(); i++ {
+		tags, _ := structtag.Parse(structType.Tag(i))
+		result = append(result, &structField{
+			Var:  structType.Field(i),
+			Tags: tags,
+		})
+	}
 	return
 }
 
@@ -147,103 +184,99 @@ func validateTagHasRequiredAnnotation(validateTag *structtag.Tag) bool {
 	return validateTag != nil && (validateTag.Name == "required" || validateTag.HasOption("required"))
 }
 
-func buildOpenAPIRequest(endpoint *parser.Endpoint) (result *v3.RequestBody, err error) {
-	if endpoint.Request == nil {
-		return
-	}
-
-	if !lo.ContainsBy(endpoint.Methods, hasHTTPBodyByMethod) {
-		return
-	}
-
-	result = &v3.RequestBody{}
-
-	parentSchema := &base.Schema{
-		Title:       "",
-		Description: "",
-		Type:        []string{"object"},
-		Properties:  make(map[string]*base.SchemaProxy),
-	}
-
-	if err = recursivelyBuildSchema(parentSchema, endpoint.Request, "json"); err != nil {
-		return
-	}
-
-	result.Content = map[string]*v3.MediaType{
-		"application/json": {
-			Schema: base.CreateSchemaProxy(parentSchema),
-		},
-	}
-	return
+func parserVarToSchemaRef(v *parser.Var) string {
+	return fmt.Sprintf("#/components/schemas/%s", parserVarToSchemaName(v))
 }
 
-func recursivelyBuildSchema(parentSchema *base.Schema, baseVar *parser.Var, searchTagName string) (err error) {
-	for _, v := range baseVar.Fields() {
-		searchTag, _ := v.StructTags.Get(searchTagName)
-		if searchTag == nil {
-			continue
-		}
-		validateTag, _ := v.StructTags.Get("validate")
-		if validateTagHasRequiredAnnotation(validateTag) {
-			parentSchema.Required = append(parentSchema.Required, searchTag.Name)
-		}
-
-		var recursive bool
-		var schema *base.Schema
-		schema, recursive, err = buildOpenApiSchemaWithDefaultChain(v)
-		if err != nil {
-			return
-		}
-
-		if recursive {
-			if err = recursivelyBuildSchema(schema, v, searchTagName); err != nil {
-				return
-			}
-		}
-
-		parentSchema.Properties[searchTag.Name] = base.CreateSchemaProxy(schema)
-	}
-	return
+func parserVarToSchemaName(v *parser.Var) string {
+	return strings.Join([]string{
+		v.Pkg().Name(), v.TypeName(),
+	}, "_")
 }
 
-type openApiSchemaBuilderFunc func(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error)
-type openApiSchemaBuilderChain []openApiSchemaBuilderFunc
+func isStrut(ty types.Type) bool {
+	_, ok := ty.Underlying().(*types.Struct)
+	return ok
+}
 
-func buildOpenApiSchemaChain(baseVar *parser.Var, chain openApiSchemaBuilderChain) (schema *base.Schema, recursive bool, err error) {
+func isSlice(ty types.Type) bool {
+	_, ok := ty.Underlying().(*types.Slice)
+	return ok
+}
+
+type schemaBuilderFunc func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error)
+
+type schemaBuilderChain []schemaBuilderFunc
+
+func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName string) (schema *base.Schema, err error) {
 	for _, builder := range chain {
-		schema, recursive, err = builder(baseVar)
+		schema, err = builder(ty, func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (*base.Schema, error) {
+			return buildWithSchemaChain(ty, chain, searchTagName)
+		}, searchTagName)
+
 		if err != nil {
 			return
 		}
+
 		if schema != nil {
 			return
 		}
 	}
 
 	if schema == nil {
-		err = errors.Join(errUnsupportedType, errors.New(baseVar.Type().String()))
+		err = errors.Join(errUnsupportedType, errors.New(ty.String()))
 	}
 	return
 }
 
-func buildOpenApiSchemaWithDefaultChain(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-	return buildOpenApiSchemaChain(baseVar, openApiSchemaDefaultChain())
+func buildWithDefaultChain(ty types.Type, searchTagName string) (schema *base.Schema, err error) {
+	return buildWithSchemaChain(ty, openApiSchemaDefaultChain(), searchTagName)
 }
 
-func openApiSchemaDefaultChain() openApiSchemaBuilderChain {
-	return openApiSchemaBuilderChain{
-		openApiSchemaFromBasicType,
-		openApiSchemaFromStructType,
-		openApiSchemaFromGoogleUUIDType,
-		openApiSchemaFromMapType,
+func openApiSchemaDefaultChain() schemaBuilderChain {
+	return schemaBuilderChain{
+		schemaFromBasicType,
+		schemaFromPointer,
+		schemaFromStructType,
+		schemaFromSliceType,
+		schemaFromGoogleUUIDType,
+		schemaFromMapType,
+
 		// openApiSchemaFromAliasType,
 		fallbackType,
 	}
 }
 
-func fallbackType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
+func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (schema *base.Schema, err error) {
+	pointer, ok := ty.(*types.Pointer)
+	if !ok {
+		return
+	}
+
+	schema, err = dive(pointer.Elem(), dive, name)
+	if err != nil {
+		return
+	}
+
+	schema.Nullable = lo.ToPtr(true)
+	return
+}
+
+func fallbackType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
 	schema = &base.Schema{
-		Type: []string{"string"},
+		Description: fmt.Sprintf("fallback: unsupported type %s", ty.String()),
+		Type:        []string{"string"},
+	}
+	return
+}
+
+func schemaFromMapType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+	if _, ok := ty.(*types.Map); !ok {
+		return
+	}
+
+	schema = &base.Schema{
+		Type: []string{"object"},
 	}
 	return
 }
@@ -256,7 +289,7 @@ func fallbackType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err
 //
 // 	if named.IsAlias() {
 // 		alias := named.Underlying().(*types.Var)
-// 		schema, recursive, err = buildOpenApiSchemaWithDefaultChain(&parser.Var{
+// 		schema, recursive, err = buildWithDefaultChain(&parser.Var{
 // 			Type: alias,
 // 		})
 // 	}
@@ -274,32 +307,22 @@ func fallbackType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err
 // 	return
 // }
 
-func openApiSchemaFromMapType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-	_, ok := baseVar.Type().(*types.Map)
-	if !ok {
+func schemaFromGoogleUUIDType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+	if ty.String() != "github.com/google/uuid.UUID" {
 		return
 	}
 
 	schema = &base.Schema{
-		Type: []string{"object"},
+		Type: []string{"string"},
 	}
 	return
 }
 
-func openApiSchemaFromGoogleUUIDType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-	if baseVar.Type().String() != "github.com/google/uuid.UUID" {
-		return
-	}
-
-	schema = &base.Schema{
-		Type: []string{"uuid"},
-	}
-	return
-}
-
-func openApiSchemaFromStructType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-	_, ok := baseVar.Type().Underlying().(*types.Struct)
-	if !ok {
+func schemaFromStructType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
+	switch ty.Underlying().(type) {
+	case *types.Struct:
+		break
+	default:
 		return
 	}
 
@@ -308,15 +331,81 @@ func openApiSchemaFromStructType(baseVar *parser.Var) (schema *base.Schema, recu
 		Properties: make(map[string]*base.SchemaProxy),
 	}
 
-	recursive = true
+	for _, field := range structFields(ty) {
+		searchTag, _ := field.Tags.Get(searchTagName)
+		validateTag, _ := field.Tags.Get("validate")
+		fieldName := useStructTagNameOrFieldName(searchTag, field.Var.Name())
+
+		// skip fields that don't have an explicit JSON serialization tag
+		if structTagUsesStandardIgnoreFlag(searchTag) {
+			// TODO: we should log a warning
+			continue
+		}
+
+		if validateTagHasRequiredAnnotation(validateTag) {
+			schema.Required = append(schema.Required, fieldName)
+		}
+
+		var fieldSchema *base.Schema
+		fieldSchema, err = dive(field.Var.Type(), dive, searchTagName)
+		if err != nil {
+			return
+		}
+
+		if requiresFlatteningEmbeddedStruct(searchTag, field) {
+			// flatten embedded struct fields
+			for k, v := range fieldSchema.Properties {
+				schema.Properties[k] = v
+			}
+			continue
+		}
+
+		schema.Properties[fieldName] = base.CreateSchemaProxy(fieldSchema)
+	}
+
+	return
+}
+
+func requiresFlatteningEmbeddedStruct(searchTag *structtag.Tag, field *structField) bool {
+	return searchTag == nil && field.Var.Embedded()
+}
+
+func useStructTagNameOrFieldName(tag *structtag.Tag, name string) string {
+	if tag != nil && tag.Name != "" {
+		return tag.Name
+	}
+	return name
+}
+
+func structTagUsesStandardIgnoreFlag(searchTag *structtag.Tag) bool {
+	return searchTag != nil && (searchTag.HasOption("-") || searchTag.Name == "-")
+}
+
+func schemaFromSliceType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
+	sliceType, ok := ty.Underlying().(*types.Slice)
+	if !ok {
+		return
+	}
+
+	itemSchema, err := dive(sliceType.Elem().Underlying(), dive, searchTagName)
+	if err != nil {
+		return
+	}
+
+	schema = &base.Schema{
+		Type: []string{"array"},
+		Items: &base.DynamicValue[*base.SchemaProxy, bool]{
+			A: base.CreateSchemaProxy(itemSchema),
+		},
+	}
 
 	return
 }
 
 var errUnsupportedType = errors.New("unsupported type, cannot map to openapi schema")
 
-func openApiSchemaFromBasicType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-	t, ok := baseVar.Type().(*types.Basic)
+func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+	t, ok := ty.(*types.Basic)
 	if !ok {
 		return
 	}
@@ -336,6 +425,9 @@ func openApiSchemaFromBasicType(baseVar *parser.Var) (schema *base.Schema, recur
 		schema.Type = []string{"double"}
 	case types.String:
 		schema.Type = []string{"string"}
+	case types.Byte:
+		schema.Type = []string{"string"}
+		schema.Format = "binary"
 	default:
 		schema = nil
 		err = errors.Join(errUnsupportedType, errors.New(t.String()))
@@ -348,33 +440,86 @@ func hasHTTPBodyByMethod(item string) bool {
 	return item == http.MethodPost || item == http.MethodPut || item == http.MethodPatch
 }
 
-func buildOpenAPIResponses(endpoint *parser.Endpoint) (result *v3.Responses, err error) {
+func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.RequestBody, err error) {
+	if endpoint.Request == nil {
+		return
+	}
+
+	// ignored in go
+	if endpoint.Request.Name() == "_" {
+		return
+	}
+
+	if !lo.ContainsBy(endpoint.Methods, hasHTTPBodyByMethod) {
+		return
+	}
+
+	schemaRef := parserVarToSchemaRef(endpoint.Request)
+	schemaName := parserVarToSchemaName(endpoint.Request)
+
+	result = &v3.RequestBody{
+		Content: map[string]*v3.MediaType{
+			"application/json": {
+				Schema: base.CreateSchemaProxyRef(schemaRef),
+			},
+		},
+	}
+
+	if _, exists := doc.Components.Schemas[schemaName]; exists {
+		// TODO: we may need to handle conflicts
+		// err = fmt.Errorf("schema name %s already exists", schemaName)
+		return
+	}
+
+	schema, err := buildWithDefaultChain(endpoint.Request.Type(), "json")
+	if err != nil {
+		return
+	}
+
+	schema.Title = schemaName
+	doc.Components.Schemas[schemaName] = base.CreateSchemaProxy(schema)
+
+	return
+}
+
+func buildOpenAPIResponses(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.Responses, err error) {
 	if endpoint.Response == nil {
 		return
 	}
 
-	parentSchema := &base.Schema{
-		Title:       "",
-		Description: "",
-		Type:        []string{"object"},
-		Properties:  make(map[string]*base.SchemaProxy),
-	}
-
-	if err = recursivelyBuildSchema(parentSchema, endpoint.Response, "json"); err != nil {
+	// FIXME: ignored in go
+	if endpoint.Response.Name() == "_" {
 		return
 	}
 
+	schemaRef := parserVarToSchemaRef(endpoint.Response)
+	schemaName := parserVarToSchemaName(endpoint.Response)
 	result = &v3.Responses{
 		Codes: map[string]*v3.Response{
 			"200": {
 				Description: "",
 				Content: map[string]*v3.MediaType{
 					"application/json": {
-						Schema: base.CreateSchemaProxy(parentSchema),
+						Schema: base.CreateSchemaProxyRef(schemaRef),
 					},
 				},
 			},
 		},
 	}
+
+	if _, exists := doc.Components.Schemas[schemaName]; exists {
+		// TODO: we may need to handle conflicts
+		// err = fmt.Errorf("schema name %s already exists", schemaName)
+		return
+	}
+
+	schema, err := buildWithDefaultChain(endpoint.Response.Type(), "json")
+	if err != nil {
+		return
+	}
+
+	schema.Title = schemaName
+	doc.Components.Schemas[schemaName] = base.CreateSchemaProxy(schema)
+
 	return
 }

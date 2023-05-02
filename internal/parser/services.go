@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/fatih/structtag"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -13,7 +12,6 @@ import (
 
 type Var struct {
 	*types.Var
-	StructTags *structtag.Tags
 }
 
 func (v *Var) TypePkgPath() string {
@@ -32,25 +30,9 @@ func (v *Var) IsStruct() bool {
 	return ok
 }
 
-func (v *Var) Fields() (fields []*Var) {
-	underlying := v.Type().Underlying()
-	if underlying == nil {
-		return
-	}
-
-	structType, ok := underlying.(*types.Struct)
-	if !ok {
-		return
-	}
-
-	for i := 0; i < structType.NumFields(); i++ {
-		tags, _ := structtag.Parse(structType.Tag(i))
-		fields = append(fields, &Var{
-			Var:        structType.Field(i),
-			StructTags: tags,
-		})
-	}
-	return
+func (v *Var) IsSlice() bool {
+	_, ok := v.Type().Underlying().(*types.Slice)
+	return ok
 }
 
 func (v *Var) TypeName() string {
