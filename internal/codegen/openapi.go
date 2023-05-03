@@ -429,8 +429,8 @@ func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *
 		schema.Type = []string{"string"}
 		schema.Format = "binary"
 	default:
-		schema = nil
-		err = errors.Join(errUnsupportedType, errors.New(t.String()))
+		schema.Type = []string{"string"}
+		schema.Description = fmt.Sprintf("FIXME: unsupported type %s %s", t.String(), t.Name())
 		return
 	}
 	return
