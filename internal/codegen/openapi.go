@@ -209,24 +209,32 @@ type schemaBuilderFunc func(ty types.Type, dive schemaBuilderFunc, searchTagName
 type schemaBuilderChain []schemaBuilderFunc
 
 func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName string) (schema *base.Schema, err error) {
+	diveFunc := createSchemaBuilderDiveFunc(chain)
 	for _, builder := range chain {
-		schema, err = builder(ty, func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (*base.Schema, error) {
-			return buildWithSchemaChain(ty, chain, searchTagName)
-		}, searchTagName)
+		schema, err = builder(ty, diveFunc, searchTagName)
 
+		// something bad happened
 		if err != nil {
 			return
 		}
 
+		// we found the schema, no need to continue
 		if schema != nil {
 			return
 		}
 	}
 
+	// don't allow a schema to be null, fallback and add debugging context
 	if schema == nil {
-		err = errors.Join(errUnsupportedType, errors.New(ty.String()))
+		schema, _ = fallbackType(ty, nil, searchTagName)
 	}
 	return
+}
+
+func createSchemaBuilderDiveFunc(chain schemaBuilderChain) schemaBuilderFunc {
+	return func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (*base.Schema, error) {
+		return buildWithSchemaChain(ty, chain, searchTagName)
+	}
 }
 
 func buildWithDefaultChain(ty types.Type, searchTagName string) (schema *base.Schema, err error) {
@@ -264,7 +272,7 @@ func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (sche
 
 func fallbackType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
 	schema = &base.Schema{
-		Description: fmt.Sprintf("fallback: unsupported type %s", ty.String()),
+		Description: fmt.Sprintf("FIXME: unsupported type %s", ty.String()),
 		Type:        []string{"string"},
 	}
 	return
