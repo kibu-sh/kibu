@@ -226,7 +226,7 @@ func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName
 
 	// don't allow a schema to be null, fallback and add debugging context
 	if schema == nil {
-		schema, _ = fallbackType(ty, nil, searchTagName)
+		err = errors.Join(errUnsupportedType, errors.New(ty.String()))
 	}
 	return
 }
@@ -272,7 +272,7 @@ func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (sche
 
 func fallbackType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
 	schema = &base.Schema{
-		Description: fmt.Sprintf("FIXME: unsupported type %s", ty.String()),
+		Description: fmt.Sprintf("FIXME: fallback for unsupported type %s", ty.String()),
 		Type:        []string{"string"},
 	}
 	return
@@ -438,7 +438,7 @@ func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *
 		schema.Format = "binary"
 	default:
 		schema.Type = []string{"string"}
-		schema.Description = fmt.Sprintf("FIXME: unsupported type %s %s", t.String(), t.Name())
+		schema.Description = fmt.Sprintf("FIXME: unsupported basic type %s %s", t.String(), t.Name())
 		return
 	}
 	return
