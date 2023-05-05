@@ -106,6 +106,17 @@ func WithInfiniteRetryActivityPolicy(ctx workflow.Context) workflow.Context {
 	})
 }
 
+func WithInfiniteRetryAndMaxBackoffActivityPolicy(ctx workflow.Context, maxInterval time.Duration) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: time.Second * 30,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts:    0,
+			BackoffCoefficient: 2,
+			MaximumInterval:    maxInterval,
+		},
+	})
+}
+
 func WithChildWorkflowParentClosePolicy_ABANDON(ctx workflow.Context) workflow.Context {
 	return workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
