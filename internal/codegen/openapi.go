@@ -244,12 +244,15 @@ func buildWithDefaultChain(ty types.Type, searchTagName string) (schema *base.Sc
 func openApiSchemaDefaultChain() schemaBuilderChain {
 	return schemaBuilderChain{
 		schemaFromBasicType,
-		schemaFromPointer,
-		schemaFromStructType,
-		schemaFromSliceType,
-		schemaFromGoogleUUIDType,
+		schemaFromAny,
+		// it is important to process more specific types fist
 		schemaFromMapType,
-
+		schemaFromTimeDotTime,
+		schemaFromGoogleUUIDType,
+		// process more ambiguous types here
+		schemaFromSliceType,
+		schemaFromStructType,
+		schemaFromPointer,
 		// openApiSchemaFromAliasType,
 		fallbackType,
 	}
@@ -322,6 +325,31 @@ func schemaFromGoogleUUIDType(ty types.Type, _ schemaBuilderFunc, _ string) (sch
 
 	schema = &base.Schema{
 		Type: []string{"string"},
+	}
+	return
+}
+
+func schemaFromTimeDotTime(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+	if ty.String() != "time.Time" {
+		return
+	}
+
+	schema = &base.Schema{
+		Type:   []string{"string"},
+		Format: "date-time",
+	}
+	return
+}
+
+func schemaFromAny(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+	if ty.String() != "any" {
+		return
+	}
+
+	schema = &base.Schema{
+		Type:       []string{"object"},
+		Properties: make(map[string]*base.SchemaProxy),
+		Nullable:   lo.ToPtr(true),
 	}
 	return
 }
