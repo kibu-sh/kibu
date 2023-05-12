@@ -40,8 +40,8 @@ func (c Client) WithBaseURL(url *url.URL) *Client {
 // WithJoinedURLPath returns a new instance of Client with an updated base URL.
 // The supplied path is joined to the base URL.
 // A baseURL of "http://test.com" using WithJoinedURLPath("/foo") will produce a new URL of "http://test.com/foo"
-func (c Client) WithJoinedURLPath(path string) *Client {
-	c.baseURL = c.baseURL.JoinPath(path)
+func (c Client) WithJoinedURLPath(path ...string) *Client {
+	c.baseURL = c.baseURL.JoinPath(path...)
 	return &c
 }
 
