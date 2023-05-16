@@ -6,6 +6,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -80,4 +81,17 @@ func TestRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "Hello, server!", msg.Message)
 	})
+}
+
+func TestClient_WithUrlValues(t *testing.T) {
+	u, err := ParseURL("https://test.local:8080")
+	require.NoError(t, err)
+
+	u2 := u.WithUrlValues(url.Values{
+		"foo": []string{"bar", "baz"},
+	}).WithUrlValues(url.Values{
+		"bar": []string{"baz"},
+	}).WithHeader("Content-Type", "application/json")
+
+	require.Equal(t, "bar=baz&foo=bar&foo=baz", u2.baseURL.RawQuery, "should properly merge url values")
 }
