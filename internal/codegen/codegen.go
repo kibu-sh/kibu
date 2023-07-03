@@ -3,6 +3,7 @@ package codegen
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/discernhq/devx/internal/parser"
+	"github.com/rs/zerolog"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -111,7 +112,11 @@ func Generate(params GenerateParams) (err error) {
 		return
 	}
 
-	pkgList, err := parser.ExperimentalParse(params.Dir, params.Patterns...)
+	pkgList, err := parser.ExperimentalParse(parser.ExperimentalParseOpts{
+		Dir:      params.Dir,
+		Patterns: params.Patterns,
+		Logger:   zerolog.New(os.Stderr),
+	})
 	if err != nil {
 		return
 	}

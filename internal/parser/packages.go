@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/rs/zerolog"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -69,27 +70,33 @@ func walkPackage(
 	return
 }
 
-func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]*Package, err error) {
+type ExperimentalParseOpts struct {
+	Dir      string
+	Patterns []string
+	Logger   zerolog.Logger
+}
+
+func ExperimentalParse(opts ExperimentalParseOpts) (pkgList map[PackagePath]*Package, err error) {
 	pkgList = make(map[PackagePath]*Package)
-	stat, err := os.Stat(dir)
+	stat, err := os.Stat(opts.Dir)
 	if err != nil {
 		return
 	}
 
 	if !stat.IsDir() {
-		err = fmt.Errorf("parser entrypoint must be a directory got %s", dir)
+		err = fmt.Errorf("parser entrypoint must be a directory got %s", opts.Dir)
 		return
 	}
 
 	config := &packages.Config{
-		Dir:   dir,
+		Dir:   opts.Dir,
 		Tests: false,
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedModule |
 			packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps |
 			packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 	}
 
-	loaded, err := packages.Load(config, patterns...)
+	loaded, err := packages.Load(config, opts.Patterns...)
 	if err != nil {
 		return
 	}
@@ -105,8 +112,11 @@ func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]
 				// TODO: revisit this behavior
 				// ignore type errors (imports)
 				// parsing errors should fail the build
+
 				if e.Kind != packages.TypeError {
 					err = errors.Join(err, e)
+				} else {
+					opts.Logger.Warn().Msgf("package type error %s: %s", pkg.PkgPath, e.Error())
 				}
 			}
 		}
@@ -121,7 +131,7 @@ func ExperimentalParse(dir string, patterns ...string) (pkgList map[PackagePath]
 
 	for _, l := range loaded {
 		var pkg *Package
-		pkg, err = defaultPackageWalker(l, dir)
+		pkg, err = defaultPackageWalker(l, opts.Dir)
 		if err != nil {
 			return
 		}

@@ -14,7 +14,10 @@ func TestParser(t *testing.T) {
 		Dir: testdata,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"parse": func(ts *testscript.TestScript, neg bool, args []string) {
-				_, err := ExperimentalParse(args[0], "./...")
+				_, err := ExperimentalParse(ExperimentalParseOpts{
+					Dir:      args[0],
+					Patterns: []string{"./..."},
+				})
 				ts.Check(err)
 			},
 		},

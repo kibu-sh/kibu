@@ -555,7 +555,32 @@ func buildOpenAPIResponses(endpoint *parser.Endpoint, doc *v3.Document) (result 
 	}
 
 	schema.Title = schemaName
+	recursivelyMarkResponseSchemaFieldsAsRequired(schema)
 	doc.Components.Schemas[schemaName] = base.CreateSchemaProxy(schema)
 
 	return
+}
+
+func recursivelyMarkResponseSchemaFieldsAsRequired(schema *base.Schema) {
+	// dive into typed arrays
+	if schema.Items != nil {
+		// it's always A for now
+		recursivelyMarkResponseSchemaFieldsAsRequired(schema.Items.A.Schema())
+		return
+	}
+
+	// dive into typed objects
+	for name, field := range schema.Properties {
+		fieldSchema := field.Schema()
+		recursivelyMarkResponseSchemaFieldsAsRequired(fieldSchema)
+		// non-nullable schemas in a response are required
+		// this means the server will at least send the zero value of this type
+		if !schemaIsNullable(fieldSchema) {
+			schema.Required = append(schema.Required, name)
+		}
+	}
+}
+
+func schemaIsNullable(schema *base.Schema) bool {
+	return lo.FromPtr(schema.Nullable)
 }
