@@ -114,6 +114,15 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 			continue
 		}
 
+		_, isMethod := dirs.Find(directive.OneOf(
+			directive.HasKey("devx", "workflow"),
+			directive.HasKey("devx", "activity"),
+		))
+
+		if !isMethod {
+			return
+		}
+
 		sig := m.Type().(*types.Signature)
 		if sig.Params().Len() != 2 {
 			err = errors.Errorf("%s worker methods must match func %s(ctx context.Context, req T)",
@@ -125,15 +134,6 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 
 		req := sig.Params().At(1)
 		res := sig.Results().At(0)
-
-		_, isMethod := dirs.Find(directive.OneOf(
-			directive.HasKey("devx", "workflow"),
-			directive.HasKey("devx", "activity"),
-		))
-
-		if !isMethod {
-			return
-		}
 
 		method := &Method{
 			Name:       ident.Name,
