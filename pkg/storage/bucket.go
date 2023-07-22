@@ -3,7 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
+	"net/url"
 	"path/filepath"
 
 	_ "gocloud.dev/blob/fileblob"
@@ -32,6 +34,23 @@ func NewURL(driver, bucket string) URL {
 // Usually this is in the form of driver://bucket/path
 func (u URL) String() string {
 	return fmt.Sprintf("%s://%s", u.Driver, filepath.Join(u.Bucket, u.Path))
+}
+
+// ParseURL is a convenience function for parsing a URL string
+func ParseURL(bucketURL string) (parsed URL, err error) {
+	u, err := url.Parse(bucketURL)
+
+	if err != nil {
+		err = errors.Wrapf(err, "failed to parse bucket url: %s", bucketURL)
+		return
+	}
+
+	parsed = URL{
+		Driver: u.Scheme,
+		Bucket: u.Host,
+		Path:   u.Path,
+	}
+	return
 }
 
 // Bucket is an abstraction for a storage bucket

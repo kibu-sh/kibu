@@ -87,3 +87,11 @@ func TestBucket(t *testing.T) {
 		require.FileExists(t, filepath.Join(tmpDir, "path/to/copy"))
 	})
 }
+
+func TestParseURL(t *testing.T) {
+	u, err := ParseURL("gs://my-bucket/path/to/directory")
+	require.NoError(t, err)
+	require.Equal(t, "gs", u.Driver)
+	require.Equal(t, "my-bucket", u.Bucket)
+	require.Equal(t, "/path/to/directory", u.Path)
+}
