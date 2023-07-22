@@ -22,6 +22,15 @@ func NewCloudBucket(ctx context.Context, url URL) (bucket *CloudBucket, err erro
 	}, nil
 }
 
+// NewCloudBucketFromURL opens a bucket by parsing the provided URL
+func NewCloudBucketFromURL(ctx context.Context, url string) (bucket *CloudBucket, err error) {
+	parsedURL, err := ParseURL(url)
+	if err != nil {
+		return
+	}
+	return NewCloudBucket(ctx, parsedURL)
+}
+
 // CloudBucket is a concrete implementation of the Bucket interface
 // It adapts the gocloud.dev/blob.Bucket interface to our internal Bucket interface
 type CloudBucket struct {
