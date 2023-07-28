@@ -7,8 +7,14 @@ import (
 	"path/filepath"
 )
 
+var _ FS = (*DirectoryFS)(nil)
+
 type DirectoryFS struct {
 	Path string
+}
+
+func (d DirectoryFS) Root() string {
+	return d.Path
 }
 
 func (d DirectoryFS) OpenReadable(ctx context.Context, params OpenParams) (stream io.ReadCloser, err error) {

@@ -51,11 +51,18 @@ func InitCLI() (RootCmd, error) {
 		Store:               fileStore,
 	}
 	configSyncCmd := NewConfigSyncCmd(newConfigSyncCmdParams)
+	logger := NewLogger()
+	newConfigCopyCmdParams := NewConfigCopyCmdParams{
+		WorkspaceConfig: workspaceConfig,
+		Logger:          logger,
+	}
+	configCopyCmd := NewConfigCopyCmd(newConfigCopyCmdParams)
 	configCmdParams := ConfigCmdParams{
 		ConfigGetCmd:  configGetCmd,
 		ConfigSetCmd:  configSetCmd,
 		ConfigEditCmd: configEditCmd,
 		ConfigSyncCmd: configSyncCmd,
+		ConfigCopyCmd: configCopyCmd,
 	}
 	configCmd := NewConfigCmd(configCmdParams)
 	buildCmd := NewBuildCmd()

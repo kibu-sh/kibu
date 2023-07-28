@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -91,7 +93,7 @@ func (s *FileStore) Set(ctx context.Context, params SetParams) (ciphertext *Ciph
 	return
 }
 
-func (s FileStore) Get(ctx context.Context, params GetParams) (ciphertext *CipherText, err error) {
+func (s *FileStore) Get(ctx context.Context, params GetParams) (ciphertext *CipherText, err error) {
 	ciphertext = new(CipherText)
 
 	stream, err := s.FS.OpenReadable(ctx, OpenParams{
@@ -130,4 +132,84 @@ func encJsonExt(path string) string {
 		path += ".enc.json"
 	}
 	return path
+}
+
+var _ Iterator = (*FileStoreIterator)(nil)
+
+var _ IteratorResult = (*FileStoreIterResult)(nil)
+
+type FileStoreIterResult struct {
+	path  string
+	err   error
+	store *FileStore
+}
+
+func (f FileStoreIterResult) Error() error {
+	return f.err
+}
+
+func (f FileStoreIterResult) Path() string {
+	return f.path
+}
+
+func (f FileStoreIterResult) Get(ctx context.Context, target any) (ciphertext *CipherText, err error) {
+	return f.store.GetByKey(ctx, f.path, target)
+}
+
+func (f FileStoreIterResult) Set(ctx context.Context, key EncryptionKey, target any) (ciphertext *CipherText, err error) {
+	return f.store.Set(ctx, SetParams{
+		Path:          f.path,
+		Data:          target,
+		EncryptionKey: key,
+	})
+}
+
+type FileStoreIterator struct {
+	store   *FileStore
+	results chan IteratorResult
+}
+
+func NewFileStoreIterator(store *FileStore) *FileStoreIterator {
+	return &FileStoreIterator{
+		store:   store,
+		results: make(chan IteratorResult),
+	}
+}
+
+func (f FileStoreIterator) Next() <-chan IteratorResult {
+	return f.results
+}
+func (s *FileStore) List(_ context.Context, params ListParams) (Iterator, error) {
+	fsIter := NewFileStoreIterator(s)
+
+	if params.Path == "" {
+		params.Path = "."
+	}
+
+	go func() {
+		defer close(fsIter.results)
+		_ = fs.WalkDir(os.DirFS(s.FS.Root()), params.Path, newFsIteratorWalkFunc(fsIter, s))
+	}()
+
+	return fsIter, nil
+}
+
+func newFsIteratorWalkFunc(fsIter *FileStoreIterator, s *FileStore) func(path string, d fs.DirEntry, walkErr error) error {
+	return func(path string, d fs.DirEntry, walkErr error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		fsIter.results <- FileStoreIterResult{
+			store: s,
+			path:  path,
+			err:   walkErr,
+		}
+
+		if walkErr != nil {
+			return walkErr
+		}
+
+		return nil
+	}
 }

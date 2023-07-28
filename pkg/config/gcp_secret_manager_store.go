@@ -19,6 +19,11 @@ type GCPSecretManagerStore struct {
 	client    *secretmanager.Client
 }
 
+func (c GCPSecretManagerStore) List(ctx context.Context, params ListParams) (iter Iterator, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // GetByKey is a convenience method for getting a value by key
 // A simpler alias interface to Get
 func (c GCPSecretManagerStore) GetByKey(ctx context.Context, key string, target any) (*CipherText, error) {

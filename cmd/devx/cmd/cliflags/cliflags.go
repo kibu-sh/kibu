@@ -45,6 +45,26 @@ var (
 		AsFilename: true,
 	}
 
+	ConfigSyncRecursive = cli.Flag[bool]{
+		Long:        "recursive",
+		Short:       "r",
+		Description: "If true, syncs all files in the source env to the destination.",
+		Default:     false,
+	}
+
+	ConfigSyncSrcEnv = cli.Flag[string]{
+		Long:        "src",
+		Short:       "",
+		Required:    true,
+		Description: "The source environment to copy the config from.",
+	}
+	ConfigSyncDestEnv = cli.Flag[string]{
+		Long:        "dest",
+		Short:       "",
+		Description: "The destination environment to copy the config to.",
+		Required:    true,
+	}
+
 	MigrateDir = cli.Flag[string]{
 		Long:        "dir",
 		Short:       "d",
