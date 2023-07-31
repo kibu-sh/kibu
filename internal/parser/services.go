@@ -206,9 +206,8 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 		}
 
 		dir, isEndpoint := dirs.Find(directive.HasKey("devx", "endpoint"))
-
 		if !isEndpoint {
-			return
+			continue
 		}
 
 		tags, _ := dir.Options.GetAll("tag", []string{})
