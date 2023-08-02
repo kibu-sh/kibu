@@ -429,7 +429,8 @@ func schemaFromSliceType(ty types.Type, dive schemaBuilderFunc, searchTagName st
 	}
 
 	schema = &base.Schema{
-		Type: []string{"array"},
+		Type:     []string{"array"},
+		Nullable: lo.ToPtr(true),
 		Items: &base.DynamicValue[*base.SchemaProxy, bool]{
 			A: base.CreateSchemaProxy(itemSchema),
 		},
@@ -573,7 +574,8 @@ func recursivelyMarkResponseSchemaFieldsAsRequired(schema *base.Schema) {
 	for name, field := range schema.Properties {
 		fieldSchema := field.Schema()
 		recursivelyMarkResponseSchemaFieldsAsRequired(fieldSchema)
-		// non-nullable schemas in a response are required
+		// non-nullable schemas in a response are required unless they're a slice
+		// zero values of slices in go are nil, so we can't require them
 		// this means the server will at least send the zero value of this type
 		if !schemaIsNullable(fieldSchema) {
 			schema.Required = append(schema.Required, name)
