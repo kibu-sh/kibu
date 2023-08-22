@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/discernhq/devx/pkg/utils"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
+	"log/slog"
 	"time"
 )
 
@@ -22,20 +22,20 @@ type Manager struct {
 	errGroup *errgroup.Group
 	ctx      context.Context
 	cancel   context.CancelFunc
-	logger   zerolog.Logger
+	logger   *slog.Logger
 }
 
 type Option func(m *Manager)
 
 func DefaultOptions() []Option {
 	return []Option{
-		WithLogger(zerolog.Nop()),
+		WithLogger(slog.Default()),
 	}
 }
 
-func WithLogger(nop zerolog.Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(m *Manager) {
-		m.logger = nop
+		m.logger = logger
 	}
 }
 
@@ -68,7 +68,9 @@ func (m *Manager) Register(p Process) (err error) {
 		return
 	}
 
-	m.logger.Info().Str("proc", p.Name).Msg("registered process")
+	log := m.logger.With("proc", p.Name)
+
+	log.Info("registered process")
 
 	m.tasks.Store(p.Name, &p)
 	ready := make(chan struct{})
@@ -81,7 +83,7 @@ func (m *Manager) Register(p Process) (err error) {
 
 	select {
 	case <-ready:
-		m.logger.Info().Str("proc", p.Name).Msg("ready")
+		log.Info("ready")
 		return nil
 	case <-m.ctx.Done():
 		err = errors.Wrapf(m.ctx.Err(), "failed to start proc: %s", p.Name)

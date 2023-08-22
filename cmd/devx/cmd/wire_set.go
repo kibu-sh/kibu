@@ -5,12 +5,12 @@ import (
 	"github.com/discernhq/devx/pkg/config"
 	"github.com/discernhq/devx/pkg/workspace"
 	"github.com/google/wire"
-	"github.com/rs/zerolog"
+	"log/slog"
 	"os"
 )
 
-func NewLogger() (l zerolog.Logger) {
-	return zerolog.New(os.Stdout).With().Timestamp().Logger()
+func NewLogger() (l *slog.Logger) {
+	return slog.New(slog.NewTextHandler(os.Stderr, nil))
 }
 
 var WireSet = wire.NewSet(

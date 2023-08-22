@@ -3,7 +3,6 @@ package temporal
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/activity"
@@ -11,6 +10,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
+	"log/slog"
 	"time"
 )
 
@@ -29,7 +29,7 @@ type WorkerFactory interface {
 func NewWorker(
 	client client.Client,
 	workerDefs []*Worker,
-	logger zerolog.Logger,
+	logger *slog.Logger,
 ) (workers []worker.Worker, err error) {
 	defByTaskQueue := lo.GroupBy(workerDefs, func(def *Worker) string {
 		return def.TaskQueue
@@ -43,11 +43,10 @@ func NewWorker(
 		})
 
 		for _, def := range workerDefs {
-			logger.Info().
-				Str("queue", queue).
-				Str("type", def.Type).
-				Str("name", def.Name).
-				Msg("registering worker")
+			logger.With("queue", queue).
+				With("type", def.Type).
+				With("name", def.Name).
+				Info("registering worker")
 
 			switch def.Type {
 			case "workflow":

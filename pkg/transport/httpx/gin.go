@@ -18,9 +18,17 @@ func (g GinMux) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func NewGinMux() *GinMux {
-	r := gin.Default()
+	r := gin.New()
 	r.Use(captureGinParams)
 	return &GinMux{r}
+}
+
+func NewGinMuxWithMiddleware(middleware ...func(engine *gin.Engine) gin.HandlerFunc) *GinMux {
+	g := NewGinMux()
+	for _, mf := range middleware {
+		g.mux.Use(mf(g.mux))
+	}
+	return g
 }
 
 func (g GinMux) Handle(handler *Handler) {

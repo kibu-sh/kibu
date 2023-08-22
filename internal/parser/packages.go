@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/discernhq/devx/internal/parser/directive"
-	"github.com/rs/zerolog"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -73,7 +73,7 @@ func walkPackage(
 type ExperimentalParseOpts struct {
 	Dir      string
 	Patterns []string
-	Logger   zerolog.Logger
+	Logger   *slog.Logger
 }
 
 func ExperimentalParse(opts ExperimentalParseOpts) (pkgList map[PackagePath]*Package, err error) {
@@ -86,6 +86,10 @@ func ExperimentalParse(opts ExperimentalParseOpts) (pkgList map[PackagePath]*Pac
 	if !stat.IsDir() {
 		err = fmt.Errorf("parser entrypoint must be a directory got %s", opts.Dir)
 		return
+	}
+
+	if opts.Logger == nil {
+		opts.Logger = slog.Default()
 	}
 
 	config := &packages.Config{
@@ -116,7 +120,7 @@ func ExperimentalParse(opts ExperimentalParseOpts) (pkgList map[PackagePath]*Pac
 				if e.Kind != packages.TypeError {
 					err = errors.Join(err, e)
 				} else {
-					opts.Logger.Warn().Msgf("package type error %s: %s", pkg.PkgPath, e.Error())
+					opts.Logger.Warn("package type error %s: %s", pkg.PkgPath, e.Error())
 				}
 			}
 		}

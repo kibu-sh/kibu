@@ -1,6 +1,6 @@
 module github.com/discernhq/devx
 
-go 1.20
+go 1.21
 
 require (
 	cloud.google.com/go/secretmanager v1.9.0
@@ -27,7 +27,6 @@ require (
 	github.com/pb33f/libopenapi v0.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/go-internal v1.9.0
-	github.com/rs/zerolog v1.28.0
 	github.com/samber/lo v1.34.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.0

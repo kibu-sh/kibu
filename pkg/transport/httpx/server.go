@@ -2,8 +2,8 @@ package httpx
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -38,12 +38,17 @@ var ErrServerStartTimeout = errors.New("http server start timeout")
 // 2. The context is cancelled
 // 3. The server takes longer than 5 seconds to start
 // You must call server.Shutdown() to stop the server
-func StartServer(ctx context.Context, listener net.Listener, server *http.Server) error {
+func StartServer(
+	ctx context.Context,
+	listener net.Listener,
+	server *http.Server,
+) error {
 	ready := make(chan struct{})
 	errCh := make(chan error)
 	go func() {
 		close(ready)
-		fmt.Println("starting server on", listener.Addr().String())
+		slog.Default().Info("starting server on",
+			"address", listener.Addr().String())
 		errCh <- server.Serve(listener)
 	}()
 

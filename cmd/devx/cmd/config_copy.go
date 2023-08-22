@@ -6,9 +6,8 @@ import (
 	"github.com/discernhq/devx/pkg/config"
 	"github.com/discernhq/devx/pkg/workspace"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"log/slog"
 )
 
 type ConfigCopyCmd struct {
@@ -17,7 +16,7 @@ type ConfigCopyCmd struct {
 
 type NewConfigCopyCmdParams struct {
 	WorkspaceConfig *workspace.Config
-	Logger          zerolog.Logger
+	Logger          *slog.Logger
 }
 
 func NewConfigCopyCmd(params NewConfigCopyCmdParams) (cmd ConfigCopyCmd) {
@@ -68,7 +67,7 @@ func newConfigCopyRunE(params NewConfigCopyCmdParams) RunE {
 		var copyFn config.CopyFunc
 
 		if recursive {
-			log.Info().Msg("copying config recursively")
+			slog.Default().Info("copying config recursively")
 			copyFn = config.CopyRecursive
 		} else {
 			copyFn = config.CopyOne
