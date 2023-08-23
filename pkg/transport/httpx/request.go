@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"github.com/discernhq/devx/pkg/transport"
 	"io"
@@ -13,6 +14,16 @@ var _ transport.Request = (*Request)(nil)
 
 type Request struct {
 	*http.Request
+
+	bodyBuffer *bytes.Buffer
+}
+
+func (r *Request) BodyBuffer() *bytes.Buffer {
+	return r.bodyBuffer
+}
+
+func (r *Request) Version() string {
+	return r.Request.Proto
 }
 
 func (r *Request) WithContext(ctx context.Context) transport.Request {
@@ -36,10 +47,6 @@ func (r *Request) URL() *url.URL {
 
 func (r *Request) Path() string {
 	return r.URL().Path
-}
-
-func (r *Request) Body() io.ReadCloser {
-	return r.Request.Body
 }
 
 func (r *Request) ParseMediaType() (mediatype string, params map[string]string, err error) {
@@ -67,5 +74,36 @@ func (r *Request) Headers() http.Header {
 }
 
 func NewRequest(r *http.Request) *Request {
-	return &Request{r}
+	req := &Request{
+		Request:    r,
+		bodyBuffer: new(bytes.Buffer),
+	}
+	r.Body = newTeeReadCloser(r.Body, req.bodyBuffer)
+	return req
+}
+
+var _ io.ReadCloser = (*teeReadCloser)(nil)
+
+type teeReadCloser struct {
+	original io.ReadCloser
+	tee      io.Reader
+}
+
+func (t teeReadCloser) Read(p []byte) (n int, err error) {
+	return t.tee.Read(p)
+}
+
+func (t teeReadCloser) Close() error {
+	return t.original.Close()
+}
+
+func newTeeReadCloser(original io.ReadCloser, writer io.Writer) *teeReadCloser {
+	return &teeReadCloser{
+		original: original,
+		tee:      io.TeeReader(original, writer),
+	}
+}
+
+func (r *Request) Body() io.ReadCloser {
+	return r.Request.Body
 }

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ type Request interface {
 	URL() *url.URL
 	Path() string
 	Method() string
+
+	Version() string
 	PathParams() url.Values
 	QueryParams() url.Values
 	Headers() http.Header
@@ -25,6 +28,11 @@ type Request interface {
 	// Alternatively you can use io.LimitReader to limit the size of the body
 	// Consider using a middleware function to limit the maximum size of the body
 	Body() io.ReadCloser
+
+	// BodyBuffer returns a buffer that can be used to read the body of the request
+	// This should only be used once the body has been read
+	// This contains a copy of all the bytes read from the original body
+	BodyBuffer() *bytes.Buffer
 
 	// ParseMediaType should forward the return value of mime.ParseMediaType
 	ParseMediaType() (mediatype string, params map[string]string, err error)

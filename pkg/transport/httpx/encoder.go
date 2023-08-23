@@ -37,14 +37,14 @@ func (d DefaultJSONError) PrepareResponse() any {
 // JSONErrorEncoder encodes any response as JSON and writes it to the ResponseWriter
 func JSONErrorEncoder() transport.ErrorEncoderFunc {
 	return func(ctx context.Context, writer transport.Response, err error) error {
-		var res transport.ErrorResponse = DefaultJSONError{
+		var errRes transport.ErrorResponse = DefaultJSONError{
 			Status:  http.StatusInternalServerError,
 			Message: err.Error(),
 		}
-		_ = errors.As(err, &res)
+		_ = errors.As(err, &errRes)
 
-		writer.SetStatusCode(res.GetStatusCode())
+		writer.SetStatusCode(errRes.GetStatusCode())
 		writer.Headers().Set("Content-Type", "application/json")
-		return json.NewEncoder(writer).Encode(res.PrepareResponse())
+		return json.NewEncoder(writer).Encode(errRes.PrepareResponse())
 	}
 }

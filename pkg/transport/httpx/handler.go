@@ -1,9 +1,14 @@
 package httpx
 
 import (
+	"fmt"
+	"github.com/discernhq/devx/pkg/slogx"
 	"github.com/discernhq/devx/pkg/transport"
 	"github.com/discernhq/devx/pkg/transport/middleware"
+	"github.com/pkg/errors"
+	"log/slog"
 	"net/http"
+	"time"
 )
 
 // check if Handler implements http.Handler
@@ -41,15 +46,59 @@ func (h *Handler) WithMethods(methods ...string) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	req := NewRequest(r)
 	res := NewResponse(w)
-	ctx := &Context{
+	ctx := r.Context()
+	logger := slog.Default()
+	tctx := &Context{
 		req:    req,
 		writer: res,
 		codec:  h.Codec,
 	}
 
-	if err := h.Handler.Serve(ctx); err != nil {
-		_ = ctx.Codec().EncodeError(ctx.Request().Context(), ctx.Response(), err)
+	startTime := time.Now()
+	var serveError error
+	var encodingError error
+
+	defer func() {
+		stopTime := time.Now()
+		duration := stopTime.Sub(startTime)
+		logger = slogx.BindLogBuilders(logger,
+			slogx.WithRequestInfo(req),
+			slogx.WithResponseInfo(res),
+			slogx.WithDuration(duration),
+			slogx.WithErrorInfo(serveError),
+		)
+
+		level := slog.LevelInfo
+		if serveError != nil || encodingError != nil {
+			level = slog.LevelError
+		}
+
+		if encodingError != nil {
+			logger = logger.With("encoding.error", encodingError)
+		}
+
+		logger.Log(ctx, level, buildHTTPResponseLogMessage(req, res))
+	}()
+
+	// if there's no error from the serve handler, it means the request was successful,
+	// there's no need to encode an error to the transport
+	if serveError = h.Handler.Serve(tctx); serveError == nil {
+		return
 	}
+
+	if encodingError = tctx.Codec().EncodeError(ctx, res, serveError); encodingError != nil {
+		encodingError = errors.Wrap(encodingError, "failed to write error to transport response")
+	}
+}
+
+func buildHTTPResponseLogMessage(req transport.Request, res transport.Response) string {
+	return fmt.Sprintf("%s %s %d %d %s",
+		req.Version(),
+		req.Method(),
+		res.GetStatusCode(),
+		res.BytesWritten(),
+		req.URL().Path,
+	)
 }
 
 var _ http.Handler = (*Handler)(nil)

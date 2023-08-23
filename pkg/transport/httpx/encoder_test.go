@@ -12,10 +12,24 @@ import (
 	"testing"
 )
 
+var _ transport.Response = (*mockTransportResponse)(nil)
+
 type mockTransportResponse struct {
 	mock.Mock
 	headers http.Header
 	buf     *bytes.Buffer
+}
+
+func (m *mockTransportResponse) GetStatusCode() int {
+	return http.StatusOK
+}
+
+func (m *mockTransportResponse) BodyBuffer() *bytes.Buffer {
+	return m.buf
+}
+
+func (m *mockTransportResponse) BytesWritten() int64 {
+	return int64(m.buf.Len())
 }
 
 func (m *mockTransportResponse) Write(p []byte) (n int, err error) {

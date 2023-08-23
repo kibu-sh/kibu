@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"log/slog"
 	"net"
@@ -21,7 +22,10 @@ func NewTCPListener(addr ListenAddr) (net.Listener, error) {
 }
 
 func NewServer(params *NewServerParams) (*http.Server, error) {
+	log := slog.Default()
 	for _, handler := range params.Handlers {
+		log.Debug(fmt.Sprintf("[devx.transport.httpx] %s %s",
+			handler.Methods, handler.Path))
 		params.Mux.Handle(handler)
 	}
 
@@ -47,8 +51,9 @@ func StartServer(
 	errCh := make(chan error)
 	go func() {
 		close(ready)
-		slog.Default().Info("starting server on",
-			"address", listener.Addr().String())
+		slog.Default().
+			With("address", listener.Addr().String()).
+			Info(fmt.Sprintf("starting server on %s", listener.Addr().String()))
 		errCh <- server.Serve(listener)
 	}()
 

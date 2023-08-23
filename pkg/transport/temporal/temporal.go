@@ -2,6 +2,7 @@ package temporal
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go.temporal.io/api/enums/v1"
@@ -46,7 +47,7 @@ func NewWorker(
 			logger.With("queue", queue).
 				With("type", def.Type).
 				With("name", def.Name).
-				Info("registering worker")
+				Debug(fmt.Sprintf("[devx.transport.temporal] %s %s", def.Type, def.Name))
 
 			switch def.Type {
 			case "workflow":
