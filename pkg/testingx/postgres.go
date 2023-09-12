@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/container"
+	"github.com/discernhq/devx/pkg/ctxutil"
 	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/discernhq/devx/pkg/netx"
 	"github.com/docker/go-connections/nat"
@@ -170,9 +171,8 @@ func SetupTestMainWithDB(
 	ctx := Context()
 	sharedManager, err := container.NewManager()
 	CheckErrFatal(err)
-	appcontext.UpdateCache(
-		container.ManagerContextStore.Save(ctx, sharedManager),
-	)
+	ctx = container.ManagerContextStore.Save(ctx, sharedManager)
+	appcontext.UpdateCache(ctx)
 
 	dsn, err := SetupPostgresDatabaseConnection(
 		ctx,
@@ -184,12 +184,29 @@ func SetupTestMainWithDB(
 
 	db, err := sqlx.ConnectContext(ctx, "postgres", dsn.String())
 	CheckErrFatal(err)
-	appcontext.UpdateCache(
-		xql.ConnectionContextStore.Save(ctx, db),
-	)
+	ctx = xql.ConnectionContextStore.Save(ctx, db)
+	appcontext.UpdateCache(ctx)
+
+	ctx = connectionContextStore.Save(ctx, Connection{
+		DB:  db,
+		URL: dsn,
+	})
+	appcontext.UpdateCache(ctx)
 
 	code = m.Run()
 	_ = sharedManager.Cleanup(ctx)
 
 	os.Exit(code)
+}
+
+type Connection struct {
+	DB  *sqlx.DB
+	URL *url.URL
+}
+type connectionCtxKey struct{}
+
+var connectionContextStore = ctxutil.NewStore[Connection, connectionCtxKey]()
+
+func GetDB() (Connection, error) {
+	return connectionContextStore.Load(Context())
 }
