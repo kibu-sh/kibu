@@ -1,0 +1,13 @@
+-- request.bin.http --
+POST https://example.com/?test=true HTTP/1.1
+Content-Type: application/json
+X-Test-Header: request
+
+{"test": "request"}
+-- response.bin.http --
+HTTP/1.1 400 bad request
+Connection: close
+Content-Type: application/json
+X-Test-Header: response
+
+{"test": "response"}

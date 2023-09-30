@@ -1,0 +1,66 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2020": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "node_modules",
+    "build",
+    "dist",
+    "storybook-static"
+  ],
+  "plugins": [
+    "react-refresh",
+    "unused-imports",
+    "prettier"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "extends": [
+    "@remix-run/eslint-config",
+    "plugin:prettier/recommended",
+    "eslint:recommended",
+    "plugin:react-hooks/recommended"
+  ],
+  "rules": {
+    "unused-imports/no-unused-imports": "error",
+    "react/jsx-sort-props": [
+      "error",
+      {
+        "callbacksLast": true,
+        "shorthandFirst": true,
+        "ignoreCase": false,
+        "reservedFirst": true
+      }
+    ],
+    "import/order": [
+      "error",
+      {
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        },
+        "newlines-between": "always",
+        "groups": [
+          "builtin",
+          "external",
+          "index",
+          "parent",
+          [
+            "internal",
+            "sibling"
+          ]
+        ]
+      }
+    ],
+    "comma-dangle": [
+      "error",
+      "always-multiline"
+    ],
+    "react-refresh/only-export-components": [
+      "warn",
+      { "allowConstantExport": true }
+    ]
+  }
+}

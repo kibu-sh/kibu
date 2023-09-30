@@ -1,27 +1,30 @@
-package messaging
+package singlechannel
 
 import (
 	"context"
+	"github.com/discernhq/devx/pkg/messaging"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-// compile time check that ChannelBroker implements Broker
-var _ Broker[Event[any]] = (*ChannelBroker[Event[any]])(nil)
+type anyEvent messaging.Event[any]
+type stringEvent messaging.Event[string]
 
-func TestChannelBroker(t *testing.T) {
+// compile time check that Topic implements Broker
+var _ messaging.Topic[anyEvent] = (*Topic[anyEvent])(nil)
+
+func TestTopic(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("should publish a message", func(t *testing.T) {
-		topic := "test"
 		expected := "hello world"
-		broker := NewChannelBroker[Event[string]]()
+		broker := NewTopic[stringEvent]()
 
-		stream, err := broker.Subscribe(ctx, topic)
+		stream, err := broker.Subscribe(ctx)
 		require.NoError(t, err)
 
-		err = broker.Publish(ctx, topic, Event[string]{
+		err = broker.Publish(ctx, stringEvent{
 			ID:   uuid.New(),
 			Data: expected,
 		})
@@ -32,12 +35,10 @@ func TestChannelBroker(t *testing.T) {
 	})
 
 	t.Run("should return an error when channel limit is reached", func(t *testing.T) {
-		topic := "test"
-		broker := NewChannelBroker[Event[string]]()
-
-		broker.ChannelSize = 0
+		broker := NewTopic[stringEvent]()
+		broker.maxSize = 0
 		expected := "hello world"
-		err := broker.Publish(ctx, topic, Event[string]{
+		err := broker.Publish(ctx, stringEvent{
 			ID:   uuid.New(),
 			Data: expected,
 		})

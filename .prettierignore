@@ -1,0 +1,5 @@
+**/prisma/generated/**
+**/node_modules/**
+**/build/**
+**/dist/**
+**/public/**
