@@ -194,16 +194,6 @@ func parserVarToSchemaName(v *parser.Var) string {
 	}, "_")
 }
 
-func isStrut(ty types.Type) bool {
-	_, ok := ty.Underlying().(*types.Struct)
-	return ok
-}
-
-func isSlice(ty types.Type) bool {
-	_, ok := ty.Underlying().(*types.Slice)
-	return ok
-}
-
 type schemaBuilderParams struct {
 	doc           *v3.Document
 	ty            types.Type
