@@ -79,12 +79,12 @@ func buildOpenAPIEndpoint(endpoint *parser.Endpoint, doc *v3.Document) (err erro
 		return
 	}
 
-	request, err := buildOpenAPIRequest(endpoint, doc)
+	request, err := buildOpenAPIRequest(doc, endpoint)
 	if err != nil {
 		return
 	}
 
-	response, err := buildOpenAPIResponses(endpoint, doc)
+	response, err := buildOpenAPIResponses(doc, endpoint)
 	if err != nil {
 		return
 	}
@@ -204,14 +204,57 @@ func isSlice(ty types.Type) bool {
 	return ok
 }
 
-type schemaBuilderFunc func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error)
+type schemaBuilderParams struct {
+	doc           *v3.Document
+	ty            types.Type
+	dive          schemaBuilderFunc
+	searchTagName string
+}
+
+func (sb schemaBuilderParams) WithDocument(doc *v3.Document) *schemaBuilderParams {
+	sb.doc = doc
+	return &sb
+}
+
+func (sb schemaBuilderParams) WithType(ty types.Type) *schemaBuilderParams {
+	sb.ty = ty
+	return &sb
+}
+
+func (sb schemaBuilderParams) WithDive(dive schemaBuilderFunc) *schemaBuilderParams {
+	sb.dive = dive
+	return &sb
+}
+
+func (sb schemaBuilderParams) WithSearchTagName(searchTagName string) *schemaBuilderParams {
+	sb.searchTagName = searchTagName
+	return &sb
+}
+
+type schemaBuilderFunc func(
+	params *schemaBuilderParams,
+) (schema *base.Schema, err error)
 
 type schemaBuilderChain []schemaBuilderFunc
 
-func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName string) (schema *base.Schema, err error) {
-	diveFunc := createSchemaBuilderDiveFunc(chain)
-	for _, builder := range chain {
-		schema, err = builder(ty, diveFunc, searchTagName)
+type buildWithSchemaChainParams struct {
+	doc           *v3.Document
+	ty            types.Type
+	chain         schemaBuilderChain
+	searchTagName string
+}
+
+func buildWithSchemaChain(
+	params buildWithSchemaChainParams,
+) (schema *base.Schema, err error) {
+	diveFunc := createSchemaBuilderDiveFunc(params.chain)
+	for _, builder := range params.chain {
+		schema, err = builder(&schemaBuilderParams{
+			doc:           params.doc,
+			ty:            params.ty,
+			dive:          diveFunc,
+			searchTagName: params.searchTagName,
+		})
 
 		// something bad happened
 		if err != nil {
@@ -226,19 +269,29 @@ func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName
 
 	// don't allow a schema to be null, fallback and add debugging context
 	if schema == nil {
-		err = errors.Join(errUnsupportedType, errors.New(ty.String()))
+		err = errors.Join(errUnsupportedType, errors.New(params.ty.String()))
 	}
 	return
 }
 
 func createSchemaBuilderDiveFunc(chain schemaBuilderChain) schemaBuilderFunc {
-	return func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (*base.Schema, error) {
-		return buildWithSchemaChain(ty, chain, searchTagName)
+	return func(params *schemaBuilderParams) (*base.Schema, error) {
+		return buildWithSchemaChain(buildWithSchemaChainParams{
+			doc:           params.doc,
+			ty:            params.ty,
+			chain:         chain,
+			searchTagName: params.searchTagName,
+		})
 	}
 }
 
-func buildWithDefaultChain(ty types.Type, searchTagName string) (schema *base.Schema, err error) {
-	return buildWithSchemaChain(ty, openApiSchemaDefaultChain(), searchTagName)
+func buildWithDefaultChain(doc *v3.Document, ty types.Type, searchTagName string) (schema *base.Schema, err error) {
+	return buildWithSchemaChain(buildWithSchemaChainParams{
+		doc:           doc,
+		ty:            ty,
+		chain:         openApiSchemaDefaultChain(),
+		searchTagName: searchTagName,
+	})
 }
 
 func openApiSchemaDefaultChain() schemaBuilderChain {
@@ -258,13 +311,13 @@ func openApiSchemaDefaultChain() schemaBuilderChain {
 	}
 }
 
-func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (schema *base.Schema, err error) {
-	pointer, ok := ty.(*types.Pointer)
+func schemaFromPointer(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	pointer, ok := params.ty.(*types.Pointer)
 	if !ok {
 		return
 	}
 
-	schema, err = dive(pointer.Elem(), dive, name)
+	schema, err = params.dive(params.WithType(pointer.Elem()))
 	if err != nil {
 		return
 	}
@@ -273,16 +326,16 @@ func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (sche
 	return
 }
 
-func fallbackType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
+func fallbackType(params *schemaBuilderParams) (schema *base.Schema, err error) {
 	schema = &base.Schema{
-		Description: fmt.Sprintf("FIXME: fallback for unsupported type %s", ty.String()),
+		Description: fmt.Sprintf("FIXME: fallback for unsupported type %s", params.ty.String()),
 		Type:        []string{"string"},
 	}
 	return
 }
 
-func schemaFromMapType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if _, ok := ty.(*types.Map); !ok {
+func schemaFromMapType(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	if _, ok := params.ty.(*types.Map); !ok {
 		return
 	}
 
@@ -292,34 +345,8 @@ func schemaFromMapType(ty types.Type, dive schemaBuilderFunc, _ string) (schema 
 	return
 }
 
-// func openApiSchemaFromAliasType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-// 	named, ok := baseVar.Type().(*types.TypeName)
-// 	if !ok {
-// 		return
-// 	}
-//
-// 	if named.IsAlias() {
-// 		alias := named.Underlying().(*types.Var)
-// 		schema, recursive, err = buildWithDefaultChain(&parser.Var{
-// 			Type: alias,
-// 		})
-// 	}
-// 	baseVar.
-//
-// 	aliasName := alias.Obj().Name()
-// 	switch aliasName {
-// 	case "Time":
-// 		schema = &base.Schema{
-// 			Type: []string{"string"},
-// 		}
-// 		return
-// 	}
-//
-// 	return
-// }
-
-func schemaFromGoogleUUIDType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "github.com/google/uuid.UUID" {
+func schemaFromGoogleUUIDType(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	if params.ty.String() != "github.com/google/uuid.UUID" {
 		return
 	}
 
@@ -329,8 +356,8 @@ func schemaFromGoogleUUIDType(ty types.Type, _ schemaBuilderFunc, _ string) (sch
 	return
 }
 
-func schemaFromTimeDotTime(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "time.Time" {
+func schemaFromTimeDotTime(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	if params.ty.String() != "time.Time" {
 		return
 	}
 
@@ -341,8 +368,8 @@ func schemaFromTimeDotTime(ty types.Type, _ schemaBuilderFunc, _ string) (schema
 	return
 }
 
-func schemaFromAny(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "any" {
+func schemaFromAny(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	if params.ty.String() != "any" {
 		return
 	}
 
@@ -354,8 +381,8 @@ func schemaFromAny(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.S
 	return
 }
 
-func schemaFromStructType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
-	switch ty.Underlying().(type) {
+func schemaFromStructType(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	switch params.ty.Underlying().(type) {
 	case *types.Struct:
 		break
 	default:
@@ -367,8 +394,8 @@ func schemaFromStructType(ty types.Type, dive schemaBuilderFunc, searchTagName s
 		Properties: make(map[string]*base.SchemaProxy),
 	}
 
-	for _, field := range structFields(ty) {
-		searchTag, _ := field.Tags.Get(searchTagName)
+	for _, field := range structFields(params.ty) {
+		searchTag, _ := field.Tags.Get(params.searchTagName)
 		validateTag, _ := field.Tags.Get("validate")
 		fieldName := useStructTagNameOrFieldName(searchTag, field.Var.Name())
 
@@ -383,7 +410,7 @@ func schemaFromStructType(ty types.Type, dive schemaBuilderFunc, searchTagName s
 		}
 
 		var fieldSchema *base.Schema
-		fieldSchema, err = dive(field.Var.Type(), dive, searchTagName)
+		fieldSchema, err = params.dive(params.WithType(field.Var.Type()))
 		if err != nil {
 			return
 		}
@@ -417,13 +444,15 @@ func structTagUsesStandardIgnoreFlag(searchTag *structtag.Tag) bool {
 	return searchTag != nil && (searchTag.HasOption("-") || searchTag.Name == "-")
 }
 
-func schemaFromSliceType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
-	sliceType, ok := ty.Underlying().(*types.Slice)
+func schemaFromSliceType(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	sliceType, ok := params.ty.Underlying().(*types.Slice)
 	if !ok {
 		return
 	}
 
-	itemSchema, err := dive(sliceType.Elem().Underlying(), dive, searchTagName)
+	itemSchema, err := params.dive(params.WithType(
+		sliceType.Elem().Underlying(),
+	))
 	if err != nil {
 		return
 	}
@@ -441,8 +470,8 @@ func schemaFromSliceType(ty types.Type, dive schemaBuilderFunc, searchTagName st
 
 var errUnsupportedType = errors.New("unsupported type, cannot map to openapi schema")
 
-func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	t, ok := ty.(*types.Basic)
+func schemaFromBasicType(params *schemaBuilderParams) (schema *base.Schema, err error) {
+	t, ok := params.ty.(*types.Basic)
 	if !ok {
 		return
 	}
@@ -477,7 +506,10 @@ func hasHTTPBodyByMethod(item string) bool {
 	return item == http.MethodPost || item == http.MethodPut || item == http.MethodPatch
 }
 
-func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.RequestBody, err error) {
+func buildOpenAPIRequest(
+	doc *v3.Document,
+	endpoint *parser.Endpoint,
+) (result *v3.RequestBody, err error) {
 	if endpoint.Request == nil {
 		return
 	}
@@ -508,7 +540,7 @@ func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v
 		return
 	}
 
-	schema, err := buildWithDefaultChain(endpoint.Request.Type(), "json")
+	schema, err := buildWithDefaultChain(doc, endpoint.Request.Type(), "json")
 	if err != nil {
 		return
 	}
@@ -519,7 +551,10 @@ func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v
 	return
 }
 
-func buildOpenAPIResponses(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.Responses, err error) {
+func buildOpenAPIResponses(
+	doc *v3.Document,
+	endpoint *parser.Endpoint,
+) (result *v3.Responses, err error) {
 	if endpoint.Response == nil {
 		return
 	}
@@ -550,7 +585,7 @@ func buildOpenAPIResponses(endpoint *parser.Endpoint, doc *v3.Document) (result 
 		return
 	}
 
-	schema, err := buildWithDefaultChain(endpoint.Response.Type(), "json")
+	schema, err := buildWithDefaultChain(doc, endpoint.Response.Type(), "json")
 	if err != nil {
 		return
 	}
