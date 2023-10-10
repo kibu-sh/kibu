@@ -79,12 +79,12 @@ func buildOpenAPIEndpoint(endpoint *parser.Endpoint, doc *v3.Document) (err erro
 		return
 	}
 
-	request, err := buildOpenAPIRequest(endpoint, doc)
+	request, err := buildOpenAPIRequest(doc, endpoint)
 	if err != nil {
 		return
 	}
 
-	response, err := buildOpenAPIResponses(endpoint, doc)
+	response, err := buildOpenAPIResponses(doc, endpoint)
 	if err != nil {
 		return
 	}
@@ -184,34 +184,67 @@ func validateTagHasRequiredAnnotation(validateTag *structtag.Tag) bool {
 	return validateTag != nil && (validateTag.Name == "required" || validateTag.HasOption("required"))
 }
 
-func parserVarToSchemaRef(v *parser.Var) string {
-	return fmt.Sprintf("#/components/schemas/%s", parserVarToSchemaName(v))
+type DTOType string
+
+const (
+	DTOTypeRequest  DTOType = "request"
+	DTOTypeResponse DTOType = "response"
+)
+
+type schemaBuilderParams struct {
+	doc           *v3.Document
+	ty            types.Type
+	dive          schemaBuilderFunc
+	searchTagName string
+	dtoType       DTOType
 }
 
-func parserVarToSchemaName(v *parser.Var) string {
-	return strings.Join([]string{
-		v.Pkg().Name(), v.TypeName(),
-	}, "_")
+func (sb schemaBuilderParams) WithDocument(doc *v3.Document) *schemaBuilderParams {
+	sb.doc = doc
+	return &sb
 }
 
-func isStrut(ty types.Type) bool {
-	_, ok := ty.Underlying().(*types.Struct)
-	return ok
+func (sb schemaBuilderParams) WithType(ty types.Type) *schemaBuilderParams {
+	sb.ty = ty
+	return &sb
 }
 
-func isSlice(ty types.Type) bool {
-	_, ok := ty.Underlying().(*types.Slice)
-	return ok
+func (sb schemaBuilderParams) WithDive(dive schemaBuilderFunc) *schemaBuilderParams {
+	sb.dive = dive
+	return &sb
 }
 
-type schemaBuilderFunc func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error)
+func (sb schemaBuilderParams) WithSearchTagName(searchTagName string) *schemaBuilderParams {
+	sb.searchTagName = searchTagName
+	return &sb
+}
+
+type schemaBuilderFunc func(
+	params *schemaBuilderParams,
+) (schemaProxy *base.SchemaProxy, err error)
 
 type schemaBuilderChain []schemaBuilderFunc
 
-func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName string) (schema *base.Schema, err error) {
-	diveFunc := createSchemaBuilderDiveFunc(chain)
-	for _, builder := range chain {
-		schema, err = builder(ty, diveFunc, searchTagName)
+type buildWithSchemaChainParams struct {
+	doc           *v3.Document
+	ty            types.Type
+	chain         schemaBuilderChain
+	searchTagName string
+	dtoType       DTOType
+}
+
+func buildWithSchemaChain(
+	params buildWithSchemaChainParams,
+) (schemaProxy *base.SchemaProxy, err error) {
+	diveFunc := createSchemaBuilderDiveFunc(params.chain)
+	for _, builder := range params.chain {
+		schemaProxy, err = builder(&schemaBuilderParams{
+			doc:           params.doc,
+			ty:            params.ty,
+			dive:          diveFunc,
+			searchTagName: params.searchTagName,
+			dtoType:       params.dtoType,
+		})
 
 		// something bad happened
 		if err != nil {
@@ -219,26 +252,27 @@ func buildWithSchemaChain(ty types.Type, chain schemaBuilderChain, searchTagName
 		}
 
 		// we found the schema, no need to continue
-		if schema != nil {
+		if schemaProxy != nil {
 			return
 		}
 	}
 
 	// don't allow a schema to be null, fallback and add debugging context
-	if schema == nil {
-		err = errors.Join(errUnsupportedType, errors.New(ty.String()))
+	if schemaProxy == nil {
+		err = errors.Join(errUnsupportedType, errors.New(params.ty.String()))
 	}
 	return
 }
 
 func createSchemaBuilderDiveFunc(chain schemaBuilderChain) schemaBuilderFunc {
-	return func(ty types.Type, dive schemaBuilderFunc, searchTagName string) (*base.Schema, error) {
-		return buildWithSchemaChain(ty, chain, searchTagName)
+	return func(params *schemaBuilderParams) (*base.SchemaProxy, error) {
+		return buildWithSchemaChain(buildWithSchemaChainParams{
+			doc:           params.doc,
+			ty:            params.ty,
+			chain:         chain,
+			searchTagName: params.searchTagName,
+		})
 	}
-}
-
-func buildWithDefaultChain(ty types.Type, searchTagName string) (schema *base.Schema, err error) {
-	return buildWithSchemaChain(ty, openApiSchemaDefaultChain(), searchTagName)
 }
 
 func openApiSchemaDefaultChain() schemaBuilderChain {
@@ -258,151 +292,212 @@ func openApiSchemaDefaultChain() schemaBuilderChain {
 	}
 }
 
-func schemaFromPointer(ty types.Type, dive schemaBuilderFunc, name string) (schema *base.Schema, err error) {
-	pointer, ok := ty.(*types.Pointer)
+func schemaFromPointer(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	pointer, ok := params.ty.(*types.Pointer)
 	if !ok {
 		return
 	}
 
-	schema, err = dive(pointer.Elem(), dive, name)
+	var schemaRef *base.SchemaProxy
+	schemaRef, err = params.dive(params.WithType(pointer.Elem()))
 	if err != nil {
 		return
 	}
 
-	schema.Nullable = lo.ToPtr(true)
+	schemaProxy = base.CreateSchemaProxy(&base.Schema{
+		AllOf:    []*base.SchemaProxy{schemaRef},
+		Nullable: lo.ToPtr(true),
+	})
+
 	return
 }
 
-func fallbackType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	schema = &base.Schema{
-		Description: fmt.Sprintf("FIXME: fallback for unsupported type %s", ty.String()),
-		Type:        []string{"string"},
-	}
-	return
+func fallbackType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	return getCachedComponentRef(params.doc, "fallback", func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Description: fmt.Sprintf("FIXME: fallback for unsupported type %s", params.ty.String()),
+			Type:        []string{"string"},
+		}), nil
+	})
 }
 
-func schemaFromMapType(ty types.Type, dive schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if _, ok := ty.(*types.Map); !ok {
+func schemaFromMapType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	if _, ok := params.ty.(*types.Map); !ok {
 		return
 	}
 
-	schema = &base.Schema{
-		Type: []string{"object"},
+	return getCachedComponentRef(params.doc, "go.map", func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Type: []string{"object"},
+		}), nil
+	})
+}
+
+func schemaFromGoogleUUIDType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	if params.ty.String() != "github.com/google/uuid.UUID" {
+		return
 	}
+	return getCachedComponentRef(params.doc, params.ty.String(), func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Type: []string{"string"},
+		}), nil
+	})
+}
+
+func schemaFromTimeDotTime(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	if params.ty.String() != "time.Time" {
+		return
+	}
+	schemaProxy, err = getCachedComponentRef(params.doc, "time.Time", func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Type:   []string{"string"},
+			Format: "date-time",
+		}), nil
+	})
 	return
 }
 
-// func openApiSchemaFromAliasType(baseVar *parser.Var) (schema *base.Schema, recursive bool, err error) {
-// 	named, ok := baseVar.Type().(*types.TypeName)
-// 	if !ok {
-// 		return
-// 	}
-//
-// 	if named.IsAlias() {
-// 		alias := named.Underlying().(*types.Var)
-// 		schema, recursive, err = buildWithDefaultChain(&parser.Var{
-// 			Type: alias,
-// 		})
-// 	}
-// 	baseVar.
-//
-// 	aliasName := alias.Obj().Name()
-// 	switch aliasName {
-// 	case "Time":
-// 		schema = &base.Schema{
-// 			Type: []string{"string"},
-// 		}
-// 		return
-// 	}
-//
-// 	return
-// }
-
-func schemaFromGoogleUUIDType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "github.com/google/uuid.UUID" {
+func schemaFromAny(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	if params.ty.String() != "any" {
 		return
 	}
-
-	schema = &base.Schema{
-		Type: []string{"string"},
-	}
+	schemaProxy, err = getCachedComponentRef(params.doc, "go.any", func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Type:       []string{"object"},
+			Properties: make(map[string]*base.SchemaProxy),
+			Nullable:   lo.ToPtr(true),
+		}), nil
+	})
 	return
 }
 
-func schemaFromTimeDotTime(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "time.Time" {
+func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	named, ok := params.ty.(*types.Named)
+	if !ok {
 		return
 	}
 
-	schema = &base.Schema{
-		Type:   []string{"string"},
-		Format: "date-time",
-	}
-	return
-}
-
-func schemaFromAny(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	if ty.String() != "any" {
+	_, ok = named.Underlying().(*types.Struct)
+	if !ok {
 		return
 	}
 
-	schema = &base.Schema{
-		Type:       []string{"object"},
-		Properties: make(map[string]*base.SchemaProxy),
-		Nullable:   lo.ToPtr(true),
-	}
-	return
-}
-
-func schemaFromStructType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
-	switch ty.Underlying().(type) {
-	case *types.Struct:
-		break
-	default:
-		return
-	}
-
-	schema = &base.Schema{
-		Type:       []string{"object"},
-		Properties: make(map[string]*base.SchemaProxy),
-	}
-
-	for _, field := range structFields(ty) {
-		searchTag, _ := field.Tags.Get(searchTagName)
-		validateTag, _ := field.Tags.Get("validate")
-		fieldName := useStructTagNameOrFieldName(searchTag, field.Var.Name())
-
-		// skip fields that don't have an explicit JSON serialization tag
-		if structTagUsesStandardIgnoreFlag(searchTag) {
-			// TODO: we should log a warning
-			continue
+	schemaName := maxPathSuffix(named.String(), 2)
+	schemaProxy, err = getCachedComponentRef(params.doc, schemaName, func() (*base.SchemaProxy, error) {
+		schemaDefinition := &base.Schema{
+			Title:      named.Obj().Name(),
+			Type:       []string{"object"},
+			Properties: make(map[string]*base.SchemaProxy),
 		}
 
-		if validateTagHasRequiredAnnotation(validateTag) {
-			schema.Required = append(schema.Required, fieldName)
-		}
+		for _, field := range structFields(params.ty) {
+			searchTag, _ := field.Tags.Get(params.searchTagName)
+			validateTag, _ := field.Tags.Get("validate")
+			fieldName := useStructTagNameOrFieldName(searchTag, field.Var.Name())
+			fieldType := field.Var.Type()
 
-		var fieldSchema *base.Schema
-		fieldSchema, err = dive(field.Var.Type(), dive, searchTagName)
-		if err != nil {
-			return
-		}
-
-		if requiresFlatteningEmbeddedStruct(searchTag, field) {
-			// flatten embedded struct fields
-			for k, v := range fieldSchema.Properties {
-				schema.Properties[k] = v
+			if structTagUsesStandardIgnoreFlag(searchTag) {
+				// skip fields that don't have an explicit JSON serialization tag
+				continue
 			}
-			continue
+
+			if shouldBeMarkedAsRequired(fieldType, validateTag, params.dtoType) {
+				schemaDefinition.Required = append(schemaDefinition.Required, fieldName)
+			}
+
+			var fieldSchema *base.SchemaProxy
+			fieldSchema, err = params.dive(params.WithType(fieldType))
+			if err != nil {
+				break
+			}
+
+			//FIXME
+			//if shouldFlatteningEmbeddedStruct(searchTag, field) {
+			//	// flatten embedded struct fields
+			//	for k, v := range fieldSchema.Schema().Properties {
+			//		schemaDefinition.Properties[k] = v
+			//	}
+			//	continue
+			//}
+
+			schemaDefinition.Properties[fieldName] = fieldSchema
 		}
 
-		schema.Properties[fieldName] = base.CreateSchemaProxy(fieldSchema)
-	}
+		return base.CreateSchemaProxy(schemaDefinition), err
+	})
 
 	return
 }
 
-func requiresFlatteningEmbeddedStruct(searchTag *structtag.Tag, field *structField) bool {
+func shouldBeMarkedAsRequired(fieldType types.Type, tag *structtag.Tag, dtoType DTOType) bool {
+	if dtoType == DTOTypeResponse {
+		// as long as the field is not a pointer, it is required on response objects
+		return isNotPointerType(fieldType.Underlying())
+	}
+
+	// struct field tag has validate:"required"
+	if validateTagHasRequiredAnnotation(tag) {
+		return true
+	}
+
+	// pointers are optional on request objects (unless tagged as required)
+	if isPointerType(fieldType.Underlying()) {
+		return false
+	}
+
+	// google uuids on requests are nullable unless marked as required by annotation
+	// this is because JSON unmarshalling of an empty string is not a valid UUID
+	if isGoogleUUID(fieldType.Underlying()) || isGoogleNullUUID(fieldType.Underlying()) {
+		return false
+	}
+
+	return false
+}
+
+func isGoogleUUID(fieldType types.Type) bool {
+	return fieldType.String() == "github.com/google/uuid.UUID"
+}
+
+func isGoogleNullUUID(fieldType types.Type) bool {
+	return fieldType.String() == "github.com/google/uuid.NullUUID"
+}
+
+func isNotGoogleUUID(fieldType types.Type) bool {
+	return !isGoogleUUID(fieldType)
+}
+
+func isNotGoogleNullUUID(fieldType types.Type) bool {
+	return !isGoogleNullUUID(fieldType)
+}
+
+func isNamedType(ty types.Type) bool {
+	_, ok := ty.(*types.Named)
+	return ok
+}
+
+func isStructType(ty types.Type) bool {
+	_, ok := ty.Underlying().(*types.Struct)
+	return ok
+}
+
+func isNotPointerType(fieldType types.Type) bool {
+	return !isPointerType(fieldType)
+}
+
+func isPointerType(fieldType types.Type) bool {
+	_, ok := fieldType.(*types.Pointer)
+	return ok
+}
+
+func formatGoIDAsOpenApiSchemaRef(s string) string {
+	return fmt.Sprintf("#/components/schemas/%s", formatGoIDAsOpenApiSchemaName(s))
+}
+
+func formatGoIDAsOpenApiSchemaName(s string) string {
+	return strings.ReplaceAll(s, "/", ".")
+}
+
+func shouldFlatteningEmbeddedStruct(searchTag *structtag.Tag, field *structField) bool {
 	return searchTag == nil && field.Var.Embedded()
 }
 
@@ -417,37 +512,40 @@ func structTagUsesStandardIgnoreFlag(searchTag *structtag.Tag) bool {
 	return searchTag != nil && (searchTag.HasOption("-") || searchTag.Name == "-")
 }
 
-func schemaFromSliceType(ty types.Type, dive schemaBuilderFunc, searchTagName string) (schema *base.Schema, err error) {
-	sliceType, ok := ty.Underlying().(*types.Slice)
+func schemaFromSliceType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	sliceType, ok := params.ty.Underlying().(*types.Slice)
 	if !ok {
 		return
 	}
 
-	itemSchema, err := dive(sliceType.Elem().Underlying(), dive, searchTagName)
+	itemSchema, err := params.dive(params.WithType(
+		sliceType.Elem(),
+	))
 	if err != nil {
 		return
 	}
 
-	schema = &base.Schema{
+	schemaProxy = base.CreateSchemaProxy(&base.Schema{
 		Type:     []string{"array"},
 		Nullable: lo.ToPtr(true),
 		Items: &base.DynamicValue[*base.SchemaProxy, bool]{
-			A: base.CreateSchemaProxy(itemSchema),
+			A: itemSchema,
 		},
-	}
+	})
 
 	return
 }
 
 var errUnsupportedType = errors.New("unsupported type, cannot map to openapi schema")
 
-func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *base.Schema, err error) {
-	t, ok := ty.(*types.Basic)
+func schemaFromBasicType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	t, ok := params.ty.(*types.Basic)
 	if !ok {
 		return
 	}
 
-	schema = &base.Schema{}
+	schema := &base.Schema{}
+	schemaProxy = base.CreateSchemaProxy(schema)
 
 	switch t.Kind() {
 	case types.Bool:
@@ -470,6 +568,7 @@ func schemaFromBasicType(ty types.Type, _ schemaBuilderFunc, _ string) (schema *
 		schema.Description = fmt.Sprintf("FIXME: unsupported basic type %s %s", t.String(), t.Name())
 		return
 	}
+
 	return
 }
 
@@ -477,7 +576,10 @@ func hasHTTPBodyByMethod(item string) bool {
 	return item == http.MethodPost || item == http.MethodPut || item == http.MethodPatch
 }
 
-func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.RequestBody, err error) {
+func buildOpenAPIRequest(
+	doc *v3.Document,
+	endpoint *parser.Endpoint,
+) (result *v3.RequestBody, err error) {
 	if endpoint.Request == nil {
 		return
 	}
@@ -491,98 +593,98 @@ func buildOpenAPIRequest(endpoint *parser.Endpoint, doc *v3.Document) (result *v
 		return
 	}
 
-	schemaRef := parserVarToSchemaRef(endpoint.Request)
-	schemaName := parserVarToSchemaName(endpoint.Request)
-
-	result = &v3.RequestBody{
-		Content: map[string]*v3.MediaType{
-			"application/json": {
-				Schema: base.CreateSchemaProxyRef(schemaRef),
-			},
-		},
-	}
-
-	if _, exists := doc.Components.Schemas[schemaName]; exists {
-		// TODO: we may need to handle conflicts
-		// err = fmt.Errorf("schema name %s already exists", schemaName)
-		return
-	}
-
-	schema, err := buildWithDefaultChain(endpoint.Request.Type(), "json")
+	schema, err := buildWithSchemaChain(buildWithSchemaChainParams{
+		doc:           doc,
+		ty:            endpoint.Request.Type(),
+		chain:         openApiSchemaDefaultChain(),
+		searchTagName: "json",
+		dtoType:       DTOTypeRequest,
+	})
 	if err != nil {
 		return
 	}
 
-	schema.Title = schemaName
-	doc.Components.Schemas[schemaName] = base.CreateSchemaProxy(schema)
+	result = &v3.RequestBody{
+		Content: map[string]*v3.MediaType{
+			"application/json": {
+				Schema: schema,
+			},
+		},
+	}
 
 	return
 }
 
-func buildOpenAPIResponses(endpoint *parser.Endpoint, doc *v3.Document) (result *v3.Responses, err error) {
+func buildOpenAPIResponses(
+	doc *v3.Document,
+	endpoint *parser.Endpoint,
+) (result *v3.Responses, err error) {
 	if endpoint.Response == nil {
 		return
 	}
 
-	// FIXME: ignored in go
 	if endpoint.Response.Name() == "_" {
 		return
 	}
 
-	schemaRef := parserVarToSchemaRef(endpoint.Response)
-	schemaName := parserVarToSchemaName(endpoint.Response)
+	schemaProxy, err := buildWithSchemaChain(buildWithSchemaChainParams{
+		doc:           doc,
+		ty:            endpoint.Response.Type(),
+		chain:         openApiSchemaDefaultChain(),
+		searchTagName: "json",
+		dtoType:       DTOTypeResponse,
+	})
+
+	if err != nil {
+		return
+	}
+
 	result = &v3.Responses{
 		Codes: map[string]*v3.Response{
 			"200": {
 				Description: "",
 				Content: map[string]*v3.MediaType{
 					"application/json": {
-						Schema: base.CreateSchemaProxyRef(schemaRef),
+						Schema: schemaProxy,
 					},
 				},
 			},
 		},
 	}
 
-	if _, exists := doc.Components.Schemas[schemaName]; exists {
-		// TODO: we may need to handle conflicts
-		// err = fmt.Errorf("schema name %s already exists", schemaName)
-		return
-	}
-
-	schema, err := buildWithDefaultChain(endpoint.Response.Type(), "json")
-	if err != nil {
-		return
-	}
-
-	schema.Title = schemaName
-	recursivelyMarkResponseSchemaFieldsAsRequired(schema)
-	doc.Components.Schemas[schemaName] = base.CreateSchemaProxy(schema)
-
 	return
 }
 
-func recursivelyMarkResponseSchemaFieldsAsRequired(schema *base.Schema) {
-	// dive into typed arrays
-	if schema.Items != nil {
-		// it's always A for now
-		recursivelyMarkResponseSchemaFieldsAsRequired(schema.Items.A.Schema())
+func getCachedComponentRef(doc *v3.Document, key string, build func() (*base.SchemaProxy, error)) (schemaProxy *base.SchemaProxy, err error) {
+	schemaName := formatGoIDAsOpenApiSchemaName(key)
+	schemaRef := formatGoIDAsOpenApiSchemaRef(key)
+	schemaProxy = base.CreateSchemaProxyRef(schemaRef)
+	_, cached := doc.Components.Schemas[schemaName]
+	if cached {
 		return
 	}
 
-	// dive into typed objects
-	for name, field := range schema.Properties {
-		fieldSchema := field.Schema()
-		recursivelyMarkResponseSchemaFieldsAsRequired(fieldSchema)
-		// non-nullable schemas in a response are required unless they're a slice
-		// zero values of slices in go are nil, so we can't require them
-		// this means the server will at least send the zero value of this type
-		if !schemaIsNullable(fieldSchema) {
-			schema.Required = append(schema.Required, name)
-		}
-	}
+	doc.Components.Schemas[schemaName], err = build()
+	return
 }
 
-func schemaIsNullable(schema *base.Schema) bool {
-	return lo.FromPtr(schema.Nullable)
+// maxPathSuffix returns the maximum path specificity started at the end.
+//
+//	maxPathSuffix("github.com/discernhq/devx/src/backend/systems/foo/bar.Request", 2) => "foo/bar.Request"
+func maxPathSuffix(name string, segments int) string {
+	// If segments is -1, return the original name
+	if segments == -1 {
+		return name
+	}
+
+	// Split the name by the '/' character
+	parts := strings.Split(name, "/")
+
+	// If there are fewer segments than available, return the original name
+	if len(parts) < segments {
+		return name
+	}
+
+	// Take the last 'segments' parts and join them back
+	return strings.Join(parts[len(parts)-segments:], "/")
 }

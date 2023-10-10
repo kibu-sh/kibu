@@ -26,7 +26,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/opencontainers/image-spec v1.0.2
-	github.com/pb33f/libopenapi v0.7.0
+	github.com/pb33f/libopenapi v0.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/go-internal v1.9.0
 	github.com/samber/lo v1.34.0
@@ -178,8 +178,8 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20220428152302-39d4317da171 // indirect
-	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/oauth2 v0.1.0 // indirect
 	golang.org/x/term v0.11.0 // indirect
