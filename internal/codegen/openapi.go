@@ -184,11 +184,19 @@ func validateTagHasRequiredAnnotation(validateTag *structtag.Tag) bool {
 	return validateTag != nil && (validateTag.Name == "required" || validateTag.HasOption("required"))
 }
 
+type DTOType string
+
+const (
+	DTOTypeRequest  DTOType = "request"
+	DTOTypeResponse DTOType = "response"
+)
+
 type schemaBuilderParams struct {
 	doc           *v3.Document
 	ty            types.Type
 	dive          schemaBuilderFunc
 	searchTagName string
+	dtoType       DTOType
 }
 
 func (sb schemaBuilderParams) WithDocument(doc *v3.Document) *schemaBuilderParams {
@@ -222,6 +230,7 @@ type buildWithSchemaChainParams struct {
 	ty            types.Type
 	chain         schemaBuilderChain
 	searchTagName string
+	dtoType       DTOType
 }
 
 func buildWithSchemaChain(
@@ -234,6 +243,7 @@ func buildWithSchemaChain(
 			ty:            params.ty,
 			dive:          diveFunc,
 			searchTagName: params.searchTagName,
+			dtoType:       params.dtoType,
 		})
 
 		// something bad happened
@@ -263,15 +273,6 @@ func createSchemaBuilderDiveFunc(chain schemaBuilderChain) schemaBuilderFunc {
 			searchTagName: params.searchTagName,
 		})
 	}
-}
-
-func buildWithDefaultChain(doc *v3.Document, ty types.Type, searchTagName string) (*base.SchemaProxy, error) {
-	return buildWithSchemaChain(buildWithSchemaChainParams{
-		doc:           doc,
-		ty:            ty,
-		chain:         openApiSchemaDefaultChain(),
-		searchTagName: searchTagName,
-	})
 }
 
 func openApiSchemaDefaultChain() schemaBuilderChain {
@@ -400,7 +401,7 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 				continue
 			}
 
-			if shouldBeMarkedAsRequired(fieldType, validateTag) {
+			if shouldBeMarkedAsRequired(fieldType, validateTag, params.dtoType) {
 				schemaDefinition.Required = append(schemaDefinition.Required, fieldName)
 			}
 
@@ -428,8 +429,45 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 	return
 }
 
-func shouldBeMarkedAsRequired(fieldType types.Type, tag *structtag.Tag) bool {
-	return validateTagHasRequiredAnnotation(tag) || (isNamedType(fieldType) && isStructType(fieldType.Underlying()))
+func shouldBeMarkedAsRequired(fieldType types.Type, tag *structtag.Tag, dtoType DTOType) bool {
+	if dtoType == DTOTypeResponse {
+		// as long as the field is not a pointer, it is required on response objects
+		return isNotPointerType(fieldType.Underlying())
+	}
+
+	// struct field tag has validate:"required"
+	if validateTagHasRequiredAnnotation(tag) {
+		return true
+	}
+
+	// pointers are optional on request objects (unless tagged as required)
+	if isPointerType(fieldType.Underlying()) {
+		return false
+	}
+
+	// google uuids on requests are nullable unless marked as required by annotation
+	// this is because JSON unmarshalling of an empty string is not a valid UUID
+	if isGoogleUUID(fieldType.Underlying()) || isGoogleNullUUID(fieldType.Underlying()) {
+		return false
+	}
+
+	return false
+}
+
+func isGoogleUUID(fieldType types.Type) bool {
+	return fieldType.String() == "github.com/google/uuid.UUID"
+}
+
+func isGoogleNullUUID(fieldType types.Type) bool {
+	return fieldType.String() == "github.com/google/uuid.NullUUID"
+}
+
+func isNotGoogleUUID(fieldType types.Type) bool {
+	return !isGoogleUUID(fieldType)
+}
+
+func isNotGoogleNullUUID(fieldType types.Type) bool {
+	return !isGoogleNullUUID(fieldType)
 }
 
 func isNamedType(ty types.Type) bool {
@@ -555,7 +593,13 @@ func buildOpenAPIRequest(
 		return
 	}
 
-	schema, err := buildWithDefaultChain(doc, endpoint.Request.Type(), "json")
+	schema, err := buildWithSchemaChain(buildWithSchemaChainParams{
+		doc:           doc,
+		ty:            endpoint.Request.Type(),
+		chain:         openApiSchemaDefaultChain(),
+		searchTagName: "json",
+		dtoType:       DTOTypeRequest,
+	})
 	if err != nil {
 		return
 	}
@@ -583,7 +627,14 @@ func buildOpenAPIResponses(
 		return
 	}
 
-	schemaProxy, err := buildWithDefaultChain(doc, endpoint.Response.Type(), "json")
+	schemaProxy, err := buildWithSchemaChain(buildWithSchemaChainParams{
+		doc:           doc,
+		ty:            endpoint.Response.Type(),
+		chain:         openApiSchemaDefaultChain(),
+		searchTagName: "json",
+		dtoType:       DTOTypeResponse,
+	})
+
 	if err != nil {
 		return
 	}
