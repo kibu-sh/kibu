@@ -1,6 +1,7 @@
 package slogx
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/discernhq/devx/pkg/transport"
 	"github.com/pkg/errors"
@@ -83,10 +84,13 @@ func WithRequestInfo(r transport.Request) BuilderFunc {
 			Host:        r.Headers().Get("Host"),
 			Headers:     normalizeHeaderKeys(r.Headers()),
 			ClientIP:    chooseClientIPHeaderFromDefaults(r),
-			Body:        r.BodyBuffer().String(),
+			Body:        logUpToMaxSize(r.BodyBuffer(), defaultMaxPayloadDumpSize),
 		})
 	}
 }
+
+// defaultMaxPayloadDumpSize is the default size 256KB
+const defaultMaxPayloadDumpSize = 256 * 1024
 
 func WithResponseInfo(w transport.Response) BuilderFunc {
 	return func(logger *slog.Logger) *slog.Logger {
@@ -95,9 +99,16 @@ func WithResponseInfo(w transport.Response) BuilderFunc {
 				StatusCode:   w.GetStatusCode(),
 				BytesWritten: w.BytesWritten(),
 				Headers:      w.Headers(),
-				Body:         w.BodyBuffer().String(),
+				Body:         logUpToMaxSize(w.BodyBuffer(), defaultMaxPayloadDumpSize),
 			})
 	}
+}
+
+func logUpToMaxSize(w *bytes.Buffer, max int) string {
+	if w.Len() <= max {
+		return w.String()
+	}
+	return fmt.Sprintf("payload omitted because body size %d exceeds max of %d", w.Len(), max)
 }
 
 func chooseClientIPHeader(r transport.Request, keys []string) (ip string) {
