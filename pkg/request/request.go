@@ -196,11 +196,25 @@ func (c Client) Do(ctx context.Context) (res *http.Response, err error) {
 	return
 }
 
+func getResponseErrorDetails(res *http.Response, originalErr error) error {
+	if res == nil {
+		return originalErr
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return originalErr
+	}
+	return errors.Join(originalErr, errors.New(string(body)))
+}
+
 // DoAsJSON executes the request, checks the status code, and decodes the response body as JSON.
 func (c Client) DoAsJSON(ctx context.Context, result any) (err error) {
 	res, err := c.Do(ctx)
 	if err != nil {
-		return
+		return getResponseErrorDetails(res, err)
 	}
 	defer func() {
 		_ = res.Body.Close()
