@@ -283,6 +283,7 @@ func openApiSchemaDefaultChain() schemaBuilderChain {
 		schemaFromMapType,
 		schemaFromTimeDotTime,
 		schemaFromGoogleUUIDType,
+		schemaFromNullDecimalType,
 		// process more ambiguous types here
 		schemaFromSliceType,
 		schemaFromStructType,
@@ -335,6 +336,17 @@ func schemaFromMapType(params *schemaBuilderParams) (schemaProxy *base.SchemaPro
 
 func schemaFromGoogleUUIDType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
 	if params.ty.String() != "github.com/google/uuid.UUID" {
+		return
+	}
+	return getCachedComponentRef(params.doc, params.ty.String(), func() (*base.SchemaProxy, error) {
+		return base.CreateSchemaProxy(&base.Schema{
+			Type: []string{"string"},
+		}), nil
+	})
+}
+
+func schemaFromNullDecimalType(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, err error) {
+	if params.ty.String() != "github.com/shopspring/decimal.NullDecimal" {
 		return
 	}
 	return getCachedComponentRef(params.doc, params.ty.String(), func() (*base.SchemaProxy, error) {
