@@ -42,6 +42,7 @@ func NewWorker(
 			WorkerStopTimeout:                time.Second * 30,
 			DisableRegistrationAliasing:      true,
 			MaxConcurrentActivityTaskPollers: 4,
+			MaxConcurrentWorkflowTaskPollers: 4,
 		})
 
 		for _, def := range workerDefs {
