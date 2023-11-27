@@ -38,9 +38,10 @@ func NewWorker(
 
 	for queue, workerDefs := range defByTaskQueue {
 		w := worker.New(client, queue, worker.Options{
-			EnableLoggingInReplay:       true,
-			WorkerStopTimeout:           time.Second * 30,
-			DisableRegistrationAliasing: true,
+			EnableLoggingInReplay:            true,
+			WorkerStopTimeout:                time.Second * 30,
+			DisableRegistrationAliasing:      true,
+			MaxConcurrentActivityTaskPollers: 4,
 		})
 
 		for _, def := range workerDefs {
@@ -48,7 +49,6 @@ func NewWorker(
 				With("type", def.Type).
 				With("name", def.Name).
 				Debug(fmt.Sprintf("[devx.transport.temporal] %s %s", def.Type, def.Name))
-
 			switch def.Type {
 			case "workflow":
 				w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{
