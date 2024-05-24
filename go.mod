@@ -144,11 +144,6 @@ require (
 	github.com/hashicorp/vault/sdk v0.5.3 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jackc/pgio v1.0.0 // indirect
-	github.com/jackc/pglogrepl v0.0.0-20240307033717-828fbfe908e9 // indirect
-	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgx/v5 v5.5.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
