@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/matoous/go-nanoid"
+	gonanoid "github.com/matoous/go-nanoid"
 	"github.com/pkg/errors"
 	"io"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,7 +91,7 @@ func (e *EncryptedFileEditor) Edit(ctx context.Context, params EditParams) error
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	if err = (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run); err != nil {
+	if err = cmd.Run(); err != nil {
 		return err
 	}
 

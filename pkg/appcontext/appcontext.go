@@ -10,6 +10,7 @@ import (
 )
 
 var cache context.Context
+var cancel context.CancelFunc
 var doOnce sync.Once
 
 // Context returns a static context that reacts to termination signals of the
@@ -22,8 +23,7 @@ func Context() context.Context {
 		const exitLimit = 3
 		retries := 0
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cache = ctx
+		cache, cancel = context.WithCancel(context.Background())
 
 		go func() {
 			for {
@@ -42,4 +42,10 @@ func Context() context.Context {
 
 func UpdateCache(ctx context.Context) {
 	cache = ctx
+}
+
+func Dangerous__CancelEscapeHatch() {
+	if cancel != nil {
+		cancel()
+	}
 }

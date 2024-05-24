@@ -3,6 +3,8 @@ package testingx
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"github.com/cenkalti/backoff"
 	"github.com/discernhq/devx/pkg/appcontext"
 	"github.com/discernhq/devx/pkg/container"
@@ -12,7 +14,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"net/url"
 	"os"
 	"testing"
@@ -94,23 +95,12 @@ func NewPostgresDB(
 		return
 	}
 
-	dsn = &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword("postgres", "password"),
-		Host:   address.HostPort(),
-		Path:   "/" + params.Database,
-	}
-
-	query := dsn.Query()
-	query.Set("sslmode", "disable")
-
-	dsn.RawQuery = query.Encode()
+	dsn = defaultDatabaseURL(address.HostPort())
 
 	db, err := sql.Open("postgres", dsn.String())
 	if err != nil {
 		return
 	}
-
 	defer func() {
 		_ = db.Close()
 	}()
@@ -120,28 +110,69 @@ func NewPostgresDB(
 		Timeout: params.Timeout,
 	}, WaitForPostgres(ctx, db, params.Timeout))
 
+	// create the logical database that will used by the test
+	// this allows us to reuse a single container
+	err = recreateTestDatabase(ctx, db, params.Database)
+	if err != nil {
+		return
+	}
+
+	// update the dsn to use the test database
+	dsn.Path = fmt.Sprintf("/%s", params.Database)
+
 	return
+}
+
+func recreateTestDatabase(ctx context.Context, db *sql.DB, databaseName string) (err error) {
+	_, err = db.ExecContext(ctx, fmt.Sprintf("drop database if exists %s;", databaseName))
+	if err != nil {
+		return
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("create database %s;", databaseName))
+	if err != nil {
+		return
+	}
+	return
+}
+
+func defaultDatabaseURL(hostPort string) *url.URL {
+	dsn := &url.URL{
+		Path:   "/postgres", // initially connect to the default database
+		Scheme: "postgres",
+		Host:   hostPort,
+		User:   url.UserPassword("postgres", "password"),
+	}
+	query := dsn.Query()
+	query.Set("sslmode", "disable")
+	dsn.RawQuery = query.Encode()
+	return dsn
 }
 
 type MigrationProvider func(dsn string) (*migrate.Migrate, error)
 
+type SetupPostgresDatabaseConnectionParams struct {
+	Manager        *container.Manager
+	LoadMigrations MigrationProvider
+	ContainerName  string
+	DatabaseName   string
+}
+
 func SetupPostgresDatabaseConnection(
 	ctx context.Context,
-	manager *container.Manager,
-	loadMigrations MigrationProvider,
-	containerName string,
+	params SetupPostgresDatabaseConnectionParams,
 ) (dsn *url.URL, err error) {
-	dsn, err = NewPostgresDB(ctx, manager, NewPostgresDBParams{
+	dsn, err = NewPostgresDB(ctx, params.Manager, NewPostgresDBParams{
 		ImageURL:      "postgres:14",
-		Database:      containerName,
-		ContainerName: containerName,
+		Database:      params.DatabaseName,
+		ContainerName: params.ContainerName,
 	})
 	if err != nil {
 		return
 	}
 
 	var migrations *migrate.Migrate
-	migrations, err = loadMigrations(dsn.String())
+	migrations, err = params.LoadMigrations(dsn.String())
 	if err != nil {
 		return
 	}
@@ -162,10 +193,15 @@ func Context() context.Context {
 	return appcontext.Context()
 }
 
+type SetupTestMainWithDBParams struct {
+	LoadMigrations MigrationProvider
+	ContainerName  string
+	DatabaseName   string
+}
+
 func SetupTestMainWithDB(
 	m *testing.M,
-	loadMigrations MigrationProvider,
-	containerName string,
+	params SetupTestMainWithDBParams,
 ) {
 	var code int
 	ctx := Context()
@@ -175,11 +211,12 @@ func SetupTestMainWithDB(
 	appcontext.UpdateCache(ctx)
 
 	dsn, err := SetupPostgresDatabaseConnection(
-		ctx,
-		sharedManager,
-		loadMigrations,
-		containerName,
-	)
+		ctx, SetupPostgresDatabaseConnectionParams{
+			Manager:        sharedManager,
+			LoadMigrations: params.LoadMigrations,
+			ContainerName:  params.ContainerName,
+			DatabaseName:   params.DatabaseName,
+		})
 	CheckErrFatal(err)
 
 	db, err := sqlx.ConnectContext(ctx, "postgres", dsn.String())
@@ -194,7 +231,12 @@ func SetupTestMainWithDB(
 	appcontext.UpdateCache(ctx)
 
 	code = m.Run()
-	_ = sharedManager.Cleanup(ctx)
+	// we stopped doing this to leave the container running
+	// each call should supply its own unique database name
+	// this will spin up a single container and create a logical database for each test
+	// the user can now introspect the database after the test has run
+	// this also reduces resource utilization in large tests
+	//_ = sharedManager.Cleanup(ctx)
 
 	os.Exit(code)
 }

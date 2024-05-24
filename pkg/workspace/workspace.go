@@ -200,6 +200,16 @@ func NewEnvScopedFileStore(ctx context.Context, ws *Config, env string) (*config
 	return config.NewDefaultFileStore(StorePathWithEnv(ws, env)), nil
 }
 
+func DefaultConfigStore(env string) (store *config.FileStore, err error) {
+	root, err := DetermineRootFromCWD(DevxDirBase())
+	if err != nil {
+		return
+	}
+
+	store = config.NewDefaultFileStore(filepath.Join(root, DevxStoreDir(), env))
+	return
+}
+
 func NewFileStore(ctx context.Context, ws *Config) (*config.FileStore, error) {
 	return config.NewDefaultFileStore(StoreRoot(ws)), nil
 }

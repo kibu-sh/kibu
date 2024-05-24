@@ -120,7 +120,7 @@ func ExperimentalParse(opts ExperimentalParseOpts) (pkgList map[PackagePath]*Pac
 				if e.Kind != packages.TypeError {
 					err = errors.Join(err, e)
 				} else {
-					opts.Logger.Warn("package type error %s: %s", pkg.PkgPath, e.Error())
+					opts.Logger.Debug("package type error %s: %s", pkg.PkgPath, e.Error())
 				}
 			}
 		}
