@@ -28,28 +28,6 @@ func NewEndpoint[Req, Res any](
 	return
 }
 
-func NewRawEndpoint(
-	endpointFunc HandlerFunc,
-) (ep *Endpoint[any, any]) {
-	ep = &Endpoint[any, any]{
-		Func: newRawEndpointFunc(endpointFunc),
-	}
-	return
-}
-
-func newRawEndpointFunc(endpointFunc HandlerFunc) EndpointFunc[any, any] {
-	return func(ctx context.Context, request any) (response any, err error) {
-		tCtx, err := ContextStore.Load(ctx)
-		if err != nil {
-			return
-		}
-		if err = endpointFunc(tCtx); err == nil {
-			err = ErrResponseIntercepted
-		}
-		return
-	}
-}
-
 func (endpoint Endpoint[Req, Res]) WithValidator(validator Validator) Endpoint[Req, Res] {
 	endpoint.Validator = validator
 	return endpoint
