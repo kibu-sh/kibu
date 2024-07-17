@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"net/http"
@@ -23,6 +24,13 @@ type Client struct {
 	method          string
 	body            io.Reader
 	deferredBody    func() (io.Reader, error)
+	errorDecoder    ErrorDecoder
+}
+
+// WithErrorDecoder returns a new instance of Client by replacing its response error decoder.
+func (c Client) WithErrorDecoder(f ErrorDecoder) *Client {
+	c.errorDecoder = f
+	return &c
 }
 
 // WithStatusCheckFunc returns a new instance of Client by replacing its status check function.
@@ -161,6 +169,18 @@ func (c Client) WithJSONBody(body any) *Client {
 		})
 }
 
+// WithXMLBody returns a new instance of Client by replacing its deferred body.
+// The supplied body is encoded as XML before the request is sent.
+func (c Client) WithXMLBody(body any) *Client {
+	return c.
+		WithHeader("Content-Type", "application/xml").
+		WithDeferredBody(func() (io.Reader, error) {
+			buf := new(bytes.Buffer)
+			err := xml.NewEncoder(buf).Encode(body)
+			return buf, err
+		})
+}
+
 // Do execute the request, checks the status code, and returns the response.
 func (c Client) Do(ctx context.Context) (res *http.Response, err error) {
 	body := c.body
@@ -196,26 +216,25 @@ func (c Client) Do(ctx context.Context) (res *http.Response, err error) {
 	return
 }
 
-func getResponseErrorDetails(res *http.Response, originalErr error) error {
+func (c Client) decodeResponseError(res *http.Response, originalErr error) error {
 	if res == nil {
 		return originalErr
 	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return originalErr
+
+	if res.Body == http.NoBody {
+		return errors.Join(originalErr, errors.New("no response body"))
 	}
-	return errors.Join(originalErr, errors.New(string(body)))
+
+	return errors.Join(originalErr, c.errorDecoder(res))
 }
 
 // DoAsJSON executes the request, checks the status code, and decodes the response body as JSON.
 func (c Client) DoAsJSON(ctx context.Context, result any) (err error) {
 	res, err := c.Do(ctx)
 	if err != nil {
-		return getResponseErrorDetails(res, err)
+		return c.decodeResponseError(res, err)
 	}
+
 	defer func() {
 		_ = res.Body.Close()
 	}()
@@ -248,7 +267,8 @@ func NewClient(baseURL *url.URL) *Client {
 		WithBody(http.NoBody).
 		WithClient(http.DefaultClient).
 		WithDefaultHeader(http.Header{}).
-		WithStatusCheckFunc(NewOkayRangeCheckFunc())
+		WithStatusCheckFunc(NewOkayRangeCheckFunc()).
+		WithErrorDecoder(DefaultErrorDecoder)
 }
 
 // ParseURL parses the supplied string as a URL and returns a new instance of Client with default options.
