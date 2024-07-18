@@ -20,7 +20,7 @@ type ID interface {
 // This enables users to create a set of enums keyed by a custom type
 // This set provides functionality for adding, getting, and validating enums of that type within the set
 type Set[T ID] struct {
-	m sync.Map
+	m *sync.Map
 }
 
 type Item[T any] struct {
@@ -28,8 +28,24 @@ type Item[T any] struct {
 	Label string
 }
 
-func NewSet[T ID]() Set[T] {
-	return Set[T]{}
+func NewItem[T ID](id T, label string) Item[T] {
+	return Item[T]{ID: id, Label: label}
+}
+
+func NewSet[T ID](items ...Item[T]) Set[T] {
+	set := Set[T]{m: new(sync.Map)}
+	for _, item := range items {
+		_ = set.Add(item.ID, item.Label)
+	}
+	return set
+}
+
+func NewSetFromMap[T ID](m map[T]string) Set[T] {
+	set := Set[T]{m: new(sync.Map)}
+	for k, v := range m {
+		_ = set.Add(k, v)
+	}
+	return set
 }
 
 // Add adds a new enum to the set
