@@ -12,7 +12,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/dave/jennifer v1.6.0
-	github.com/docker/docker v20.10.21+incompatible
+	github.com/docker/docker v27.0.3+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/fatih/structtag v1.2.0
 	github.com/fsnotify/fsnotify v1.7.0
@@ -30,7 +30,7 @@ require (
 	github.com/matoous/go-nanoid v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/opencontainers/image-spec v1.0.2
+	github.com/opencontainers/image-spec v1.1.0
 	github.com/pb33f/libopenapi v0.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/go-internal v1.12.0
@@ -93,6 +93,7 @@ require (
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
+	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
@@ -161,6 +162,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/term v0.0.0-20221128092401-c43b287e0e0f // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

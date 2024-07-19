@@ -9,6 +9,7 @@ import (
 	"github.com/discernhq/devx/pkg/utils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -122,7 +123,7 @@ type ImagePullParams struct {
 }
 
 func (p *Manager) PullImage(ctx context.Context, params ImagePullParams) (err error) {
-	reader, err := p.client.ImagePull(ctx, params.Image, types.ImagePullOptions{})
+	reader, err := p.client.ImagePull(ctx, params.Image, image.PullOptions{})
 	if err != nil {
 		return
 	}
@@ -136,7 +137,7 @@ func (p *Manager) PullImage(ctx context.Context, params ImagePullParams) (err er
 
 func (p *Manager) Cleanup(ctx context.Context) (err error) {
 	p.containers.Range(func(key string, value *Container) bool {
-		err = p.client.ContainerRemove(ctx, value.ID, types.ContainerRemoveOptions{
+		err = p.client.ContainerRemove(ctx, value.ID, containerapi.RemoveOptions{
 			Force: true,
 		})
 		return err != nil
@@ -162,8 +163,7 @@ func (p *Manager) Create(ctx context.Context, params CreateParams) (container *C
 
 	// guard on existing container
 	if errdefs.IsConflict(err) {
-		list, err := p.client.ContainerList(ctx, types.ContainerListOptions{
-			Quiet:   true,
+		list, err := p.client.ContainerList(ctx, containerapi.ListOptions{
 			Size:    false,
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("name", params.Name)),
@@ -243,7 +243,7 @@ func (p *Manager) Start(ctx context.Context, params StartParams, opts ...StartOp
 		return
 	}
 
-	err = p.client.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+	err = p.client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
 	if err != nil {
 		return
 	}
@@ -322,18 +322,20 @@ func (p *Manager) CreateAndStart(ctx context.Context, params CreateParams, opts 
 
 type StopParams struct {
 	ID      string
-	Timeout *time.Duration
+	Timeout *int
 }
 
 func NewDefaultStopParams(id string) *StopParams {
 	return &StopParams{
 		ID:      id,
-		Timeout: lo.ToPtr(time.Second * 30),
+		Timeout: lo.ToPtr(30),
 	}
 }
 
 func (p *Manager) Stop(ctx context.Context, params StopParams) (err error) {
-	return p.client.ContainerStop(ctx, params.ID, params.Timeout)
+	return p.client.ContainerStop(ctx, params.ID, containerapi.StopOptions{
+		Timeout: params.Timeout,
+	})
 }
 
 type containerManagerCtxKey struct{}
