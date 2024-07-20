@@ -95,7 +95,7 @@ func NewPostgresDB(
 		return
 	}
 
-	dsn = defaultDatabaseURL(address.HostPort())
+	dsn = defaultDatabaseURL(address.HostPort(), PostgresUserinfo)
 
 	db, err := sql.Open("postgres", dsn.String())
 	if err != nil {
@@ -110,6 +110,12 @@ func NewPostgresDB(
 		Timeout: params.Timeout,
 	}, WaitForPostgres(ctx, db, params.Timeout))
 
+	// create a read-write user this makes it easier to test row level security
+	err = createReadWriteUser(ctx, db)
+	if err != nil {
+		return
+	}
+
 	// create the logical database that will used by the test
 	// this allows us to reuse a single container
 	err = recreateTestDatabase(ctx, db, params.Database)
@@ -119,29 +125,52 @@ func NewPostgresDB(
 
 	// update the dsn to use the test database
 	dsn.Path = fmt.Sprintf("/%s", params.Database)
+	dsn.User = ReadWriteUserinfo
+
+	return
+}
+
+func createReadWriteUser(ctx context.Context, db *sql.DB) (err error) {
+	user := ReadWriteUserinfo.Username()
+	password, _ := ReadWriteUserinfo.Password()
+	recreateUserQuery := fmt.Sprintf(`
+		drop user if exists %s;
+		create user %s with password '%s';
+		grant pg_write_all_data to %s;
+		grant pg_read_all_data to %s;
+	`, user, user, password, user, user)
+	_, err = db.ExecContext(ctx, recreateUserQuery)
+	if err != nil {
+		return
+	}
 
 	return
 }
 
 func recreateTestDatabase(ctx context.Context, db *sql.DB, databaseName string) (err error) {
-	_, err = db.ExecContext(ctx, fmt.Sprintf("drop database if exists %s;", databaseName))
+	dropQuery := fmt.Sprintf("drop database if exists %s;", databaseName)
+	_, err = db.ExecContext(ctx, dropQuery)
 	if err != nil {
 		return
 	}
 
-	_, err = db.ExecContext(ctx, fmt.Sprintf("create database %s;", databaseName))
+	createQuery := fmt.Sprintf("create database %s;", databaseName)
+	_, err = db.ExecContext(ctx, createQuery)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func defaultDatabaseURL(hostPort string) *url.URL {
+var PostgresUserinfo = url.UserPassword("postgres", "password")
+var ReadWriteUserinfo = url.UserPassword("read_write", "password")
+
+func defaultDatabaseURL(hostPort string, userinfo *url.Userinfo) *url.URL {
 	dsn := &url.URL{
 		Path:   "/postgres", // initially connect to the default database
 		Scheme: "postgres",
 		Host:   hostPort,
-		User:   url.UserPassword("postgres", "password"),
+		User:   userinfo,
 	}
 	query := dsn.Query()
 	query.Set("sslmode", "disable")
@@ -172,7 +201,9 @@ func SetupPostgresDatabaseConnection(
 	}
 
 	var migrations *migrate.Migrate
-	migrations, err = params.LoadMigrations(dsn.String())
+	var adminDNS = defaultDatabaseURL(dsn.Host, PostgresUserinfo)
+	adminDNS.Path = dsn.Path
+	migrations, err = params.LoadMigrations(adminDNS.String())
 	if err != nil {
 		return
 	}
