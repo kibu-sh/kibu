@@ -111,10 +111,10 @@ func NewPostgresDB(
 	}, WaitForPostgres(ctx, db, params.Timeout))
 
 	// create a read-write user this makes it easier to test row level security
-	err = createReadWriteUser(ctx, db)
-	if err != nil {
-		return
-	}
+	//err = createReadWriteUser(ctx, db)
+	//if err != nil {
+	//	return
+	//}
 
 	// create the logical database that will used by the test
 	// this allows us to reuse a single container
@@ -125,14 +125,27 @@ func NewPostgresDB(
 
 	// update the dsn to use the test database
 	dsn.Path = fmt.Sprintf("/%s", params.Database)
-	dsn.User = ReadWriteUserinfo
 
+	// enable read-write user
+	//dsn.User = ReadWriteUserinfo
 	return
 }
 
 func createReadWriteUser(ctx context.Context, db *sql.DB) (err error) {
 	user := ReadWriteUserinfo.Username()
 	password, _ := ReadWriteUserinfo.Password()
+
+	checkUserQuery := fmt.Sprintf("select exists(select 1 from pg_roles where rolname='%s');", user)
+	var exists bool
+	err = db.QueryRowContext(ctx, checkUserQuery).Scan(&exists)
+	if err != nil {
+		return
+	}
+
+	if exists {
+		return
+	}
+
 	recreateUserQuery := fmt.Sprintf(`
 		drop user if exists %s;
 		create user %s with password '%s';
@@ -159,6 +172,14 @@ func recreateTestDatabase(ctx context.Context, db *sql.DB, databaseName string) 
 	if err != nil {
 		return
 	}
+
+	// TODO: having trouble with default user permissions
+	//user := ReadWriteUserinfo.Username()
+	//grantQuery := fmt.Sprintf("grant all privileges on database %s to %s;", databaseName, user)
+	//_, err = db.ExecContext(ctx, grantQuery)
+	//if err != nil {
+	//	return
+	//}
 	return
 }
 
