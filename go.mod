@@ -2,8 +2,6 @@ module github.com/discernhq/devx
 
 go 1.22
 
-replace github.com/protocolbuffers/txtpbfmt v0.0.0-20240611101534-dedd929c1c22 => github.com/protocolbuffers/txtpbfmt v0.0.0-20230328191034-3462fbc510c0
-
 require (
 	cloud.google.com/go/secretmanager v1.13.4
 	cuelang.org/go v0.9.2
@@ -170,7 +168,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20240611101534-dedd929c1c22 // indirect
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20230328191034-3462fbc510c0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
