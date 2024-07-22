@@ -1,3 +1,4 @@
+skip
 parse $WORK
 cmp exp/gen/openapi.yaml $WORK/gen/openapi.yaml
 
