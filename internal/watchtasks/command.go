@@ -2,6 +2,7 @@ package watchtasks
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,7 @@ func (b *Builder) runCmd(c Command) (err error) {
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	b.log.Debug("starting", cmd.String())
+	b.log.Debug("starting", slog.String("cmd", cmd.String()))
 	if err = cmd.Start(); err != nil {
 		goto cleanup
 	}

@@ -25,7 +25,7 @@ func DropOverflowWriteBehavior[T any](output chan []T, data []T) {
 	select {
 	case output <- data:
 	default:
-		slog.Default().Debug("channel is full dropping %d", len(data))
+		slog.Default().Debug("channel is full dropping overflow", slog.Int("size", len(data)))
 	}
 }
 

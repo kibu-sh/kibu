@@ -8,14 +8,9 @@ import (
 	"testing"
 )
 
-type anyEvent messaging.Event[any]
-type stringEvent messaging.Event[string]
-
-// compile time check that Topic implements Broker
-var _ messaging.Topic[anyEvent] = (*Topic[anyEvent])(nil)
-
 func TestTopic(t *testing.T) {
 	ctx := context.Background()
+	type stringEvent messaging.Event[string]
 
 	t.Run("should publish a message", func(t *testing.T) {
 		expected := "hello world"
@@ -30,13 +25,13 @@ func TestTopic(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		actual := <-stream
+		actual := <-stream.Channel()
 		require.Equal(t, expected, actual.Data)
 	})
 
 	t.Run("should return an error when channel limit is reached", func(t *testing.T) {
 		broker := NewTopic[stringEvent]()
-		broker.maxSize = 0
+		broker.dest = newChannelStream[stringEvent](0)
 		expected := "hello world"
 		err := broker.Publish(ctx, stringEvent{
 			ID:   uuid.New(),

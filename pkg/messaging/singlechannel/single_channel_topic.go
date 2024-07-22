@@ -2,12 +2,41 @@ package singlechannel
 
 import (
 	"context"
+	"github.com/discernhq/devx/pkg/messaging"
 	"github.com/pkg/errors"
 )
 
+var defaultMaxSize = 1000
+
+// compile time check that Topic implements Broker
+var _ messaging.Topic[any] = (*Topic[any])(nil)
+var _ messaging.Stream[any] = (*ChannelStream[any])(nil)
+
 type Topic[T any] struct {
 	maxSize int
-	dest    chan T
+	dest    *ChannelStream[T]
+}
+
+type ChannelStream[T any] struct {
+	ch chan T
+}
+
+func (c ChannelStream[T]) Channel() <-chan T {
+	return c.ch
+}
+
+func (c ChannelStream[T]) Next(ctx context.Context) (message T, hasNext bool, err error) {
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+		return
+	case message, hasNext = <-c.ch:
+		return
+	}
+}
+
+func (c ChannelStream[T]) Unsubscribe() {
+	close(c.ch)
 }
 
 var ErrSendFailed = errors.New("send failed")
@@ -20,7 +49,7 @@ func (c *Topic[T]) Publish(ctx context.Context, message T) (err error) {
 	case <-ctx.Done():
 		err = ctx.Err()
 		break
-	case c.dest <- message:
+	case c.dest.ch <- message:
 		break
 	default:
 		err = ErrChannelFull
@@ -33,23 +62,8 @@ func (c *Topic[T]) Publish(ctx context.Context, message T) (err error) {
 // This Topic does not support multiple subscribers
 // Messages will be consumed by the first subscriber
 // If multiple subscribers receive the stream messages will be load balanced by Go channel consumption semantics
-func (c *Topic[T]) Subscribe(_ context.Context) (stream <-chan T, err error) {
-	if c.dest == nil {
-		c.dest = make(chan T, c.maxSize)
-	}
-	stream = c.dest
-	return
-}
-
-func (c *Topic[T]) Unsubscribe(_ context.Context, stream <-chan T) (err error) {
-	if c.dest != stream {
-		err = errors.New("cannot unsubscribe from a stream that was not returned by Subscribe")
-		return
-	}
-
-	close(c.dest)
-	c.dest = nil
-	return
+func (c *Topic[T]) Subscribe(_ context.Context) (messaging.Stream[T], error) {
+	return c.dest, nil
 }
 
 // NewTopic returns a new instance of Topic
@@ -57,6 +71,11 @@ func (c *Topic[T]) Unsubscribe(_ context.Context, stream <-chan T) (err error) {
 // This Topic does not support multiple subscribers
 func NewTopic[T any]() *Topic[T] {
 	return &Topic[T]{
-		maxSize: 1000,
+		maxSize: defaultMaxSize,
+		dest:    newChannelStream[T](defaultMaxSize),
 	}
+}
+
+func newChannelStream[T any](maxSize int) *ChannelStream[T] {
+	return &ChannelStream[T]{ch: make(chan T, maxSize)}
 }
