@@ -19,7 +19,7 @@ func TestNewContextLoader(t *testing.T) {
 	store2 := NewStore[User, key2]()
 
 	t.Run("should be able to save and load a value from a context", func(t *testing.T) {
-		expected := &User{ID: "test"}
+		expected := User{ID: "test"}
 		ctx := store.Save(context.Background(), expected)
 		actual, err := store.Load(ctx)
 		require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("keys should not collide", func(t *testing.T) {
-		expected := &User{ID: "test"}
+		expected := User{ID: "test"}
 		isolated := context.Background()
 		isolated = store.Save(isolated, expected)
 		_, err := store2.Load(isolated)
