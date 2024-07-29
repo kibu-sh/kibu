@@ -429,6 +429,7 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 		for _, field := range structFields(params.ty) {
 			searchTag, _ := field.Tags.Get(params.searchTagName)
 			validateTag, _ := field.Tags.Get("validate")
+			openApiTag, _ := field.Tags.Get("openapi")
 			fieldName := useStructTagNameOrFieldName(searchTag, field.Var.Name())
 			fieldType := field.Var.Type()
 
@@ -439,6 +440,18 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 
 			if shouldBeMarkedAsRequired(fieldType, validateTag, params.dtoType) {
 				schemaDefinition.Required = append(schemaDefinition.Required, fieldName)
+			}
+
+			if openApiTag != nil {
+				tagOptions := parseOptions(openApiTag.Options)
+				dataType, _ := tagOptions.Get("type")
+				dataFormat, _ := tagOptions.Get("format")
+				schemaDefinition.Properties[fieldName] = base.CreateSchemaProxy(&base.Schema{
+					Type:     []string{dataType.Value},
+					Format:   dataFormat.Value,
+					Nullable: lo.ToPtr(tagOptions.Has("nullable")),
+				})
+				continue
 			}
 
 			var fieldSchema *base.SchemaProxy
@@ -723,4 +736,55 @@ func maxPathSuffix(name string, segments int) string {
 
 	// Take the last 'segments' parts and join them back
 	return strings.Join(parts[len(parts)-segments:], "/")
+}
+
+type TagOption struct {
+	Name  string
+	Value string
+}
+
+type TagOptions []TagOption
+
+func (t TagOptions) Has(name string) bool {
+	for _, option := range t {
+		if option.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (t TagOptions) Get(name string) (to TagOption, ok bool) {
+	for _, option := range t {
+		if option.Name == name {
+			return option, true
+		}
+	}
+	return
+}
+
+func (t TagOptions) GetErr(name string) (TagOption, error) {
+	if to, ok := t.Get(name); ok {
+		return to, nil
+	}
+	return TagOption{}, fmt.Errorf("tag option %s not found", name)
+}
+
+func parseOptions(options []string) TagOptions {
+	var tagOptions TagOptions
+	for _, option := range options {
+		parts := strings.Split(option, ":")
+		switch len(parts) {
+		case 1:
+			tagOptions = append(tagOptions, TagOption{
+				Name: parts[0],
+			})
+		case 2:
+			tagOptions = append(tagOptions, TagOption{
+				Name:  parts[0],
+				Value: parts[1],
+			})
+		}
+	}
+	return tagOptions
 }

@@ -8,3 +8,7 @@ go.build:
 	@echo "Building..."
 	@go build ./...
 .PHONY: go.build
+
+install:
+	@go install ./cmd/devx
+.PHONY: install
