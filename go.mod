@@ -1,6 +1,6 @@
 module github.com/discernhq/devx
 
-go 1.22
+go 1.23
 
 require (
 	cloud.google.com/go/secretmanager v1.11.5
@@ -12,7 +12,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/dave/jennifer v1.6.0
-	github.com/docker/docker v27.0.3+incompatible
+	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/fatih/structtag v1.2.0
 	github.com/fsnotify/fsnotify v1.7.0
