@@ -24,7 +24,7 @@ func NewTCPListener(addr ListenAddr) (net.Listener, error) {
 func NewServer(params *NewServerParams) (*http.Server, error) {
 	log := slog.Default()
 	for _, handler := range params.Handlers {
-		log.Debug(fmt.Sprintf("[kibue.transport.httpx] %s %s",
+		log.Debug(fmt.Sprintf("[kibu.transport.httpx] %s %s",
 			handler.Methods, handler.Path))
 		params.Mux.Handle(handler)
 	}

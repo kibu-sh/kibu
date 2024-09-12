@@ -7,7 +7,7 @@ module github.com/example/module
 package auth
 
 // service handles authentication
-//kibue:service
+//kibu:service
 type service struct {}
 
 -- pkg/auth/auth_verify.go --
@@ -20,7 +20,7 @@ type VerifyResponse struct {}
 
 // Send sends an authentication request
 //   Here's some other comment related stuff
-//kibue:endpoint path=/verify method=GET
+//kibu:endpoint path=/verify method=GET
 func (s *service) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
 	return
 }
@@ -31,12 +31,12 @@ package auth
 import ("context")
 
 // service handles authentication
-//kibue:worker workflow
+//kibu:worker workflow
 type workflows struct {}
 
 // Verify sends an authentication request
 //   Here's some other comment related stuff
-//kibue:workflow
+//kibu:workflow
 func (*workflows) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
 	return
 }
@@ -44,27 +44,27 @@ func (*workflows) Verify(ctx context.Context, req VerifyRequest) (res VerifyResp
 // TODO: add validation run that prevents activities and workflows from being in the same struct
 
 // service handles authentication
-//kibue:worker activity
+//kibu:worker activity
 type activities struct {}
 
 // Verify sends an authentication request
 //   Here's some other comment related stuff
-//kibue:activity
+//kibu:activity
 func (activities) Verify(ctx context.Context, req VerifyRequest) (res VerifyResponse, err error) {
 	return
 }
 
-//kibue:provider
+//kibu:provider
 func initService() (*service, error) {
 	return &service{}, nil
 }
 
-//kibue:provider
+//kibu:provider
 func initWorkflows() (*workflows, error) {
 	return &workflows{}, nil
 }
 
-//kibue:provider
+//kibu:provider
 func initActivities() (*activities, error) {
 	return &activities{}, nil
 }

@@ -11,7 +11,7 @@ import (
 	"context"
 )
 
-//kibue:worker workflow
+//kibu:worker workflow
 type Service struct {}
 
 type Request struct {
@@ -22,7 +22,7 @@ type Response struct {
   Name string `json:"name"`
 }
 
-//kibue:workflow
+//kibu:workflow
 func (wf *Workflow) Example(ctx context.Context, req Request) (res Response, err error) {return}
 
 -- exp/gen/openapi.yaml --

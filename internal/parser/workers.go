@@ -66,7 +66,7 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		// TODO: inject logger
 		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
-		dir, isWorker := dirs.Find(directive.HasKey("kibue", "worker"))
+		dir, isWorker := dirs.Find(directive.HasKey("kibu", "worker"))
 		if !isWorker {
 			return
 		}
@@ -115,8 +115,8 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 		}
 
 		_, isMethod := dirs.Find(directive.OneOf(
-			directive.HasKey("kibue", "workflow"),
-			directive.HasKey("kibue", "activity"),
+			directive.HasKey("kibu", "workflow"),
+			directive.HasKey("kibu", "activity"),
 		))
 
 		if !isMethod {

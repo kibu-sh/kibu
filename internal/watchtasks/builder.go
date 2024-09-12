@@ -94,7 +94,7 @@ func NewBuilder(ctx context.Context, opts ...BuilderOption) (b *Builder, err err
 	}
 
 	b.rootCtx, b.shutdown = context.WithCancel(ctx)
-	b.tmpDir, err = os.MkdirTemp("", "kibue-buildout-*")
+	b.tmpDir, err = os.MkdirTemp("", "kibu-buildout-*")
 	if err != nil {
 		return
 	}

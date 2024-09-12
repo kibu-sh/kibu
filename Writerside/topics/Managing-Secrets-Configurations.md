@@ -23,7 +23,7 @@ This command will open a file in your editor and wait for it to be released befo
 Try adding some JSON data to the file and saving it.
 ```Bash
 export EDITOR="idea -w"
-kibue config edit [KEY] -e [ENV]
+kibu config edit [KEY] -e [ENV]
 ```
 
 ```json
@@ -53,7 +53,7 @@ You'll notice there's a new, encrypted file in your configuration store.
 
 Now, you can see the contents in your terminal by running
 ```Bash
-kibue config get [key] -e [env]
+kibu config get [key] -e [env]
 ```
 
 You should see the data we saved when using the edit command.`

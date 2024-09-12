@@ -10,5 +10,5 @@ go.build:
 .PHONY: go.build
 
 install:
-	@go install ./cmd/kibue
+	@go install ./cmd/kibu
 .PHONY: install

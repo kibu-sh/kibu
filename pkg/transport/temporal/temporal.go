@@ -49,7 +49,7 @@ func NewWorker(
 			logger.With("queue", queue).
 				With("type", def.Type).
 				With("name", def.Name).
-				Debug(fmt.Sprintf("[kibue.transport.temporal] %s %s", def.Type, def.Name))
+				Debug(fmt.Sprintf("[kibu.transport.temporal] %s %s", def.Type, def.Name))
 			switch def.Type {
 			case "workflow":
 				w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{

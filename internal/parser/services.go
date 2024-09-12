@@ -174,7 +174,7 @@ func collectServices(pkg *Package) defMapperFunc {
 		// TODO: inject logger
 		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
-		if !dirs.Some(directive.HasKey("kibue", "service")) {
+		if !dirs.Some(directive.HasKey("kibu", "service")) {
 			return
 		}
 
@@ -205,7 +205,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			continue
 		}
 
-		dir, isEndpoint := dirs.Find(directive.HasKey("kibue", "endpoint"))
+		dir, isEndpoint := dirs.Find(directive.HasKey("kibu", "endpoint"))
 		if !isEndpoint {
 			continue
 		}

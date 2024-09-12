@@ -1,4 +1,4 @@
-package kibue
+package kibu
 
 // issues with type aliases
 // https://github.com/golang/go/milestone/250

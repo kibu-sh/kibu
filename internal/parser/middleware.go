@@ -24,7 +24,7 @@ func collectMiddleware(p *Package) defMapperFunc {
 			return
 		}
 
-		dir, isMiddleware := dirs.Find(directive.HasKey("kibue", "middleware"))
+		dir, isMiddleware := dirs.Find(directive.HasKey("kibu", "middleware"))
 		if !isMiddleware {
 			return
 		}

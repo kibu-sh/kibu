@@ -1,0 +1,1 @@
+consider the sqlc plugin for ORM features

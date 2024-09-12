@@ -21,9 +21,9 @@ type RootCommandParams struct {
 
 func NewRootCmd(params RootCommandParams) (root RootCmd) {
 	root.Command = &cobra.Command{
-		Use:   "kibue",
-		Short: "kibue is a backend development engine for developer productivity",
-		Long:  `kibue is a backend development engine for developer productivity`,
+		Use:   "kibu",
+		Short: "kibu is a backend development engine for developer productivity",
+		Long:  `kibu is a backend development engine for developer productivity`,
 	}
 
 	// TODO: don't ignore these

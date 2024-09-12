@@ -5959,7 +5959,7 @@ packages:
     dev: false
 
   /source-map@0.5.7:
-    resolution: {integrity: sha512-LbrmJOMUSkibueIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ==}
+    resolution: {integrity: sha512-LbrmJOMUSkibuIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ==}
     engines: {node: '>=0.10.0'}
     dev: false
 

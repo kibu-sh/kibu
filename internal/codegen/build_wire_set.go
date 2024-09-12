@@ -10,7 +10,7 @@ var (
 )
 
 func BuildWireSet(opts *PipelineOptions) (err error) {
-	f := opts.FileSet.Get(kibueGenWireSetPath(opts))
+	f := opts.FileSet.Get(kibuGenWireSetPath(opts))
 	f.Var().Id("WireSet").Op("=").Qual(googleWire, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
 		g.Id("ProvideHTTPHandlers")
 		g.Id("ProvideWorkers")

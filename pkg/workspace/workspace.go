@@ -162,34 +162,34 @@ func CueLoader(c *Config) (err error) {
 	return err
 }
 
-func kibueDirBase() string {
+func kibuDirBase() string {
 	return ".kibu"
 }
 
-func kibueDirRelPath(pathSegments ...string) string {
-	pathSegments = append([]string{kibueDirBase()}, pathSegments...)
+func kibuDirRelPath(pathSegments ...string) string {
+	pathSegments = append([]string{kibuDirBase()}, pathSegments...)
 	return filepath.Join(pathSegments...)
 }
 
-func kibueWorkspaceCueFile() string {
-	return kibueDirRelPath("workspace.cue")
+func kibuWorkspaceCueFile() string {
+	return kibuDirRelPath("workspace.cue")
 }
 
 func NewWorkspaceConfig() (*Config, error) {
 	return LoadConfigFromCWD(LoadConfigParams{
 		DetermineRootParams: DetermineRootParams{
-			SearchSuffix: kibueWorkspaceCueFile(),
+			SearchSuffix: kibuWorkspaceCueFile(),
 		},
 		LoaderFunc: CueLoader,
 	})
 }
 
-func kibueStoreDir() string {
-	return kibueDirRelPath("store/config")
+func kibuStoreDir() string {
+	return kibuDirRelPath("store/config")
 }
 
 func StoreRoot(ws *Config) string {
-	return filepath.Join(ws.Root(), kibueStoreDir())
+	return filepath.Join(ws.Root(), kibuStoreDir())
 }
 
 func StorePathWithEnv(ws *Config, env string) string {
@@ -201,12 +201,12 @@ func NewEnvScopedFileStore(ctx context.Context, ws *Config, env string) (*config
 }
 
 func DefaultConfigStore(env string) (store *config.FileStore, err error) {
-	root, err := DetermineRootFromCWD(kibueDirBase())
+	root, err := DetermineRootFromCWD(kibuDirBase())
 	if err != nil {
 		return
 	}
 
-	store = config.NewDefaultFileStore(filepath.Join(root, kibueStoreDir(), env))
+	store = config.NewDefaultFileStore(filepath.Join(root, kibuStoreDir(), env))
 	return
 }
 

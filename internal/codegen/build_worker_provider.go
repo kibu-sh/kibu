@@ -10,7 +10,7 @@ var (
 )
 
 func BuildWorkerProviders(opts *PipelineOptions) (err error) {
-	f := opts.FileSet.Get(kibueGenWireSetPath(opts))
+	f := opts.FileSet.Get(kibuGenWireSetPath(opts))
 	f.Type().Id(workerFactoryDepsID).StructFunc(func(g *jen.Group) {
 		for _, wrk := range opts.Workers {
 			// TODO: id might collide
@@ -22,7 +22,7 @@ func BuildWorkerProviders(opts *PipelineOptions) (err error) {
 	f.Func().Id("ProvideWorkers").Params(
 		jen.Id("deps").Op("*").Id(workerFactoryDepsID),
 	).ParamsFunc(func(g *jen.Group) {
-		g.Id("workers").Index().Op("*").Qual(kibueTemporal, "Worker")
+		g.Id("workers").Index().Op("*").Qual(kibuTemporal, "Worker")
 	}).BlockFunc(func(g *jen.Group) {
 		for _, wrk := range opts.Workers {
 			g.Id("workers").Op("=").AppendFunc(func(g *jen.Group) {

@@ -6,10 +6,10 @@ load $WORK/level1/level2/level3
 package workspace
 
 import (
-  "discern.com/kibue"
+  "discern.com/kibu"
 )
 
-kibue.#Workspace & {
+kibu.#Workspace & {
   ConfigStore: {
     EncryptionKeys: [{
       Env: "development"
