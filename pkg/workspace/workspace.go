@@ -163,7 +163,7 @@ func CueLoader(c *Config) (err error) {
 }
 
 func DevxDirBase() string {
-	return ".devx"
+	return ".kibu"
 }
 
 func DevxDirRelPath(pathSegments ...string) string {

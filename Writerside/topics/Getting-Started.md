@@ -7,7 +7,7 @@ go get github.com/kibu-sh/kibu
 go install github.com/kibu-sh/kibu/cmd/devx@main
 go install github.com/google/wire/cmd/wire@latest
 devx init # does not work right now
-# should copy .devx/ and cue.mod to your project
+# should copy .kibu/ and cue.mod to your project
 # wire generate is required to produce the first version with a generate directive
 ```
 
@@ -20,12 +20,12 @@ package discern
 
 ## Recommended Structure
 ```
-mkdir -p .devx/store
+mkdir -p .kibu/store
 mkdir -p src/backend/cmd/server
 mkdir -p src/backend/systems/health
 mkdir -p src/backend/systems/health/healthspec
 touch docker-compose.yml
-touch .devx/workspace.cue
+touch .kibu/workspace.cue
 touch src/backend/cmd/server/server.go
 touch src/backend/cmd/server/foreman.go
 touch src/backend/cmd/server/wire.go

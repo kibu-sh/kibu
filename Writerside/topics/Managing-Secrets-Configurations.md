@@ -34,7 +34,7 @@ devx config edit [KEY] -e [ENV]
 
 You'll notice there's a new, encrypted file in your configuration store.
 ```
-.devx/store/config/[ENV]/[KEY].enc.json
+.kibu/store/config/[ENV]/[KEY].enc.json
 ```
 
 ```json

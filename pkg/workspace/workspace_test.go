@@ -20,7 +20,7 @@ func TestAll(t *testing.T) {
 				config, err := LoadConfig(LoadConfigParams{
 					DetermineRootParams: DetermineRootParams{
 						StartDir:     args[0],
-						SearchSuffix: ".devx/workspace.cue",
+						SearchSuffix: ".kibu/workspace.cue",
 					},
 					LoaderFunc: CueLoader,
 				})
@@ -33,10 +33,10 @@ func TestAll(t *testing.T) {
 				cwd := ts.Getenv("WORK")
 				root, err := DetermineRoot(DetermineRootParams{
 					StartDir:     args[0],
-					SearchSuffix: ".devx",
+					SearchSuffix: ".kibu",
 				})
 				require.Equal(t, cwd, root)
-				require.FileExistsf(t, filepath.Join(cwd, ".devx/workspace.cue"), "expected to find .devx in %s", cwd)
+				require.FileExistsf(t, filepath.Join(cwd, ".kibu/workspace.cue"), "expected to find .kibu in %s", cwd)
 				ts.Check(err)
 			},
 		},
