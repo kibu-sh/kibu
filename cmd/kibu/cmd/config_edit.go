@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"github.com/kibu-sh/kibu/cmd/devx/cmd/cliflags"
+	"github.com/kibu-sh/kibu/cmd/kibu/cmd/cliflags"
 	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/spf13/cobra"

@@ -4,27 +4,27 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
-	"github.com/kibu-sh/kibu/cmd/devx/cmd/cliflags"
+	"github.com/kibu-sh/kibu/cmd/kibu/cmd/cliflags"
 	"github.com/spf13/cobra"
 )
 
-type MigrateDownCmd struct {
+type MigrateUpCmd struct {
 	*cobra.Command
 }
 
-type NewMigrateDownCmdParams struct{}
+type NewMigrateUpCmdParams struct{}
 
-func NewMigrateDownCmd(params NewMigrateDownCmdParams) (cmd MigrateDownCmd) {
+func NewMigrateUpCmd(params NewMigrateUpCmdParams) (cmd MigrateUpCmd) {
 	cmd.Command = &cobra.Command{
-		Use:   "down",
-		Short: "down",
-		Long:  `down`,
-		RunE:  newMigrateDownRunE(),
+		Use:   "up",
+		Short: "up",
+		Long:  `up`,
+		RunE:  newMigrateUpRunE(),
 	}
 	return
 }
 
-func newMigrateDownRunE() RunE {
+func newMigrateUpRunE() RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		m, err := migrate.New(
 			cliflags.MigrateDir.Value(),
@@ -33,6 +33,6 @@ func newMigrateDownRunE() RunE {
 		if err != nil {
 			return
 		}
-		return m.Down()
+		return m.Up()
 	}
 }
