@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"net/http"
 )
 

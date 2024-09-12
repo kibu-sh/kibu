@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
+	"github.com/kibu-sh/kibu/cmd/devx/cmd/cliflags"
 	"github.com/spf13/cobra"
 )
 

@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/discernhq/devx/internal/parser"
+	"github.com/kibu-sh/kibu/internal/parser"
 	"go/token"
 	"os"
 	"path/filepath"

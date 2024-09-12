@@ -1,6 +1,6 @@
 package httpx
 
-import "github.com/discernhq/devx/pkg/transport"
+import "github.com/kibu-sh/kibu/pkg/transport"
 
 type Codec struct {
 	transport.Encoder

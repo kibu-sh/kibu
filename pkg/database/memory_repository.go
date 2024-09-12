@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/utils"
+	"github.com/kibu-sh/kibu/pkg/utils"
 	"github.com/pkg/errors"
 )
 

@@ -3,7 +3,7 @@ package httpx
 import (
 	"bytes"
 	"context"
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"io"
 	"mime"
 	"net/http"

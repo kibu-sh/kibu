@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/discernhq/devx/internal/parser"
+	"github.com/kibu-sh/kibu/internal/parser"
 	"sort"
 )
 
@@ -79,9 +79,9 @@ func transportNewEndpoint(q qualifier, raw bool) *jen.Statement {
 	if raw {
 		method = "NewRawEndpoint"
 	}
-	return q.Qual("github.com/discernhq/devx/pkg/transport", method)
+	return q.Qual("github.com/kibu-sh/kibu/pkg/transport", method)
 }
 
 func httpxNewHandler(q qualifier) *jen.Statement {
-	return q.Qual("github.com/discernhq/devx/pkg/transport/httpx", "NewHandler")
+	return q.Qual("github.com/kibu-sh/kibu/pkg/transport/httpx", "NewHandler")
 }

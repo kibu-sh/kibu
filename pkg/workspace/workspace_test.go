@@ -1,7 +1,7 @@
 package workspace
 
 import (
-	cuemod "github.com/discernhq/devx/cue.mod"
+	cuemod "github.com/kibu-sh/kibu/cue.mod"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 	"path/filepath"

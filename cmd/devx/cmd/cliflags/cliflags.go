@@ -1,6 +1,6 @@
 package cliflags
 
-import "github.com/discernhq/devx/pkg/cli"
+import "github.com/kibu-sh/kibu/pkg/cli"
 
 var (
 	Environment = cli.Flag[string]{

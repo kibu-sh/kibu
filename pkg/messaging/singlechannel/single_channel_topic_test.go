@@ -2,8 +2,8 @@ package singlechannel
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/messaging"
 	"github.com/google/uuid"
+	"github.com/kibu-sh/kibu/pkg/messaging"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

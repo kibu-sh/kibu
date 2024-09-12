@@ -1,7 +1,7 @@
 package table
 
 import (
-	"github.com/discernhq/devx/pkg/database/xql"
+	"github.com/kibu-sh/kibu/pkg/database/xql"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

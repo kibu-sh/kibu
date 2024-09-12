@@ -2,7 +2,7 @@ package watchtui
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/discernhq/devx/internal/watchtasks"
+	"github.com/kibu-sh/kibu/internal/watchtasks"
 )
 
 var baseStatusStyle = lipgloss.NewStyle().

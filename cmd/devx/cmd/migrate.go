@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
+	"github.com/kibu-sh/kibu/cmd/devx/cmd/cliflags"
 	"github.com/spf13/cobra"
 )
 

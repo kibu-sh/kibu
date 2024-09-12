@@ -2,8 +2,8 @@ package httpx
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/transport"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/pkg/errors"
 	"mime"
 	"net/http"

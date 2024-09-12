@@ -1,7 +1,7 @@
 package httpx
 
 import (
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 )
 
 var _ transport.Context = (*Context)(nil)

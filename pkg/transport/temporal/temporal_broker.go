@@ -2,7 +2,7 @@ package temporal
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/messaging"
+	"github.com/kibu-sh/kibu/pkg/messaging"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 	"time"

@@ -3,7 +3,7 @@ package archive
 import (
 	"bufio"
 	"bytes"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
 	"github.com/pkg/errors"
 	"github.com/rogpeppe/go-internal/txtar"
 	"net/http"

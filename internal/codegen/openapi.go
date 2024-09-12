@@ -3,8 +3,8 @@ package codegen
 import (
 	"errors"
 	"fmt"
-	"github.com/discernhq/devx/internal/parser"
 	"github.com/fatih/structtag"
+	"github.com/kibu-sh/kibu/internal/parser"
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/samber/lo"
@@ -719,7 +719,7 @@ func getCachedComponentRef(doc *v3.Document, key string, build func() (*base.Sch
 
 // maxPathSuffix returns the maximum path specificity started at the end.
 //
-//	maxPathSuffix("github.com/discernhq/devx/src/backend/systems/foo/bar.Request", 2) => "foo/bar.Request"
+//	maxPathSuffix("github.com/kibu-sh/kibu/src/backend/systems/foo/bar.Request", 2) => "foo/bar.Request"
 func maxPathSuffix(name string, segments int) string {
 	// If segments is -1, return the original name
 	if segments == -1 {

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/discernhq/devx/internal/codegen"
+	"github.com/kibu-sh/kibu/internal/codegen"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"

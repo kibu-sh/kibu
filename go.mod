@@ -1,4 +1,4 @@
-module github.com/discernhq/devx
+module github.com/kibu-sh/kibu
 
 go 1.23
 

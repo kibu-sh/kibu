@@ -4,7 +4,7 @@ package watchtasks
 //import (
 //	"context"
 //	"cuelang.org/go/pkg/time"
-//	"github.com/discernhq/devx/internal/fswatch"
+//	"github.com/kibu-sh/kibu/internal/fswatch"
 //	"github.com/stretchr/testify/require"
 //	"github.com/stretchr/testify/suite"
 //	"os"

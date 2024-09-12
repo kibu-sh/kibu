@@ -1,7 +1,7 @@
 package watchtasks
 
 import (
-	"github.com/discernhq/devx/internal/fswatch"
+	"github.com/kibu-sh/kibu/internal/fswatch"
 	"slices"
 )
 

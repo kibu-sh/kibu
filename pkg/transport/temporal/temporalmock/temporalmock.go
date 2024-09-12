@@ -2,7 +2,7 @@ package temporalmock
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/transport/temporal"
+	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )

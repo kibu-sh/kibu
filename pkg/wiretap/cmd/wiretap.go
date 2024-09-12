@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/discernhq/devx/pkg/wiretap"
-	"github.com/discernhq/devx/pkg/wiretap/certgen"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
-	"github.com/discernhq/devx/pkg/wiretap/routers/dynamic"
-	"github.com/discernhq/devx/pkg/wiretap/rules/requestrules"
-	"github.com/discernhq/devx/pkg/wiretap/stores/archive"
+	"github.com/kibu-sh/kibu/pkg/wiretap"
+	"github.com/kibu-sh/kibu/pkg/wiretap/certgen"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/routers/dynamic"
+	"github.com/kibu-sh/kibu/pkg/wiretap/rules/requestrules"
+	"github.com/kibu-sh/kibu/pkg/wiretap/stores/archive"
 	"github.com/pkg/errors"
 	"log/slog"
 	"os"

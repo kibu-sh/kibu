@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/discernhq/devx/internal/buffchan"
-	"github.com/discernhq/devx/internal/fswatch"
-	"github.com/discernhq/devx/internal/watchtasks"
-	"github.com/discernhq/devx/internal/watchtasks/watchtui"
-	"github.com/discernhq/devx/pkg/appcontext"
+	"github.com/kibu-sh/kibu/internal/buffchan"
+	"github.com/kibu-sh/kibu/internal/fswatch"
+	"github.com/kibu-sh/kibu/internal/watchtasks"
+	"github.com/kibu-sh/kibu/internal/watchtasks/watchtui"
+	"github.com/kibu-sh/kibu/pkg/appcontext"
 	"os"
 	"path/filepath"
 	"time"

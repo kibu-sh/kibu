@@ -2,7 +2,7 @@ package spec
 
 import (
 	"bytes"
-	"github.com/discernhq/devx/pkg/wiretap/internal/internaltools"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/internaltools"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"

@@ -2,8 +2,8 @@ package adminserver
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
-	"github.com/discernhq/devx/pkg/wiretap/ui"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/ui"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"log/slog"

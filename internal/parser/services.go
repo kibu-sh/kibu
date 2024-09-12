@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/parser/directive"
 	"go/ast"
 	"go/token"
 	"go/types"

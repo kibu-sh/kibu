@@ -3,8 +3,8 @@ package watchtui
 import (
 	"context"
 	"fmt"
-	"github.com/discernhq/devx/internal/watchtasks"
-	"github.com/discernhq/devx/pkg/messaging"
+	"github.com/kibu-sh/kibu/internal/watchtasks"
+	"github.com/kibu-sh/kibu/pkg/messaging"
 	"strings"
 	"time"
 

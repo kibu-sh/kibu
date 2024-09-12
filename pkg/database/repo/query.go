@@ -2,8 +2,8 @@ package repo
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/database/table"
-	"github.com/discernhq/devx/pkg/database/xql"
+	"github.com/kibu-sh/kibu/pkg/database/table"
+	"github.com/kibu-sh/kibu/pkg/database/xql"
 )
 
 var _ QueryMethods[any] = (*Query[any])(nil)

@@ -3,8 +3,8 @@ package workspace
 import (
 	"context"
 	"encoding/json"
-	"github.com/discernhq/devx/internal/cuecore"
-	"github.com/discernhq/devx/pkg/config"
+	"github.com/kibu-sh/kibu/internal/cuecore"
+	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"os"

@@ -1,8 +1,8 @@
 package spec
 
 import (
-	"github.com/discernhq/devx/pkg/messaging"
-	"github.com/discernhq/devx/pkg/messaging/multichannel"
+	"github.com/kibu-sh/kibu/pkg/messaging"
+	"github.com/kibu-sh/kibu/pkg/messaging/multichannel"
 	"time"
 )
 

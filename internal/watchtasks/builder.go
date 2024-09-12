@@ -2,9 +2,9 @@ package watchtasks
 
 import (
 	"context"
-	"github.com/discernhq/devx/internal/fswatch"
-	"github.com/discernhq/devx/pkg/messaging"
-	"github.com/discernhq/devx/pkg/messaging/multichannel"
+	"github.com/kibu-sh/kibu/internal/fswatch"
+	"github.com/kibu-sh/kibu/pkg/messaging"
+	"github.com/kibu-sh/kibu/pkg/messaging/multichannel"
 	"github.com/pkg/errors"
 	"log/slog"
 	"os"

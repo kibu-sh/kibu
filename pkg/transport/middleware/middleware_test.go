@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"

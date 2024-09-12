@@ -3,7 +3,7 @@ package slogx
 import (
 	"bytes"
 	"fmt"
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/pkg/errors"
 	"log/slog"
 	"net/http"

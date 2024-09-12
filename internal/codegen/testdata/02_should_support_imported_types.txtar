@@ -50,10 +50,10 @@ package foo
 
 import (
 	"context"
-	transport "github.com/discernhq/devx/pkg/transport"
-	httpx "github.com/discernhq/devx/pkg/transport/httpx"
-	middleware "github.com/discernhq/devx/pkg/transport/middleware"
-	temporal "github.com/discernhq/devx/pkg/transport/temporal"
+	transport "github.com/kibu-sh/kibu/pkg/transport"
+	httpx "github.com/kibu-sh/kibu/pkg/transport/httpx"
+	middleware "github.com/kibu-sh/kibu/pkg/transport/middleware"
+	temporal "github.com/kibu-sh/kibu/pkg/transport/temporal"
 	spec1 "github.com/example/module/systems/bar/spec"
 	spec "github.com/example/module/systems/foo/spec"
 	client "go.temporal.io/sdk/client"

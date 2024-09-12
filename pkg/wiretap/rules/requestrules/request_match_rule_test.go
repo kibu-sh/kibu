@@ -1,7 +1,7 @@
 package requestrules
 
 import (
-	"github.com/discernhq/devx/pkg/wiretap/compare"
+	"github.com/kibu-sh/kibu/pkg/wiretap/compare"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"strings"

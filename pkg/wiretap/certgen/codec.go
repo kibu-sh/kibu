@@ -4,7 +4,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
 	"github.com/pkg/errors"
 	"io"
 	"os"

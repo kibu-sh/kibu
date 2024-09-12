@@ -3,7 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/parser/directive"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"

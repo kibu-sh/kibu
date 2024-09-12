@@ -1,7 +1,7 @@
 package dynamic
 
 import (
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

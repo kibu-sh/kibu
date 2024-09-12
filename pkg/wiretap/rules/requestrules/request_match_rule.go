@@ -1,9 +1,9 @@
 package requestrules
 
 import (
-	"github.com/discernhq/devx/pkg/wiretap/compare"
-	"github.com/discernhq/devx/pkg/wiretap/internal/internaltools"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/compare"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/internaltools"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
 	"io"
 	"net/http"
 )

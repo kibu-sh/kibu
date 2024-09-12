@@ -21,7 +21,7 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	f.Func().Id("ProvideHTTPHandlers").Params(
 		jen.Id("deps").Op("*").Id("HTTPHandlerFactoryDeps"),
 	).ParamsFunc(func(g *jen.Group) {
-		g.Id("handlers").Index().Op("*").Qual("github.com/discernhq/devx/pkg/transport/httpx", "Handler")
+		g.Id("handlers").Index().Op("*").Qual("github.com/kibu-sh/kibu/pkg/transport/httpx", "Handler")
 	}).BlockFunc(func(g *jen.Group) {
 		for _, svc := range opts.Services {
 			g.Id("handlers").Op("=").AppendFunc(func(g *jen.Group) {

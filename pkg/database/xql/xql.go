@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	sq "github.com/Masterminds/squirrel"
-	"github.com/discernhq/devx/pkg/ctxutil"
 	"github.com/jmoiron/sqlx"
+	"github.com/kibu-sh/kibu/pkg/ctxutil"
 	"github.com/pkg/errors"
 )
 

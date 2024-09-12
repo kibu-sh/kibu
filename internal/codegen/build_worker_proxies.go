@@ -2,8 +2,8 @@ package codegen
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/discernhq/devx/internal/parser"
 	"github.com/huandu/xstrings"
+	"github.com/kibu-sh/kibu/internal/parser"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 	"sort"
@@ -13,9 +13,9 @@ import (
 var (
 	temporalSdkWorkflow     = "go.temporal.io/sdk/workflow"
 	temporalSDKClient       = "go.temporal.io/sdk/client"
-	devxTransport           = "github.com/discernhq/devx/pkg/transport"
-	devxTransportMiddleware = "github.com/discernhq/devx/pkg/transport/middleware"
-	devxTemporal            = "github.com/discernhq/devx/pkg/transport/temporal"
+	devxTransport           = "github.com/kibu-sh/kibu/pkg/transport"
+	devxTransportMiddleware = "github.com/kibu-sh/kibu/pkg/transport/middleware"
+	devxTemporal            = "github.com/kibu-sh/kibu/pkg/transport/temporal"
 )
 
 func BuildWorkerProxies(

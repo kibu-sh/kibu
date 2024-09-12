@@ -3,7 +3,7 @@ package testingx
 import (
 	"context"
 	"database/sql"
-	"github.com/discernhq/devx/pkg/container"
+	"github.com/kibu-sh/kibu/pkg/container"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

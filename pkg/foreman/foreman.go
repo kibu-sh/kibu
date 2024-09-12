@@ -3,7 +3,7 @@ package foreman
 import (
 	"context"
 	"fmt"
-	"github.com/discernhq/devx/pkg/utils"
+	"github.com/kibu-sh/kibu/pkg/utils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"log/slog"

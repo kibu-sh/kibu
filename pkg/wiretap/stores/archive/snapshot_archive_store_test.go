@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/discernhq/devx/pkg/wiretap/internal/spec"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"

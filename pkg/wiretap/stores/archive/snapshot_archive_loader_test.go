@@ -1,7 +1,7 @@
 package archive
 
 import (
-	"github.com/discernhq/devx/pkg/wiretap/internal/internalmock"
+	"github.com/kibu-sh/kibu/pkg/wiretap/internal/internalmock"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )

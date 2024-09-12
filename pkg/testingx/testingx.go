@@ -2,9 +2,9 @@ package testingx
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/config"
-	"github.com/discernhq/devx/pkg/workspace"
 	"github.com/google/wire"
+	"github.com/kibu-sh/kibu/pkg/config"
+	"github.com/kibu-sh/kibu/pkg/workspace"
 	"log"
 )
 

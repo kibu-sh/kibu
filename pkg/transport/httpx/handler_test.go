@@ -2,7 +2,7 @@ package httpx
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"

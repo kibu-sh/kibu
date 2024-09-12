@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/discernhq/devx/cmd/devx/cmd"
+	"github.com/kibu-sh/kibu/cmd/devx/cmd"
 	"os"
 	"path/filepath"
 	"runtime"

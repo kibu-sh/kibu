@@ -66,8 +66,8 @@ package main
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/config"
-	"github.com/discernhq/devx/pkg/workspace"
+	"github.com/kibu-sh/kibu/pkg/config"
+	"github.com/kibu-sh/kibu/pkg/workspace"
 )
 
 type Custom struct {

@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"github.com/discernhq/devx/cmd/devx/cmd/cliflags"
-	"github.com/discernhq/devx/pkg/config"
+	"github.com/kibu-sh/kibu/cmd/devx/cmd/cliflags"
+	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/spf13/cobra"
 )
 

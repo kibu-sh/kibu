@@ -3,7 +3,7 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
-	"github.com/discernhq/devx/pkg/wiretap/certgen"
+	"github.com/kibu-sh/kibu/pkg/wiretap/certgen"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 	"net"

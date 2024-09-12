@@ -2,9 +2,9 @@ package devfx
 
 import (
 	"fmt"
-	"github.com/discernhq/devx/pkg/transport"
-	"github.com/discernhq/devx/pkg/transport/httpx"
 	"github.com/fatih/structtag"
+	"github.com/kibu-sh/kibu/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport/httpx"
 	"github.com/samber/lo"
 	"go.uber.org/fx"
 )

@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/discernhq/devx/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/parser/directive"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"

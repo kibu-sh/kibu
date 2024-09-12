@@ -3,9 +3,9 @@ package repo
 import (
 	"context"
 	"database/sql"
-	"github.com/discernhq/devx/pkg/database"
-	"github.com/discernhq/devx/pkg/database/repo/testdata/testmodels"
-	. "github.com/discernhq/devx/pkg/database/xql"
+	"github.com/kibu-sh/kibu/pkg/database"
+	"github.com/kibu-sh/kibu/pkg/database/repo/testdata/testmodels"
+	. "github.com/kibu-sh/kibu/pkg/database/xql"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"io"

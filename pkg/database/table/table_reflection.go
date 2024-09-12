@@ -1,8 +1,8 @@
 package table
 
 import (
-	"github.com/discernhq/devx/pkg/database/xql"
 	"github.com/fatih/structtag"
+	"github.com/kibu-sh/kibu/pkg/database/xql"
 	"reflect"
 	"strings"
 )

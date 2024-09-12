@@ -1,6 +1,6 @@
 package transport
 
-import "github.com/discernhq/devx/pkg/ctxutil"
+import "github.com/kibu-sh/kibu/pkg/ctxutil"
 
 type Context interface {
 	Codec() Codec

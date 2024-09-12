@@ -2,9 +2,9 @@ package httpx
 
 import (
 	"fmt"
-	"github.com/discernhq/devx/pkg/slogx"
-	"github.com/discernhq/devx/pkg/transport"
-	"github.com/discernhq/devx/pkg/transport/middleware"
+	"github.com/kibu-sh/kibu/pkg/slogx"
+	"github.com/kibu-sh/kibu/pkg/transport"
+	"github.com/kibu-sh/kibu/pkg/transport/middleware"
 	"github.com/pkg/errors"
 	"log/slog"
 	"net/http"

@@ -2,7 +2,7 @@ package multichannel
 
 import (
 	"context"
-	"github.com/discernhq/devx/pkg/messaging"
+	"github.com/kibu-sh/kibu/pkg/messaging"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"sync"
