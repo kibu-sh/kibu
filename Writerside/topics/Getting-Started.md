@@ -4,18 +4,18 @@
 Install the cli and library by running the following commands in your terminal. 
 ```bash
 go get github.com/kibu-sh/kibu
-go install github.com/kibu-sh/kibu/cmd/devx@main
+go install github.com/kibu-sh/kibu/cmd/kibue@main
 go install github.com/google/wire/cmd/wire@latest
-devx init # does not work right now
+kibue init # does not work right now
 # should copy .kibu/ and cue.mod to your project
 # wire generate is required to produce the first version with a generate directive
 ```
 
-### devx.gen.go
+### kibue.gen.go
 ```go
 package discern
 
-//go:generate go run -mod=readonly github.com/kibu-sh/kibu/cmd/devx build ./src/backend/systems/...
+//go:generate go run -mod=readonly github.com/kibu-sh/kibu/cmd/kibue build ./src/backend/systems/...
 ```
 
 ## Recommended Structure

@@ -26,7 +26,7 @@ import (
 	"github.com/example/module/systems/foo/spec"
 )
 
-//devx:service
+//kibue:service
 type Service struct {}
 
 type Request struct {
@@ -65,22 +65,22 @@ type EmbeddedImportResponse struct {
   spec.Model `json:"model"`
 }
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetData(ctx context.Context, req Request) (res Response, err error) {return}
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetList(ctx context.Context, req ListRequest) (res ListResponse, err error) {return}
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetAny(ctx context.Context, req any) (res any, err error) {return}
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetAnyIgnored(ctx context.Context, _ any) (_ any, err error) {return}
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetEmbedded(ctx context.Context, req EmbeddedRequest) (res EmbeddedResponse, err error) {return}
 
-//devx:endpoint
+//kibue:endpoint
 func (svc *Service) GetEmbeddedImport(ctx context.Context, req EmbeddedImportRequest) (res EmbeddedImportResponse, err error) {return}
 
 -- exp/gen/openapi.yaml --

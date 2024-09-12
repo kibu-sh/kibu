@@ -8,13 +8,13 @@ import (
 )
 
 func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
-	f := opts.FileSet.Get(devxGenWireSetPath(opts))
+	f := opts.FileSet.Get(kibueGenWireSetPath(opts))
 	f.Type().Id("HTTPHandlerFactoryDeps").StructFunc(func(g *jen.Group) {
 		for _, svc := range opts.Services {
 			// TODO: id might collide
 			g.Id(buildPackageScopedID(svc.PackagePath(), svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
 		}
-		g.Id("MiddlewareRegistry").Op("*").Qual(devxTransportMiddleware, "Registry")
+		g.Id("MiddlewareRegistry").Op("*").Qual(kibueTransportMiddleware, "Registry")
 		return
 	})
 
@@ -38,12 +38,12 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	return
 }
 
-func devxGenFilePath(opts *PipelineOptions, fileName string) (FilePath, PackageName) {
-	return FilePath(filepath.Join(opts.GenerateParams.OutputDir, "devxgen", fileName)), PackageName("devxgen")
+func kibueGenFilePath(opts *PipelineOptions, fileName string) (FilePath, PackageName) {
+	return FilePath(filepath.Join(opts.GenerateParams.OutputDir, "kibuegen", fileName)), PackageName("kibuegen")
 }
 
-func devxGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
-	return devxGenFilePath(opts, "wire_set.gen.go")
+func kibueGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
+	return kibueGenFilePath(opts, "wire_set.gen.go")
 }
 
 func buildPackageScopedID(pkg, name string) string {

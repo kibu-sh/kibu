@@ -24,11 +24,11 @@ var isDirectiveTests = []struct {
 	{"export foo", true},
 	{"extern foo", true},
 	{"expert foo", false},
-	{"devx:service", true},
-	{"devx:worker", true},
-	{"devx:endpoint", true},
-	{"devx:workflow", true},
-	{"devx:activity", true},
+	{"kibue:service", true},
+	{"kibue:worker", true},
+	{"kibue:endpoint", true},
+	{"kibue:workflow", true},
+	{"kibue:activity", true},
 }
 
 func TestIsDirective(t *testing.T) {
@@ -46,14 +46,14 @@ func TestParseDirective(t *testing.T) {
 		err error
 	}{
 		"should parse basic directive": {
-			in:  "devx:service",
-			out: Directive{Tool: "devx", Name: "service", Options: NewOptionList()},
+			in:  "kibue:service",
+			out: Directive{Tool: "kibue", Name: "service", Options: NewOptionList()},
 		},
 
 		"should parse directive with options": {
-			in: "devx:endpoint method=GET path=/thing/place/:location",
+			in: "kibue:endpoint method=GET path=/thing/place/:location",
 			out: Directive{
-				Tool: "devx", Name: "endpoint",
+				Tool: "kibue", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET"}, "path": []string{"/thing/place/:location"},
 				}),
@@ -61,18 +61,18 @@ func TestParseDirective(t *testing.T) {
 		},
 
 		"should handle misc spaces": {
-			in: "devx:endpoint method=GET  path=/thing/place/:location",
+			in: "kibue:endpoint method=GET  path=/thing/place/:location",
 			out: Directive{
-				Tool: "devx", Name: "endpoint",
+				Tool: "kibue", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET"}, "path": []string{"/thing/place/:location"},
 				}),
 			},
 		},
 		"should parse multiple options": {
-			in: "devx:endpoint method=GET method=POST",
+			in: "kibue:endpoint method=GET method=POST",
 			out: Directive{
-				Tool: "devx", Name: "endpoint",
+				Tool: "kibue", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET", "POST"},
 				}),
@@ -80,9 +80,9 @@ func TestParseDirective(t *testing.T) {
 		},
 
 		"should parse multiple options with comma": {
-			in: "devx:endpoint method=GET,POST",
+			in: "kibue:endpoint method=GET,POST",
 			out: Directive{
-				Tool: "devx", Name: "endpoint",
+				Tool: "kibue", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET", "POST"},
 				}),
@@ -90,7 +90,7 @@ func TestParseDirective(t *testing.T) {
 		},
 
 		"should error when directive key cannot be parsed": {
-			in:  "devxendpoint",
+			in:  "kibueendpoint",
 			err: ErrInvalidDirective,
 		},
 

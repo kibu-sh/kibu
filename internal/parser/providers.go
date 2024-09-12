@@ -28,7 +28,7 @@ func collectProviders(p *Package) defMapperFunc {
 			return
 		}
 
-		if !dirs.Some(directive.HasKey("devx", "provider")) {
+		if !dirs.Some(directive.HasKey("kibue", "provider")) {
 			return
 		}
 

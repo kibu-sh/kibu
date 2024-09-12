@@ -49,7 +49,7 @@ export function NetworkCaptureLogTable(props: NetworkCaptureLogTableProps) {
   }, [stream, gridApiRef.current])
 
   return (
-    <div className={cx(['ag-theme-devx-dark', props.className])}>
+    <div className={cx(['ag-theme-kibue-dark', props.className])}>
       <AgGridReact
         columnDefs={[
           {

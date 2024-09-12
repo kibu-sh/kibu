@@ -1,4 +1,4 @@
-package devx
+package kibue
 
 // issues with type aliases
 // https://github.com/golang/go/milestone/250

@@ -19,7 +19,7 @@ func getMiddlewareReceivers(opts *PipelineOptions) (receivers []*types.Named) {
 }
 
 func BuildMiddlewareProvider(opts *PipelineOptions) (err error) {
-	f := opts.FileSet.Get(devxGenWireSetPath(opts))
+	f := opts.FileSet.Get(kibueGenWireSetPath(opts))
 	f.Type().Id("MiddlewareDeps").StructFunc(func(g *jen.Group) {
 		for _, rec := range getMiddlewareReceivers(opts) {
 			// middleware.Package.GoPackage.TypesInfo.TypeOf()
@@ -32,15 +32,15 @@ func BuildMiddlewareProvider(opts *PipelineOptions) (err error) {
 	f.Func().Id("ProvideMiddleware").Params(
 		jen.Id("deps").Op("*").Id("MiddlewareDeps"),
 	).Params(
-		jen.Id("reg").Op("*").Qual(devxTransportMiddleware, "Registry"),
+		jen.Id("reg").Op("*").Qual(kibueTransportMiddleware, "Registry"),
 	).BlockFunc(func(g *jen.Group) {
-		g.Id("reg").Op("=").Qual(devxTransportMiddleware, "NewRegistry").Call()
+		g.Id("reg").Op("=").Qual(kibueTransportMiddleware, "NewRegistry").Call()
 		for _, mw := range opts.Middleware {
 			// pkg := mw.PackagePath()
 			rec := mw.RecvNamed()
 			recName := buildPackageScopedID(rec.Obj().Pkg().Path(), rec.Obj().Name())
 			g.Id("reg").Dot("Register").Call(
-				jen.Qual(devxTransportMiddleware, "RegistryItem").CustomFunc(multiLineCurly(), func(g *jen.Group) {
+				jen.Qual(kibueTransportMiddleware, "RegistryItem").CustomFunc(multiLineCurly(), func(g *jen.Group) {
 					g.Id("Order").Op(":").Lit(mw.Order)
 					g.Id("Tags").Op(":").Index().String().ValuesFunc(func(g *jen.Group) {
 						for _, tag := range mw.Tags {
@@ -48,7 +48,7 @@ func BuildMiddlewareProvider(opts *PipelineOptions) (err error) {
 						}
 						return
 					})
-					g.Id("Middleware").Op(":").Qual(devxTransport, "NewMiddleware").Call(
+					g.Id("Middleware").Op(":").Qual(kibueTransport, "NewMiddleware").Call(
 						jen.Id("deps").Dot(recName).Dot(mw.Name),
 					)
 				}),

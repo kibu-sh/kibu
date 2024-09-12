@@ -162,34 +162,34 @@ func CueLoader(c *Config) (err error) {
 	return err
 }
 
-func DevxDirBase() string {
+func kibueDirBase() string {
 	return ".kibu"
 }
 
-func DevxDirRelPath(pathSegments ...string) string {
-	pathSegments = append([]string{DevxDirBase()}, pathSegments...)
+func kibueDirRelPath(pathSegments ...string) string {
+	pathSegments = append([]string{kibueDirBase()}, pathSegments...)
 	return filepath.Join(pathSegments...)
 }
 
-func DevxWorkspaceCueFile() string {
-	return DevxDirRelPath("workspace.cue")
+func kibueWorkspaceCueFile() string {
+	return kibueDirRelPath("workspace.cue")
 }
 
 func NewWorkspaceConfig() (*Config, error) {
 	return LoadConfigFromCWD(LoadConfigParams{
 		DetermineRootParams: DetermineRootParams{
-			SearchSuffix: DevxWorkspaceCueFile(),
+			SearchSuffix: kibueWorkspaceCueFile(),
 		},
 		LoaderFunc: CueLoader,
 	})
 }
 
-func DevxStoreDir() string {
-	return DevxDirRelPath("store/config")
+func kibueStoreDir() string {
+	return kibueDirRelPath("store/config")
 }
 
 func StoreRoot(ws *Config) string {
-	return filepath.Join(ws.Root(), DevxStoreDir())
+	return filepath.Join(ws.Root(), kibueStoreDir())
 }
 
 func StorePathWithEnv(ws *Config, env string) string {
@@ -201,12 +201,12 @@ func NewEnvScopedFileStore(ctx context.Context, ws *Config, env string) (*config
 }
 
 func DefaultConfigStore(env string) (store *config.FileStore, err error) {
-	root, err := DetermineRootFromCWD(DevxDirBase())
+	root, err := DetermineRootFromCWD(kibueDirBase())
 	if err != nil {
 		return
 	}
 
-	store = config.NewDefaultFileStore(filepath.Join(root, DevxStoreDir(), env))
+	store = config.NewDefaultFileStore(filepath.Join(root, kibueStoreDir(), env))
 	return
 }
 

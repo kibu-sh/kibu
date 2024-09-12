@@ -69,8 +69,8 @@ func AsMiddleware(provider any, endpointKey EndpointKey) fx.Option {
 func HandlerGroupTag() structtag.Tag {
 	return structtag.Tag{
 		Key: "group",
-		// TODO: think about adding suffixes to group tags for devx
-		// devx:controllers
+		// TODO: think about adding suffixes to group tags for kibue
+		// kibue:controllers
 		Name: "handlers",
 	}
 }

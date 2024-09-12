@@ -11,18 +11,18 @@ func TestEncryptionKey__String(t *testing.T) {
 		key      EncryptionKey
 	}{
 		"should generate correct vault key": {
-			expected: "hashivault://secret/data/devx",
+			expected: "hashivault://secret/data/kibue",
 			key: EncryptionKey{
 				Engine: "hashivault",
-				Key:    "secret/data/devx",
+				Key:    "secret/data/kibue",
 			},
 		},
 
 		"should generate correct gcp key": {
-			expected: "gcpkms://secret/data/devx",
+			expected: "gcpkms://secret/data/kibue",
 			key: EncryptionKey{
 				Engine: "gcpkms",
-				Key:    "secret/data/devx",
+				Key:    "secret/data/kibue",
 			},
 		},
 	}

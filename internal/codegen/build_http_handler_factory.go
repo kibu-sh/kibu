@@ -15,7 +15,7 @@ func BuildServiceHTTPHandlerFactories(
 
 		f.Func().Params(svcID.Clone().Id("*" + svc.Name)).
 			Id("HTTPHandlerFactory").Params(
-			jen.Id("middlewareReg").Op("*").Qual(devxTransportMiddleware, "Registry"),
+			jen.Id("middlewareReg").Op("*").Qual(kibueTransportMiddleware, "Registry"),
 		).
 			Params(jen.Id("[]*httpx.Handler")).
 			BlockFunc(buildHTTPHandlerGroup(svc, svcID))
@@ -47,7 +47,7 @@ func buildHTTPHandlerStatement(g *jen.Group, ep *parser.Endpoint, svcID *jen.Sta
 			svcID.Clone().Dot(ep.Name),
 		).Dot("WithMiddleware").CustomFunc(multiLineParen(), func(g *jen.Group) {
 			g.Id("middlewareReg").Dot("Get").Call(
-				jen.Qual(devxTransportMiddleware, "GetParams").CustomFunc(multiLineCurly(), func(g *jen.Group) {
+				jen.Qual(kibueTransportMiddleware, "GetParams").CustomFunc(multiLineCurly(), func(g *jen.Group) {
 					g.Id("ExcludeAuth").Op(":").Lit(ep.Public)
 					g.Id("Tags").Op(":").Index().String().ValuesFunc(func(g *jen.Group) {
 						for _, tag := range ep.Tags {

@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	temporalSdkWorkflow     = "go.temporal.io/sdk/workflow"
-	temporalSDKClient       = "go.temporal.io/sdk/client"
-	devxTransport           = "github.com/kibu-sh/kibu/pkg/transport"
-	devxTransportMiddleware = "github.com/kibu-sh/kibu/pkg/transport/middleware"
-	devxTemporal            = "github.com/kibu-sh/kibu/pkg/transport/temporal"
+	temporalSdkWorkflow      = "go.temporal.io/sdk/workflow"
+	temporalSDKClient        = "go.temporal.io/sdk/client"
+	kibueTransport           = "github.com/kibu-sh/kibu/pkg/transport"
+	kibueTransportMiddleware = "github.com/kibu-sh/kibu/pkg/transport/middleware"
+	kibueTemporal            = "github.com/kibu-sh/kibu/pkg/transport/temporal"
 )
 
 func BuildWorkerProxies(
@@ -27,7 +27,7 @@ func BuildWorkerProxies(
 
 		f.Func().Params(wrkID.Clone().Op("*").Id(wrk.Name)).
 			Id("WorkerFactory").Params().
-			Params(jen.Index().Op("*").Qual(devxTemporal, "Worker")).
+			Params(jen.Index().Op("*").Qual(kibueTemporal, "Worker")).
 			BlockFunc(buildWorkerFactoryBlockFunc(wrk))
 
 		switch wrk.Type {
@@ -47,12 +47,12 @@ func BuildWorkerProxies(
 func buildWorkerFactoryBlockFunc(wrk *parser.Worker) func(g *jen.Group) {
 	return func(g *jen.Group) {
 		g.ReturnFunc(func(g *jen.Group) {
-			g.Index().Op("*").Qual(devxTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
+			g.Index().Op("*").Qual(kibueTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
 				methods := toSlice(wrk.Methods)
 				sort.Slice(methods, sortByID(methods))
 
 				for _, method := range methods {
-					g.Op("&").Qual(devxTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
+					g.Op("&").Qual(kibueTemporal, "Worker").CustomFunc(multiLineCurly(), func(g *jen.Group) {
 						g.Id("Name").Op(":").Lit(workerRegistrationName(wrk.Package, wrk, method))
 						g.Id("Type").Op(":").Lit(string(wrk.Type))
 						g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
@@ -83,13 +83,13 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
-				jen.Qual(devxTemporal, "WorkflowRun").Types(
+				jen.Qual(kibueTemporal, "WorkflowRun").Types(
 					parserVarAsTypeParam(scope, method.Response),
 				),
 				jen.Error(),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return().Qual(devxTemporal, "NewWorkflowRunWithErr").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return().Qual(kibueTemporal, "NewWorkflowRunWithErr").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Id("p").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Qual(temporalSDKClient, "StartWorkflowOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
@@ -119,12 +119,12 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
-				jen.Qual(devxTemporal, "ChildWorkflowFuture").Types(
+				jen.Qual(kibueTemporal, "ChildWorkflowFuture").Types(
 					parserVarAsTypeParam(scope, method.Response),
 				),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return().Qual(devxTemporal, "NewChildWorkflowFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return().Qual(kibueTemporal, "NewChildWorkflowFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
@@ -150,12 +150,12 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 				parserVarAsNamedParam("req", scope, method.Request),
 			).
 			Params(
-				jen.Qual(devxTemporal, "Future").Types(
+				jen.Qual(kibueTemporal, "Future").Types(
 					parserVarAsTypeParam(scope, method.Response),
 				),
 			).
 			BlockFunc(func(g *jen.Group) {
-				g.Return(jen.Qual(devxTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
+				g.Return(jen.Qual(kibueTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Lit(workerRegistrationName(wrk.Package, wrk, method))

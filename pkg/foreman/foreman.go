@@ -71,7 +71,7 @@ func (m *Manager) Register(p Process) (err error) {
 
 	log := m.logger.With("proc", p.Name)
 
-	log.Debug(fmt.Sprintf("[devx.foreman] registering process: %s", p.Name))
+	log.Debug(fmt.Sprintf("[kibue.foreman] registering process: %s", p.Name))
 
 	m.tasks.Store(p.Name, &p)
 	ready := make(chan struct{})
@@ -84,7 +84,7 @@ func (m *Manager) Register(p Process) (err error) {
 
 	select {
 	case <-ready:
-		log.Info(fmt.Sprintf("[devx.foreman] %s ready", p.Name))
+		log.Info(fmt.Sprintf("[kibue.foreman] %s ready", p.Name))
 		return nil
 	case <-m.ctx.Done():
 		err = errors.Wrapf(m.ctx.Err(), "failed to start proc: %s", p.Name)

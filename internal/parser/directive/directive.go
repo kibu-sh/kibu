@@ -158,10 +158,10 @@ func IsDirective(c string) bool {
 
 // Parse extracts data from a directive string.
 //
-// Example: devx:endpoint method=GET path=/api/v1/users
+// Example: kibue:endpoint method=GET path=/api/v1/users
 //
-// Path is an unquoted string literal (devx:endpoint)
-// Path contains two parts tool (devx) and name (endpoint) separated by a colon
+// Path is an unquoted string literal (kibue:endpoint)
+// Path contains two parts tool (kibue) and name (endpoint) separated by a colon
 // Path is required
 //
 // value is an unquoted string literal (method=GET path=/api/v1/users)

@@ -1,5 +1,5 @@
 {
-  "name": "devx",
+  "name": "kibue",
   "private": true,
   "scripts": {
     "lint": "eslint '{**/*,*}.{js,ts,jsx,tsx,vue}'",
