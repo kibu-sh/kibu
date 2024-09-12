@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="wiretap:capture" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="devx" />
+    <module name="kibu" />
     <working_directory value="$PROJECT_DIR$" />
     <kind value="PACKAGE" />
     <package value="github.com/discernhq/devx/pkg/wiretap/cmd" />

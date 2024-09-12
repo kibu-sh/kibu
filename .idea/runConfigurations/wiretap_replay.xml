@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="wiretap:replay" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="devx" />
+    <module name="kibu" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="-mode=replay -dir=$USER_HOME$/wiretap-demo/snapshots" />
     <kind value="PACKAGE" />

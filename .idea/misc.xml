@@ -3,7 +3,7 @@
   <component name="ComposerSettings">
     <execution />
   </component>
-  <component name="ProjectRootManager">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_22">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
 </project>

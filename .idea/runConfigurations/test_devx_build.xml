@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="test devx build" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="devx" />
+    <module name="kibu" />
     <working_directory value="$PROJECT_DIR$/../discern/" />
     <parameters value="build ./src/backend/systems/..." />
     <kind value="DIRECTORY" />

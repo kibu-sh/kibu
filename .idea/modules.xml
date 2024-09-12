@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/devx.iml" filepath="$PROJECT_DIR$/devx.iml" />
+      <module fileurl="file://$PROJECT_DIR$/kibu.iml" filepath="$PROJECT_DIR$/kibu.iml" />
     </modules>
   </component>
 </project>
