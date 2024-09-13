@@ -2,6 +2,7 @@ package watchtasks
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -17,13 +18,15 @@ func (b *Builder) runCmd(c Command) (err error) {
 		return err
 	}
 
+	logPipe := io.MultiWriter(logFile, os.Stdout)
+
 	cmd := exec.CommandContext(b.rootCtx, c.Cmd, c.Args...)
 	cmd.Env = os.Environ()
 	cmd.WaitDelay = time.Second * 5
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
+	cmd.Stdout = logPipe
+	cmd.Stderr = logPipe
 
-	b.log.Debug("starting", slog.String("cmd", cmd.String()))
+	b.log.Info("starting", slog.String("cmd", cmd.String()))
 	if err = cmd.Start(); err != nil {
 		goto cleanup
 	}
@@ -34,6 +37,6 @@ func (b *Builder) runCmd(c Command) (err error) {
 
 cleanup:
 	_ = logFile.Close()
-	b.log.Debug(cmd.String(), "exited with", err)
+	b.log.Info(cmd.String(), "exited with", err)
 	return
 }

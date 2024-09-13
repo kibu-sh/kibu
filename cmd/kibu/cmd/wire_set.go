@@ -24,6 +24,8 @@ var wireSet = wire.NewSet(
 	NewLogger,
 
 	NewRootCmd,
+	NewDevCmd,
+	NewDevUpCmd,
 	NewBuildCmd,
 	NewConfigCmd,
 	NewConfigGetCmd,
@@ -35,8 +37,10 @@ var wireSet = wire.NewSet(
 	NewMigrateUpCmd,
 	NewMigrateDownCmd,
 
-	wire.Struct(new(RootCommandParams), "*"),
+	wire.Struct(new(RootCmdParams), "*"),
+	wire.Struct(new(DevCmdParams), "*"),
 	wire.Struct(new(ConfigCmdParams), "*"),
+	wire.Struct(new(NewDevUpCmdParams), "*"),
 	wire.Struct(new(NewConfigGetCmdParams), "*"),
 	wire.Struct(new(NewConfigSetCmdParams), "*"),
 	wire.Struct(new(NewConfigEditCmdParams), "*"),

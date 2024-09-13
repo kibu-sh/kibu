@@ -13,13 +13,14 @@ type RootCmd struct {
 	*cobra.Command
 }
 
-type RootCommandParams struct {
+type RootCmdParams struct {
 	ConfigCmd  ConfigCmd
 	BuildCmd   BuildCmd
 	MigrateCmd MigrateCmd
+	DevCmd     DevCmd
 }
 
-func NewRootCmd(params RootCommandParams) (root RootCmd) {
+func NewRootCmd(params RootCmdParams) (root RootCmd) {
 	root.Command = &cobra.Command{
 		Use:   "kibu",
 		Short: "kibu is a backend development engine for developer productivity",
@@ -30,6 +31,7 @@ func NewRootCmd(params RootCommandParams) (root RootCmd) {
 	_ = cliflags.Environment.BindToCommand(root.Command)
 	_ = cliflags.Debug.BindToCommand(root.Command)
 
+	root.AddCommand(params.DevCmd.Command)
 	root.AddCommand(params.ConfigCmd.Command)
 	root.AddCommand(params.MigrateCmd.Command)
 	root.AddCommand(params.BuildCmd.Command)

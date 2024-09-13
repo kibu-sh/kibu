@@ -25,6 +25,10 @@ func (b *Builder) runEventLoop() {
 				continue
 			}
 
+			for _, event := range fse {
+				b.log.Info("fs event", event.String())
+			}
+
 			b.rebuild <- struct{}{}
 		}
 	}

@@ -66,11 +66,18 @@ func InitCLI() (RootCmd, error) {
 		MigrateDownCmd: migrateDownCmd,
 	}
 	migrateCmd := NewMigrateCmd(newMigrateCmdParams)
-	rootCommandParams := RootCommandParams{
+	newDevUpCmdParams := NewDevUpCmdParams{}
+	devUpCmd := NewDevUpCmd(newDevUpCmdParams)
+	devCmdParams := DevCmdParams{
+		DevUpCmd: devUpCmd,
+	}
+	devCmd := NewDevCmd(devCmdParams)
+	rootCmdParams := RootCmdParams{
 		ConfigCmd:  configCmd,
 		BuildCmd:   buildCmd,
 		MigrateCmd: migrateCmd,
+		DevCmd:     devCmd,
 	}
-	rootCmd := NewRootCmd(rootCommandParams)
+	rootCmd := NewRootCmd(rootCmdParams)
 	return rootCmd, nil
 }

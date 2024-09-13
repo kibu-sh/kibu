@@ -32,7 +32,7 @@ func (b *Builder) runBuildLoop() {
 			case <-done:
 				go b.runBuildCmdWithSignal(done)
 			default:
-				b.log.Debug("dropping rebuild signal, previous build is still running")
+				b.log.Info("dropping rebuild signal, previous build is still running")
 			}
 		}
 	}
