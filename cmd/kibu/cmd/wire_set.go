@@ -13,11 +13,13 @@ func NewLogger() (l *slog.Logger) {
 	return slog.New(slog.NewTextHandler(os.Stderr, nil))
 }
 
-var WireSet = wire.NewSet(
+var wireSet = wire.NewSet(
 	appcontext.Context,
-	workspace.NewWorkspaceConfig,
-	workspace.NewFileStore,
 	config.NewEncryptedFileEditor,
+	provideConfigLoader,
+	provideStoreLoader,
+	provideStoreSettingsLoader,
+	provideFileEditor,
 
 	NewLogger,
 
@@ -33,7 +35,6 @@ var WireSet = wire.NewSet(
 	NewMigrateUpCmd,
 	NewMigrateDownCmd,
 
-	wire.Bind(new(config.Store), new(*config.FileStore)),
 	wire.Struct(new(RootCommandParams), "*"),
 	wire.Struct(new(ConfigCmdParams), "*"),
 	wire.Struct(new(NewConfigGetCmdParams), "*"),

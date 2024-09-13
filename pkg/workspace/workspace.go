@@ -3,12 +3,15 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/kibu-sh/kibu/internal/cuecore"
 	"github.com/kibu-sh/kibu/pkg/config"
-	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // FileSystemSettings configures the workspace file system observer
@@ -33,7 +36,7 @@ func (s ConfigStoreSettings) KeyByEnv(env string) (config.EncryptionKey, error) 
 		}
 	}
 
-	return config.EncryptionKey{}, errors.Errorf("no encryption key found for env %s, found (%s)", env, lo.Map(s.EncryptionKeys, func(k config.EncryptionKey, _ int) string {
+	return config.EncryptionKey{}, fmt.Errorf("no encryption key found for env %s, found (%s)", env, lo.Map(s.EncryptionKeys, func(k config.EncryptionKey, _ int) string {
 		return k.Env
 	}))
 }
@@ -52,6 +55,13 @@ type DetermineRootParams struct {
 	SearchSuffix string
 }
 
+var errNoKibuRoot = errors.New("no .kibu directory found")
+var errNoGitRoot = errors.New("no .git directory found")
+
+func IsNoRootFound(err error) bool {
+	return errors.Is(err, errNoKibuRoot) || errors.Is(err, errNoGitRoot)
+}
+
 // DetermineRoot recursively searches the current directory and all its parents for DetermineRootParams.SearchSuffix
 func DetermineRoot(params DetermineRootParams) (found string, err error) {
 	configRoot, err := filepath.Abs(params.StartDir)
@@ -63,10 +73,7 @@ func DetermineRoot(params DetermineRootParams) (found string, err error) {
 
 	// break recursion because we've reached the root file system
 	if os.IsNotExist(err) && configRoot == "/" {
-		return configRoot, errors.Errorf(
-			"%s not found after traversing all parent directories",
-			filepath.Base(params.StartDir),
-		)
+		return configRoot, errNoKibuRoot
 	}
 
 	// recurse into the parent dir
@@ -80,13 +87,32 @@ func DetermineRoot(params DetermineRootParams) (found string, err error) {
 	return configRoot, nil
 }
 
+func DetermineRootFromGitExec() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", errors.Join(errNoGitRoot, err)
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
+func DetermineRootWithFallback(params DetermineRootParams) (string, error) {
+	root, err := DetermineRoot(params)
+	if !errors.Is(err, errNoKibuRoot) {
+		return root, err
+	}
+
+	return DetermineRootFromGitExec()
+}
+
 // DetermineRootFromCWD determine the workspace root from the current working directory
 func DetermineRootFromCWD(searchSuffix string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-	return DetermineRoot(DetermineRootParams{
+	return DetermineRootWithFallback(DetermineRootParams{
 		StartDir:     cwd,
 		SearchSuffix: searchSuffix,
 	})
@@ -113,7 +139,7 @@ func JSONLoader(c *Config) error {
 func LoadConfig(params LoadConfigParams) (c *Config, err error) {
 	c = new(Config)
 
-	configRoot, err := DetermineRoot(params.DetermineRootParams)
+	configRoot, err := DetermineRootWithFallback(params.DetermineRootParams)
 	if err != nil {
 		return nil, err
 	}
@@ -162,34 +188,34 @@ func CueLoader(c *Config) (err error) {
 	return err
 }
 
-func kibuDirBase() string {
+func dirBase() string {
 	return ".kibu"
 }
 
-func kibuDirRelPath(pathSegments ...string) string {
-	pathSegments = append([]string{kibuDirBase()}, pathSegments...)
+func dirRelPath(pathSegments ...string) string {
+	pathSegments = append([]string{dirBase()}, pathSegments...)
 	return filepath.Join(pathSegments...)
 }
 
-func kibuWorkspaceCueFile() string {
-	return kibuDirRelPath("workspace.cue")
+func workspaceJSONFile() string {
+	return dirRelPath("workspace.json")
 }
 
 func NewWorkspaceConfig() (*Config, error) {
 	return LoadConfigFromCWD(LoadConfigParams{
+		LoaderFunc: JSONLoader,
 		DetermineRootParams: DetermineRootParams{
-			SearchSuffix: kibuWorkspaceCueFile(),
+			SearchSuffix: workspaceJSONFile(),
 		},
-		LoaderFunc: CueLoader,
 	})
 }
 
-func kibuStoreDir() string {
-	return kibuDirRelPath("store/config")
+func storeDir() string {
+	return dirRelPath("store/config")
 }
 
 func StoreRoot(ws *Config) string {
-	return filepath.Join(ws.Root(), kibuStoreDir())
+	return filepath.Join(ws.Root(), storeDir())
 }
 
 func StorePathWithEnv(ws *Config, env string) string {
@@ -201,12 +227,12 @@ func NewEnvScopedFileStore(ctx context.Context, ws *Config, env string) (*config
 }
 
 func DefaultConfigStore(env string) (store *config.FileStore, err error) {
-	root, err := DetermineRootFromCWD(kibuDirBase())
+	root, err := DetermineRootFromCWD(dirBase())
 	if err != nil {
 		return
 	}
 
-	store = config.NewDefaultFileStore(filepath.Join(root, kibuStoreDir(), env))
+	store = config.NewDefaultFileStore(filepath.Join(root, storeDir(), env))
 	return
 }
 

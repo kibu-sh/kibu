@@ -6,6 +6,6 @@ package cmd
 import "github.com/google/wire"
 
 func InitCLI() (RootCmd, error) {
-	wire.Build(WireSet)
+	wire.Build(wireSet)
 	return RootCmd{}, nil
 }

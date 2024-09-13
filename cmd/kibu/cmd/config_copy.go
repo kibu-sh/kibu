@@ -15,8 +15,8 @@ type ConfigCopyCmd struct {
 }
 
 type NewConfigCopyCmdParams struct {
-	WorkspaceConfig *workspace.Config
-	Logger          *slog.Logger
+	Logger       *slog.Logger
+	configLoader configLoaderFunc
 }
 
 func NewConfigCopyCmd(params NewConfigCopyCmdParams) (cmd ConfigCopyCmd) {
@@ -38,7 +38,11 @@ func newConfigCopyRunE(params NewConfigCopyCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		sourcePath := args[0]
 		ctx := appcontext.Context()
-		cfg := params.WorkspaceConfig
+		cfg, err := params.configLoader()
+		if err != nil {
+			return
+		}
+
 		srcEnv := cliflags.ConfigSyncSrcEnv.Value()
 		destEnv := cliflags.ConfigSyncDestEnv.Value()
 		recursive := cliflags.ConfigSyncRecursive.Value()

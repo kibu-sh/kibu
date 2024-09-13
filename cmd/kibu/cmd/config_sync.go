@@ -5,7 +5,6 @@ import (
 	"github.com/kibu-sh/kibu/cmd/kibu/cmd/cliflags"
 	"github.com/kibu-sh/kibu/pkg/appcontext"
 	"github.com/kibu-sh/kibu/pkg/config"
-	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io/fs"
@@ -18,8 +17,7 @@ type ConfigSyncCmd struct {
 }
 
 type NewConfigSyncCmdParams struct {
-	ConfigStoreSettings *workspace.ConfigStoreSettings
-	Store               config.Store
+	loadStore storeLoaderFunc
 }
 
 func NewConfigSyncCmd(params NewConfigSyncCmdParams) (cmd ConfigSyncCmd) {
@@ -38,8 +36,14 @@ func newConfigSyncRunE(params NewConfigSyncCmdParams) RunE {
 		// TODO: this kinda smells
 		// its not compatible with any other target stores
 		ctx := appcontext.Context()
-		store := params.Store.(*config.FileStore)
-		storeDir := store.FS.(config.DirectoryFS)
+
+		store, err := params.loadStore()
+		if err != nil {
+			return
+		}
+
+		fstore := store.(*config.FileStore)
+		storeDir := fstore.FS.(config.DirectoryFS)
 		env := cliflags.Environment.Value()
 		envDir := filepath.Join(storeDir.Path, env)
 		dirFS := os.DirFS(envDir)

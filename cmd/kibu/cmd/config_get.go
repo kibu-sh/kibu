@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/kibu-sh/kibu/cmd/kibu/cmd/cliflags"
 	"github.com/kibu-sh/kibu/pkg/config"
+	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -12,8 +13,27 @@ type ConfigGetCmd struct {
 	*cobra.Command
 }
 
+type storeLoaderFunc func() (config.Store, error)
+type configLoaderFunc func() (*workspace.Config, error)
+
 type NewConfigGetCmdParams struct {
-	Store config.Store
+	StoreLoader storeLoaderFunc
+}
+
+func provideConfigLoader() configLoaderFunc {
+	return func() (*workspace.Config, error) {
+		return workspace.NewWorkspaceConfig()
+	}
+}
+
+func provideStoreLoader(ctx context.Context, configLoader configLoaderFunc) storeLoaderFunc {
+	return func() (config.Store, error) {
+		workspaceConfig, err := configLoader()
+		if err != nil {
+			return nil, err
+		}
+		return workspace.NewFileStore(ctx, workspaceConfig)
+	}
 }
 
 func NewConfigGetCmd(params NewConfigGetCmdParams) (cmd ConfigGetCmd) {
@@ -35,7 +55,12 @@ func newConfigGetRunE(params NewConfigGetCmdParams) RunE {
 			Path: args[0],
 		})
 
-		_, err = params.Store.Get(context.Background(), config.GetParams{
+		store, err := params.StoreLoader()
+		if err != nil {
+			return
+		}
+
+		_, err = store.Get(context.Background(), config.GetParams{
 			Path:   path,
 			Result: &data,
 		})

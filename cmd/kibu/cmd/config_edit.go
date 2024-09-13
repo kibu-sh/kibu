@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/kibu-sh/kibu/cmd/kibu/cmd/cliflags"
 	"github.com/kibu-sh/kibu/pkg/config"
-	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -12,9 +11,18 @@ type ConfigEditCmd struct {
 	*cobra.Command
 }
 
+type fileEditorFunc func(config.Store) *config.EncryptedFileEditor
+
+func provideFileEditor() fileEditorFunc {
+	return func(store config.Store) *config.EncryptedFileEditor {
+		return config.NewEncryptedFileEditor(store)
+	}
+}
+
 type NewConfigEditCmdParams struct {
-	ConfigStoreSettings *workspace.ConfigStoreSettings
-	EncryptedFileEditor *config.EncryptedFileEditor
+	loadStore         storeLoaderFunc
+	loadFileEditor    fileEditorFunc
+	loadStoreSettings storeSettingsLoaderFunc
 }
 
 func NewConfigEditCmd(params NewConfigEditCmdParams) (cmd ConfigEditCmd) {
@@ -30,7 +38,19 @@ func NewConfigEditCmd(params NewConfigEditCmdParams) (cmd ConfigEditCmd) {
 
 func newConfigEditRunE(params NewConfigEditCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
-		key, err := params.ConfigStoreSettings.KeyByEnv(cliflags.Environment.Value())
+		store, err := params.loadStore()
+		if err != nil {
+			return
+		}
+
+		settings, err := params.loadStoreSettings()
+		if err != nil {
+			return
+		}
+
+		editor := params.loadFileEditor(store)
+
+		key, err := settings.KeyByEnv(cliflags.Environment.Value())
 		if err != nil {
 			return err
 		}
@@ -40,7 +60,7 @@ func newConfigEditRunE(params NewConfigEditCmdParams) RunE {
 			Path: args[0],
 		})
 
-		err = params.EncryptedFileEditor.Edit(context.Background(), config.EditParams{
+		err = editor.Edit(context.Background(), config.EditParams{
 			Path:          path,
 			EncryptionKey: key,
 		})

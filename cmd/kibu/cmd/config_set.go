@@ -19,9 +19,21 @@ type ConfigSetCmd struct {
 	*cobra.Command
 }
 
+type storeSettingsLoaderFunc func() (workspace.ConfigStoreSettings, error)
+
+func provideStoreSettingsLoader(configLoader configLoaderFunc) storeSettingsLoaderFunc {
+	return func() (workspace.ConfigStoreSettings, error) {
+		workspaceConfig, err := configLoader()
+		if err != nil {
+			return workspace.ConfigStoreSettings{}, err
+		}
+		return workspaceConfig.ConfigStore, nil
+	}
+}
+
 type NewConfigSetCmdParams struct {
-	Store    config.Store
-	Settings workspace.ConfigStoreSettings
+	storeLoader    storeLoaderFunc
+	settingsLoader storeSettingsLoaderFunc
 }
 
 func NewConfigSetCmd(params NewConfigSetCmdParams) (cmd ConfigSetCmd) {
@@ -124,7 +136,17 @@ func joinSecretEnvPath(params joinSecretEnvParams) string {
 
 func newConfigSetRunE(params NewConfigSetCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
-		key, err := params.Settings.KeyByEnv(cliflags.Environment.Value())
+		store, err := params.storeLoader()
+		if err != nil {
+			return
+		}
+
+		settings, err := params.settingsLoader()
+		if err != nil {
+			return
+		}
+
+		key, err := settings.KeyByEnv(cliflags.Environment.Value())
 		if err != nil {
 			return
 		}
@@ -139,7 +161,7 @@ func newConfigSetRunE(params NewConfigSetCmdParams) RunE {
 			Path: args[0],
 		})
 
-		_, err = params.Store.Set(context.Background(), config.SetParams{
+		_, err = store.Set(context.Background(), config.SetParams{
 			Path:          path,
 			Data:          data,
 			EncryptionKey: key,
