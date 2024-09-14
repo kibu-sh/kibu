@@ -15,14 +15,19 @@ import (
 	"time"
 )
 
-type TaskQueue string
+type RetryPolicy = temporal.RetryPolicy
+type ActivityOptions = workflow.ActivityOptions
+type StartWorkflowOptions = client.StartWorkflowOptions
+type ChildWorkflowOptions = workflow.ChildWorkflowOptions
 
+type TaskQueue string
 type Worker struct {
 	Name      string
 	TaskQueue string
 	Type      string
 	Handler   any
 }
+
 type WorkerFactory interface {
 	WorkerFactory() []*Worker
 }
@@ -66,8 +71,6 @@ func NewWorker(
 	}
 	return
 }
-
-type RetryPolicy = temporal.RetryPolicy
 
 type Future[T any] interface {
 	Get(ctx workflow.Context) (res T, err error)

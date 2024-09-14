@@ -11,18 +11,27 @@ type BuildCmd struct {
 	*cobra.Command
 }
 
-func NewBuildCmd() (cmd BuildCmd) {
+type NewBuildCmdParams struct {
+	loadConfig configLoaderFunc
+}
+
+func NewBuildCmd(params NewBuildCmdParams) (cmd BuildCmd) {
 	cmd.Command = &cobra.Command{
 		Use:   "build",
 		Short: "build code",
 		Long:  `build code`,
-		RunE:  newBuildRunE(),
+		RunE:  newBuildRunE(params),
 	}
 	return
 }
 
-func newBuildRunE() RunE {
+func newBuildRunE(params NewBuildCmdParams) RunE {
 	return func(cmd *cobra.Command, args []string) (err error) {
+		config, err := params.loadConfig()
+		if err != nil {
+			return
+		}
+
 		cwd, err := os.Getwd()
 		if err != nil {
 			return
@@ -32,7 +41,7 @@ func newBuildRunE() RunE {
 			Dir:       cwd,
 			Patterns:  args,
 			Pipeline:  codegen.DefaultPipeline(),
-			OutputDir: filepath.Join(cwd, "gen"),
+			OutputDir: filepath.Join(config.Root(), config.CodeGen.OutputDir),
 		})
 		return
 	}

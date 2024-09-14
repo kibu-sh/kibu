@@ -69,7 +69,9 @@ func BuildOpenAPISpec(opts *PipelineOptions) (err error) {
 		return
 	}
 
-	err = os.WriteFile(filepath.Join(opts.GenerateParams.OutputDir, "openapi.yaml"), yamlBytes, 0644)
+	packageDir := kibugenPackageDir(opts.GenerateParams)
+	openApiFile := filepath.Join(packageDir, "openapi.yaml")
+	err = os.WriteFile(openApiFile, yamlBytes, 0644)
 	return
 }
 

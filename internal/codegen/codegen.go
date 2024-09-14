@@ -106,8 +106,10 @@ func sortByPos[v posSortable](list []v) func(i, j int) bool {
 
 func Generate(params GenerateParams) (err error) {
 	fset := NewFileSet()
-	_ = os.RemoveAll(params.OutputDir)
-	if err = os.MkdirAll(params.OutputDir, os.ModePerm); err != nil {
+	packageDir := kibugenPackageDir(params)
+
+	_ = os.RemoveAll(packageDir)
+	if err = os.MkdirAll(packageDir, os.ModePerm); err != nil {
 		return
 	}
 

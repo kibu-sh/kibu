@@ -56,7 +56,10 @@ func InitCLI() (RootCmd, error) {
 		ConfigCopyCmd: configCopyCmd,
 	}
 	configCmd := NewConfigCmd(configCmdParams)
-	buildCmd := NewBuildCmd()
+	newBuildCmdParams := NewBuildCmdParams{
+		loadConfig: cmdConfigLoaderFunc,
+	}
+	buildCmd := NewBuildCmd(newBuildCmdParams)
 	newMigrateUpCmdParams := NewMigrateUpCmdParams{}
 	migrateUpCmd := NewMigrateUpCmd(newMigrateUpCmdParams)
 	newMigrateDownCmdParams := NewMigrateDownCmdParams{}

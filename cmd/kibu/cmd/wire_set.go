@@ -40,6 +40,7 @@ var wireSet = wire.NewSet(
 	wire.Struct(new(RootCmdParams), "*"),
 	wire.Struct(new(DevCmdParams), "*"),
 	wire.Struct(new(ConfigCmdParams), "*"),
+	wire.Struct(new(NewBuildCmdParams), "*"),
 	wire.Struct(new(NewDevUpCmdParams), "*"),
 	wire.Struct(new(NewConfigGetCmdParams), "*"),
 	wire.Struct(new(NewConfigSetCmdParams), "*"),

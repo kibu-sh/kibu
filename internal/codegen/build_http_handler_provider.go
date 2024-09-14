@@ -38,12 +38,23 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	return
 }
 
+const (
+	kibugenName     = "kibugen"
+	kibuGenFileName = "kibu.gen.go"
+)
+
+func kibugenPackageDir(opts GenerateParams, segments ...string) string {
+	joinOpts := []string{opts.OutputDir, kibugenName}
+	joinOpts = append(joinOpts, segments...)
+	return filepath.Join(joinOpts...)
+}
+
 func kibuGenFilePath(opts *PipelineOptions, fileName string) (FilePath, PackageName) {
-	return FilePath(filepath.Join(opts.GenerateParams.OutputDir, "kibugen", fileName)), PackageName("kibugen")
+	return FilePath(kibugenPackageDir(opts.GenerateParams, fileName)), kibugenName
 }
 
 func kibuGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
-	return kibuGenFilePath(opts, "wire_set.gen.go")
+	return kibuGenFilePath(opts, kibuGenFileName)
 }
 
 func buildPackageScopedID(pkg, name string) string {

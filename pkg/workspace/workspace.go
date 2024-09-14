@@ -41,13 +41,18 @@ func (s ConfigStoreSettings) KeyByEnv(env string) (config.EncryptionKey, error) 
 	}))
 }
 
+type CodeGenSettings struct {
+	OutputDir string `json:"output_dir"`
+}
+
 // Config holds data for configuring a workspace
 type Config struct {
 	file                 string
-	ConfigStore          ConfigStoreSettings
-	FileSystem           FileSystemSettings
-	RemoteCache          RemoteCacheSettings
-	VersionCheckDisabled bool
+	ConfigStore          ConfigStoreSettings `json:"config_store"`
+	FileSystem           FileSystemSettings  `json:"file_system"`
+	RemoteCache          RemoteCacheSettings `json:"remote_cache"`
+	CodeGen              CodeGenSettings     `json:"code_gen"`
+	VersionCheckDisabled bool                `json:"version_check_disabled"`
 }
 
 type DetermineRootParams struct {
