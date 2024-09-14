@@ -107,7 +107,9 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 }
 func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 	scope := wrk.Package.GoPackage
-	f.Type().Id(workerProxyName(wrk)).Struct()
+	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
+		g.Id("ref").Qual("", wrk.Name)
+	})
 
 	methods := toSlice(wrk.Methods)
 	sort.Slice(methods, sortByID(methods))
@@ -128,7 +130,7 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 				g.Return().Qual(kibuTemporal, "NewChildWorkflowFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
-						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						g.Id("p").Dot("ref").Dot(method.Name)
 						g.Id("req")
 						return
 					})
