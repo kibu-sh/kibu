@@ -69,6 +69,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 	methods := toSlice(wrk.Methods)
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerClientName(wrk)).StructFunc(func(g *jen.Group) {
+		g.Id("ref").Qual("", wrk.Name)
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
@@ -76,7 +77,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 
 	for _, method := range methods {
 		f.Func().
-			Params(jen.Id("p").Id(workerClientName(wrk))).Id(method.Name).
+			Params(jen.Id("c").Id(workerClientName(wrk))).Id(method.Name).
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
 				jen.Id("id").String(),
@@ -90,13 +91,13 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 			).
 			BlockFunc(func(g *jen.Group) {
 				g.Return().Qual(kibuTemporal, "NewWorkflowRunWithErr").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
-					g.Id("p").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
+					g.Id("c").Dot("Temporal").Dot("ExecuteWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
 						g.Qual(temporalSDKClient, "StartWorkflowOptions").CustomFunc(multiLineCurly(), func(g *jen.Group) {
 							g.Id("ID").Op(":").Id("id")
 							g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 						})
-						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						g.Id("c").Dot("ref").Dot(method.Name)
 						g.Id("req")
 						return
 					})
