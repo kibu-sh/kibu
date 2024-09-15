@@ -48,17 +48,40 @@ type ValueContainer interface {
 }
 
 func (s *Store[T, K]) Load(ctx ValueContainer) (r T, err error) {
-	v := ctx.Value(s.key)
-	if v == nil {
-		err = errors.Wrapf(
-			ErrNotFoundInContext,
-			"cannot find %T by key %T", new(T), s.key,
-		)
+	if v := ctx.Value(s.key); v != nil {
+		return v.(T), nil
+	}
+
+	err = errors.Wrapf(
+		ErrNotFoundInContext,
+		"cannot find %T by key %T", new(T), s.key,
+	)
+	return
+}
+
+func (s *Store[T, K]) LoadOrDefault(ctx ValueContainer, defaultValue T) (r T, err error) {
+	r, err = s.Load(ctx)
+	if err == nil {
 		return
 	}
 
-	r = v.(T)
-	return
+	return defaultValue, nil
+}
+
+func (s *Store[T, K]) LoadOrDefaultFunc(ctx ValueContainer, defaultValueFunc func() (T, error)) (r T, err error) {
+	r, err = s.Load(ctx)
+	if err == nil {
+		return
+	}
+
+	return defaultValueFunc()
+}
+
+type DerivationFunc[T any] func(current T) (next T, err error)
+
+func (s *Store[T, K]) Derive(ctx ValueContainer, derive DerivationFunc[T]) (T, error) {
+	t, _ := s.Load(ctx)
+	return derive(t)
 }
 
 func NewStore[T any, K any]() *Store[T, K] {

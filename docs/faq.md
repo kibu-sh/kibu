@@ -7,7 +7,7 @@ But it will create noise during your code review.
 You can create a file that tells github to ignore linguist generated files.
 `.gitattributes`
 
-FIXME
+FIXMEo
 ```gitignore
 linguist-generated=true
 # ignore liguist generated files

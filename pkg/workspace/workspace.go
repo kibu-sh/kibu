@@ -26,7 +26,7 @@ type RemoteCacheSettings struct {
 
 // ConfigStoreSettings allows user to set Vault address that's not reliant on an env var
 type ConfigStoreSettings struct {
-	EncryptionKeys []config.EncryptionKey
+	EncryptionKeys []config.EncryptionKey `json:"encryption_keys"`
 }
 
 func (s ConfigStoreSettings) KeyByEnv(env string) (config.EncryptionKey, error) {
