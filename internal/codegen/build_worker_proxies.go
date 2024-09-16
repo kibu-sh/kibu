@@ -69,7 +69,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 	methods := toSlice(wrk.Methods)
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerClientName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
+		//g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
@@ -97,7 +97,8 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 							g.Id("ID").Op(":").Id("id")
 							g.Id("TaskQueue").Op(":").Lit(wrk.TaskQueue)
 						})
-						g.Id("c").Dot("ref").Dot(method.Name)
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						//g.Id("c").Dot("ref").Dot(method.Name)
 						g.Id("req")
 						return
 					})
@@ -108,7 +109,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
+		//g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 	})
 
 	methods := toSlice(wrk.Methods)
@@ -130,7 +131,8 @@ func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 				g.Return().Qual(kibuTemporal, "NewChildWorkflowFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteChildWorkflow").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
-						g.Id("p").Dot("ref").Dot(method.Name)
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
+						//g.Id("p").Dot("ref").Dot(method.Name)
 						g.Id("req")
 						return
 					})
@@ -143,7 +145,7 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 	methods := toSlice(wrk.Methods)
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
+		//g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 	})
 
 	sort.Slice(methods, sortByID(methods))
@@ -164,7 +166,8 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 				g.Return(jen.Qual(kibuTemporal, "NewFuture").Types(parserVarAsTypeParam(scope, method.Response)).CustomFunc(multiLineParen(), func(g *jen.Group) {
 					g.Qual(temporalSdkWorkflow, "ExecuteActivity").CallFunc(func(g *jen.Group) {
 						g.Id("ctx")
-						g.Id("p").Dot("ref").Dot(method.Name)
+						//g.Id("p").Dot("ref").Dot(method.Name)
+						g.Lit(workerRegistrationName(wrk.Package, wrk, method))
 						g.Id("req")
 						return
 					})
