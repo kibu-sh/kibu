@@ -7,6 +7,7 @@ import (
 	"github.com/kibu-sh/kibu/internal/parser"
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/samber/lo"
 	"go/types"
 	"net/http"
@@ -28,10 +29,10 @@ func BuildOpenAPISpec(opts *PipelineOptions) (err error) {
 			},
 		},
 		Paths: &v3.Paths{
-			PathItems: make(map[string]*v3.PathItem),
+			PathItems: orderedmap.New[string, *v3.PathItem](),
 		},
 		Components: &v3.Components{
-			Schemas: make(map[string]*base.SchemaProxy),
+			Schemas: orderedmap.New[string, *base.SchemaProxy](),
 		},
 	}
 
@@ -103,10 +104,10 @@ func buildOpenAPIEndpoint(endpoint *parser.Endpoint, doc *v3.Document) (err erro
 
 	// create a new path item for this endpoint.
 	// reuse existing path item (allows for GET/POST) on the same path
-	pathItem, hasPathItem := doc.Paths.PathItems[endpoint.Path]
+	pathItem, hasPathItem := doc.Paths.PathItems.Get(endpoint.Path)
 	if !hasPathItem {
 		pathItem = &v3.PathItem{}
-		doc.Paths.PathItems[endpoint.Path] = pathItem
+		doc.Paths.PathItems.Set(endpoint.Path, pathItem)
 	}
 
 	for _, method := range endpoint.Methods {
@@ -145,7 +146,7 @@ func buildOpenApiParameters(endpoint *parser.Endpoint) (result []*v3.Parameter, 
 		result = append(result, &v3.Parameter{
 			Name:     queryTag.Name,
 			In:       "query",
-			Required: required,
+			Required: lo.ToPtr(required),
 			Style:    "form", // TODO: think about mapping struct tag options
 			Schema: base.CreateSchemaProxy(&base.Schema{
 				Type: []string{"string"},
@@ -402,7 +403,7 @@ func schemaFromAny(params *schemaBuilderParams) (schemaProxy *base.SchemaProxy, 
 	schemaProxy, err = getCachedComponentRef(params.doc, "go.any", func() (*base.SchemaProxy, error) {
 		return base.CreateSchemaProxy(&base.Schema{
 			Type:       []string{"object"},
-			Properties: make(map[string]*base.SchemaProxy),
+			Properties: orderedmap.New[string, *base.SchemaProxy](),
 			Nullable:   lo.ToPtr(true),
 		}), nil
 	})
@@ -425,7 +426,7 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 		schemaDefinition := &base.Schema{
 			Title:      named.Obj().Name(),
 			Type:       []string{"object"},
-			Properties: make(map[string]*base.SchemaProxy),
+			Properties: orderedmap.New[string, *base.SchemaProxy](),
 		}
 
 		for _, field := range structFields(params.ty) {
@@ -448,11 +449,11 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 				tagOptions := parseOptions(openApiTag.Options)
 				dataType, _ := tagOptions.Get("type")
 				dataFormat, _ := tagOptions.Get("format")
-				schemaDefinition.Properties[fieldName] = base.CreateSchemaProxy(&base.Schema{
+				schemaDefinition.Properties.Set(fieldName, base.CreateSchemaProxy(&base.Schema{
 					Type:     []string{dataType.Value},
 					Format:   dataFormat.Value,
 					Nullable: lo.ToPtr(tagOptions.Has("nullable")),
-				})
+				}))
 				continue
 			}
 
@@ -471,7 +472,7 @@ func schemaFromStructType(params *schemaBuilderParams) (schemaProxy *base.Schema
 			//	continue
 			//}
 
-			schemaDefinition.Properties[fieldName] = fieldSchema
+			schemaDefinition.Properties.Set(fieldName, fieldSchema)
 		}
 
 		return base.CreateSchemaProxy(schemaDefinition), err
@@ -655,13 +656,11 @@ func buildOpenAPIRequest(
 		return
 	}
 
-	result = &v3.RequestBody{
-		Content: map[string]*v3.MediaType{
-			"application/json": {
-				Schema: schema,
-			},
-		},
-	}
+	result = &v3.RequestBody{}
+	result.Content = orderedmap.New[string, *v3.MediaType]()
+	result.Content.Set("application/json", &v3.MediaType{
+		Schema: schema,
+	})
 
 	return
 }
@@ -691,16 +690,16 @@ func buildOpenAPIResponses(
 	}
 
 	result = &v3.Responses{
-		Codes: map[string]*v3.Response{
+		Codes: orderedmap.ToOrderedMap(map[string]*v3.Response{
 			"200": {
 				Description: "",
-				Content: map[string]*v3.MediaType{
+				Content: orderedmap.ToOrderedMap(map[string]*v3.MediaType{
 					"application/json": {
 						Schema: schemaProxy,
 					},
-				},
+				}),
 			},
-		},
+		}),
 	}
 
 	return
@@ -710,12 +709,17 @@ func getCachedComponentRef(doc *v3.Document, key string, build func() (*base.Sch
 	schemaName := formatGoIDAsOpenApiSchemaName(key)
 	schemaRef := formatGoIDAsOpenApiSchemaRef(key)
 	schemaProxy = base.CreateSchemaProxyRef(schemaRef)
-	_, cached := doc.Components.Schemas[schemaName]
+	_, cached := doc.Components.Schemas.Get(schemaName)
 	if cached {
 		return
 	}
 
-	doc.Components.Schemas[schemaName], err = build()
+	newSchema, err := build()
+	if err != nil {
+		return
+	}
+
+	doc.Components.Schemas.Set(schemaName, newSchema)
 	return
 }
 

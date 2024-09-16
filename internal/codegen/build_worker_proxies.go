@@ -69,7 +69,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 	methods := toSlice(wrk.Methods)
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerClientName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name)
+		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 		g.Id("Temporal").Qual(temporalSDKClient, "Client")
 	})
 
@@ -108,7 +108,7 @@ func buildWorkflowClient(f *jen.File, wrk *parser.Worker) {
 func buildWorkflowProxy(f *jen.File, wrk *parser.Worker) {
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name)
+		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 	})
 
 	methods := toSlice(wrk.Methods)
@@ -143,7 +143,7 @@ func buildActivityProxy(f *jen.File, wrk *parser.Worker) {
 	methods := toSlice(wrk.Methods)
 	scope := wrk.Package.GoPackage
 	f.Type().Id(workerProxyName(wrk)).StructFunc(func(g *jen.Group) {
-		g.Id("ref").Qual("", wrk.Name)
+		g.Id("ref").Qual("", wrk.Name).Tag(map[string]string{"wire": "-"})
 	})
 
 	sort.Slice(methods, sortByID(methods))

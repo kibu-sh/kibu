@@ -11,7 +11,6 @@ func BuildHTTPHandlerProviders(opts *PipelineOptions) (err error) {
 	f := opts.FileSet.Get(kibuGenWireSetPath(opts))
 	f.Type().Id("HTTPHandlerFactoryDeps").StructFunc(func(g *jen.Group) {
 		for _, svc := range opts.Services {
-			// TODO: id might collide
 			g.Id(buildPackageScopedID(svc.PackagePath(), svc.Name)).Op("*").Qual(svc.PackagePath(), svc.Name)
 		}
 		g.Id("MiddlewareRegistry").Op("*").Qual(kibuTransportMiddleware, "Registry")
@@ -58,5 +57,5 @@ func kibuGenWireSetPath(opts *PipelineOptions) (FilePath, PackageName) {
 }
 
 func buildPackageScopedID(pkg, name string) string {
-	return xstrings.ToCamelCase(strings.Replace(jen.Qual(pkg, name).GoString(), ".", "_", -1))
+	return xstrings.ToPascalCase(strings.Replace(jen.Qual(pkg, name).GoString(), ".", "_", -1))
 }

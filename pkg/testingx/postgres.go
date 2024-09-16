@@ -12,7 +12,6 @@ import (
 	"github.com/kibu-sh/kibu/pkg/appcontext"
 	"github.com/kibu-sh/kibu/pkg/container"
 	"github.com/kibu-sh/kibu/pkg/ctxutil"
-	"github.com/kibu-sh/kibu/pkg/database/xql"
 	"github.com/kibu-sh/kibu/pkg/netx"
 	"net/url"
 	"os"
@@ -273,8 +272,6 @@ func SetupTestMainWithDB(
 
 	db, err := sqlx.ConnectContext(ctx, "postgres", dsn.String())
 	CheckErrFatal(err)
-	ctx = xql.ConnectionContextStore.Save(ctx, db)
-	appcontext.UpdateCache(ctx)
 
 	ctx = connectionContextStore.Save(ctx, Connection{
 		DB:  db,
