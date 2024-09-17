@@ -27,7 +27,7 @@ type Worker struct {
 	Directives directive.List
 }
 
-var (
+const (
 	WorkflowType = WorkerType("workflow")
 	ActivityType = WorkerType("activity")
 )
