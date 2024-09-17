@@ -3,6 +3,7 @@ package temporal
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go.temporal.io/api/enums/v1"
@@ -14,11 +15,6 @@ import (
 	"log/slog"
 	"time"
 )
-
-type RetryPolicy = temporal.RetryPolicy
-type ActivityOptions = workflow.ActivityOptions
-type StartWorkflowOptions = client.StartWorkflowOptions
-type ChildWorkflowOptions = workflow.ChildWorkflowOptions
 
 type TaskQueue string
 type Worker struct {
@@ -134,4 +130,37 @@ func ErrorIs(err, target error) (match bool) {
 		return receivedErr.Type() == targetErr.Type()
 	}
 	return false
+}
+
+type WorkflowOptionsCtor interface {
+	WorkflowOptionsCtor(ctx context.Context, opts StartWorkflowOptions) (StartWorkflowOptions, error)
+}
+
+type ChildWorkflowOptionsCtor interface {
+	ChildWorkflowOptionsCtor(ctx workflow.Context, opts ChildWorkflowOptions) (ChildWorkflowOptions, error)
+}
+
+type ActivityOptionsCtor interface {
+	ActivityOptionsCtor(ctx workflow.Context, opts ActivityOptions) ActivityOptions
+}
+
+type ExecuteWorkflowOptions struct {
+	Client      client.Client
+	WorkflowRef string
+	Options     StartWorkflowOptions
+}
+
+func ExecuteWorkflow[Request, Response any](ctx context.Context, req Request, params ExecuteWorkflowOptions) (WorkflowRun[Response], error) {
+	opts := client.StartWorkflowOptions{
+		ID:        uuid.New().String(),
+		TaskQueue: "default",
+	}
+
+	if override, ok := any(req).(WorkflowOptionsCtor); ok {
+		opts = override.WorkflowStartOptions(opts)
+	}
+
+	return NewWorkflowRunWithErr[Res](
+		params.Client.ExecuteWorkflow(ctx, opts, "exp.Workflow.Start", req),
+	)
 }
