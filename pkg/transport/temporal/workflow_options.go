@@ -10,7 +10,7 @@ import (
 )
 
 type WorkflowOptionProvider interface {
-	WorkflowOptions(builder WorkflowOptionsBuilder) WorkflowOptionsBuilder
+	WorkflowOptions(options WorkflowOptionsBuilder) WorkflowOptionsBuilder
 }
 
 type WorkflowOptionFunc func(WorkflowOptionsBuilder) WorkflowOptionsBuilder
@@ -176,27 +176,9 @@ func (b WorkflowOptionsBuilder) WithWaitForCancellation(wait bool) WorkflowOptio
 }
 
 // ApplyOptionFuncs applies the provided option functions to the builder.
-func (b WorkflowOptionsBuilder) ApplyOptionFuncs(funcs ...WorkflowOptionFunc) WorkflowOptionsBuilder {
+func (b WorkflowOptionsBuilder) WithOptionFuncs(funcs ...WorkflowOptionFunc) WorkflowOptionsBuilder {
 	for _, f := range funcs {
 		b = f(b)
-	}
-	return b
-}
-
-// ApplyOptionProviders applies the provided option providers to the builder.
-func (b WorkflowOptionsBuilder) ApplyOptionProviders(providers ...WorkflowOptionProvider) WorkflowOptionsBuilder {
-	for _, p := range providers {
-		b = p.WorkflowOptions(b)
-	}
-	return b
-}
-
-// ApplyOptionProvidersWhenSupported applies the provided option providers to the builder if the builder supports them.
-func (b WorkflowOptionsBuilder) ApplyOptionProvidersWhenSupported(providers ...any) WorkflowOptionsBuilder {
-	for _, p := range providers {
-		if supported, ok := p.(WorkflowOptionProvider); ok {
-			b = supported.WorkflowOptions(b)
-		}
 	}
 	return b
 }
