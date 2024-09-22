@@ -3,7 +3,6 @@ package temporal
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go.temporal.io/api/enums/v1"
@@ -130,52 +129,4 @@ func ErrorIs(err, target error) (match bool) {
 		return receivedErr.Type() == targetErr.Type()
 	}
 	return false
-}
-
-type WorkflowOptionsCtor interface {
-	WorkflowOptionsCtor(ctx context.Context, opts StartWorkflowOptions) (StartWorkflowOptions, error)
-}
-
-type ChildWorkflowOptionsCtor interface {
-	ChildWorkflowOptionsCtor(ctx workflow.Context, opts ChildWorkflowOptions) (ChildWorkflowOptions, error)
-}
-
-type ActivityOptionsCtor interface {
-	ActivityOptionsCtor(ctx workflow.Context, opts ActivityOptions) ActivityOptions
-}
-
-type ExecuteWorkflowOptions struct {
-	Client      client.Client
-	WorkflowRef string
-	Options     StartWorkflowOptions
-}
-
-func ExecuteWorkflow[Request, Response any](ctx context.Context, req Request, params ExecuteWorkflowOptions) (WorkflowRun[Response], error) {
-	opts := client.StartWorkflowOptions{
-		ID:        uuid.New().String(),
-		TaskQueue: "default",
-	}
-
-	if override, ok := any(req).(WorkflowOptionsCtor); ok {
-		opts = override.WorkflowStartOptions(opts)
-	}
-
-	return NewWorkflowRunWithErr[Res](
-		params.Client.ExecuteWorkflow(ctx, opts, "exp.Workflow.Start", req),
-	)
-}
-
-type SideEffectFunc[T any] func(ctx workflow.Context) T
-
-func SideEffect[T any](ctx workflow.Context, fun SideEffectFunc[T]) (result T, err error) {
-	err = workflow.SideEffect(ctx, func(ctx workflow.Context) any {
-		return fun(ctx)
-	}).Get(&result)
-	return
-}
-
-func NewWorkflowID(ctx workflow.Context) (string, error) {
-	return SideEffect(ctx, func(ctx workflow.Context) string {
-		return uuid.New().String()
-	})
 }

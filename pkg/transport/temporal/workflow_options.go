@@ -9,7 +9,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type WorkflowOptionProvider interface {
+type WorkflowOptionsProvider interface {
 	WorkflowOptions(options WorkflowOptionsBuilder) WorkflowOptionsBuilder
 }
 
@@ -175,10 +175,28 @@ func (b WorkflowOptionsBuilder) WithWaitForCancellation(wait bool) WorkflowOptio
 	return b
 }
 
-// ApplyOptionFuncs applies the provided option functions to the builder.
-func (b WorkflowOptionsBuilder) WithOptionFuncs(funcs ...WorkflowOptionFunc) WorkflowOptionsBuilder {
+// WithOptions applies the provided option functions to the builder.
+func (b WorkflowOptionsBuilder) WithOptions(funcs ...WorkflowOptionFunc) WorkflowOptionsBuilder {
 	for _, f := range funcs {
 		b = f(b)
+	}
+	return b
+}
+
+// WithProviders applies the provided providers to the builder.
+func (b WorkflowOptionsBuilder) WithProviders(providers ...WorkflowOptionsProvider) WorkflowOptionsBuilder {
+	for _, p := range providers {
+		b = p.WorkflowOptions(b)
+	}
+	return b
+}
+
+// WithProvidersWhenSupported applies the provided providers to the builder if they implement WorkflowOptionsProvider.
+func (b WorkflowOptionsBuilder) WithProvidersWhenSupported(providers ...any) WorkflowOptionsBuilder {
+	for _, p := range providers {
+		if provider, ok := p.(WorkflowOptionsProvider); ok {
+			b = provider.WorkflowOptions(b)
+		}
 	}
 	return b
 }

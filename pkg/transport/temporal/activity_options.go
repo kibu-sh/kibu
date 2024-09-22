@@ -7,6 +7,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+type ActivityOptionsProvider interface {
+	ActivityOptions(builder ActivityOptionsBuilder) ActivityOptionsBuilder
+}
+
 type ActivityOptionFunc func(ActivityOptionsBuilder) ActivityOptionsBuilder
 
 // ActivityOptionsBuilder helps build workflow.ActivityOptions.
@@ -31,6 +35,22 @@ func NewActivityOptionsBuilder() ActivityOptionsBuilder {
 // WithTaskQueue sets the task queue.
 func (b ActivityOptionsBuilder) WithTaskQueue(taskQueue string) ActivityOptionsBuilder {
 	b.taskQueue = taskQueue
+	return b
+}
+
+func (b ActivityOptionsBuilder) WithProviders(providers ...ActivityOptionsProvider) ActivityOptionsBuilder {
+	for _, p := range providers {
+		b = p.ActivityOptions(b)
+	}
+	return b
+}
+
+func (b ActivityOptionsBuilder) WithProvidersWhenSupported(providers ...any) ActivityOptionsBuilder {
+	for _, p := range providers {
+		if p, ok := p.(ActivityOptionsProvider); ok {
+			b = p.ActivityOptions(b)
+		}
+	}
 	return b
 }
 
