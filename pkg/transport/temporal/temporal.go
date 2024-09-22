@@ -2,89 +2,35 @@ package temporal
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
-	"log/slog"
 	"time"
 )
 
-type TaskQueue string
-type Worker struct {
-	Name      string
-	TaskQueue string
-	Type      string
-	Handler   any
-}
-
-type WorkerFactory interface {
-	WorkerFactory() []*Worker
-}
-
-func NewWorker(
-	client client.Client,
-	workerDefs []*Worker,
-	logger *slog.Logger,
-) (workers []worker.Worker, err error) {
-	defByTaskQueue := lo.GroupBy(workerDefs, func(def *Worker) string {
-		return def.TaskQueue
-	})
-
-	for queue, workerDefs := range defByTaskQueue {
-		w := worker.New(client, queue, worker.Options{
-			EnableLoggingInReplay:            true,
-			WorkerStopTimeout:                time.Second * 30,
-			DisableRegistrationAliasing:      true,
-			MaxConcurrentActivityTaskPollers: 4,
-			MaxConcurrentWorkflowTaskPollers: 4,
-		})
-
-		for _, def := range workerDefs {
-			logger.With("queue", queue).
-				With("type", def.Type).
-				With("name", def.Name).
-				Debug(fmt.Sprintf("[kibu.transport.temporal] %s %s", def.Type, def.Name))
-			switch def.Type {
-			case "workflow":
-				w.RegisterWorkflowWithOptions(def.Handler, workflow.RegisterOptions{
-					Name: def.Name,
-				})
-			case "activity":
-				w.RegisterActivityWithOptions(def.Handler, activity.RegisterOptions{
-					Name: def.Name,
-				})
-			}
-		}
-
-		workers = append(workers, w)
-	}
-	return
-}
+type FutureCallback[T any] func(Future[T])
 
 type Future[T any] interface {
 	Get(ctx workflow.Context) (res T, err error)
 	IsReady() bool
-	UnderlyingFuture() workflow.Future
+	Underlying() workflow.Future
+	Select(workflow.Selector, FutureCallback[T]) workflow.Selector
 }
 
 type ChildWorkflowFuture[T any] interface {
 	Future[T]
 	UnderlyingChildWorkflowFuture() workflow.ChildWorkflowFuture
-	GetChildWorkflowExecution() Future[T]
+	GetChildWorkflowExecution() Future[workflow.Execution]
 }
 
 type WorkflowRun[T any] interface {
 	GetID() string
 	GetRunID() string
+	Underlying() client.WorkflowRun
 	Get(ctx context.Context) (result T, err error)
 	GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error)
-	UnderlyingWorkflowRun() client.WorkflowRun
 }
 
 func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {

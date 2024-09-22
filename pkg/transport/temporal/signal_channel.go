@@ -5,7 +5,12 @@ import (
 	"time"
 )
 
+type SignalCallback[T any] func(res T, more bool)
+
 type SignalChannel[T any] interface {
+	// Name returns the name of the signal channel
+	Name() string
+
 	// Receive blocks until the signalChannel is received
 	// more is false if the channel was closed
 	Receive(ctx workflow.Context) (res T, more bool)
@@ -15,12 +20,17 @@ type SignalChannel[T any] interface {
 	ReceiveAsync() (res T, ok bool)
 
 	// ReceiveWithTimeout blocks until a signalChannel is received or the timeout expires.
-	// Returns more value of false when Channel is closed.
-	// Returns ok value of false when no value was found in the channel for the duration of timeout or the ctx was canceled.
+	// Returns more as false when Channel is closed.
+	// Returns ok as false when no value was found in the channel for the duration of timeout or the ctx was canceled.
 	ReceiveWithTimeout(ctx workflow.Context, timeout time.Duration) (res T, ok bool, more bool)
 
+	// ReceiveAsyncWithMore checks for a signalChannel without blocking
+	// returns ok as false when no value was found in the channel
+	// returns more as false when the channel is closed
+	ReceiveAsyncWithMore() (res T, ok bool, more bool)
+
 	// Select checks for signalChannel without blocking
-	Select(sel workflow.Selector, fn func(res T, ok bool)) workflow.Selector
+	Select(sel workflow.Selector, fn SignalCallback[T]) workflow.Selector
 
 	// Len returns the number of elements in the channel
 	Len() int
@@ -32,12 +42,18 @@ type signalChannel[T any] struct {
 	channel workflow.ReceiveChannel
 }
 
+// Name returns the name of the signal channel
+func (s *signalChannel[T]) Name() string {
+	return s.channel.Name()
+}
+
 // Len returns the number of buffered messages plus the number of blocked Send calls.
 func (s *signalChannel[T]) Len() int {
 	return s.channel.Len()
 }
 
 // Receive blocks until the signalChannel is received
+// Returns more as false when the channel is closed
 func (s *signalChannel[T]) Receive(ctx workflow.Context) (resp T, more bool) {
 	more = s.channel.Receive(ctx, &resp)
 	return
@@ -47,6 +63,14 @@ func (s *signalChannel[T]) Receive(ctx workflow.Context) (resp T, more bool) {
 // returns ok of false when no value was found in the channel
 func (s *signalChannel[T]) ReceiveAsync() (res T, ok bool) {
 	ok = s.channel.ReceiveAsync(&res)
+	return
+}
+
+// ReceiveAsyncWithMore checks for a signalChannel without blocking
+// returns ok as false when no value was found in the channel
+// returns more as false when the channel is closed
+func (s *signalChannel[T]) ReceiveAsyncWithMore() (res T, ok bool, more bool) {
+	ok, more = s.channel.ReceiveAsyncWithMoreFlag(&res)
 	return
 }
 
@@ -63,11 +87,11 @@ func (s *signalChannel[T]) ReceiveWithTimeout(ctx workflow.Context, timeout time
 // The callback is called when Select(ctx) is called.
 // The message is expected to be consumed by the callback function.
 // The branch is automatically removed after the channel is closed, and the callback fires.
-func (s *signalChannel[T]) Select(sel workflow.Selector, fn func(T, bool)) workflow.Selector {
+func (s *signalChannel[T]) Select(sel workflow.Selector, fn SignalCallback[T]) workflow.Selector {
 	return sel.AddReceive(s.channel, func(workflow.ReceiveChannel, bool) {
-		req, ok := s.ReceiveAsync()
+		req, _, more := s.ReceiveAsyncWithMore()
 		if fn != nil {
-			fn(req, ok)
+			fn(req, more)
 		}
 	})
 }

@@ -108,7 +108,7 @@ func (b ActivityOptionsBuilder) WithVersioningIntent(intent temporal.VersioningI
 	return b
 }
 
-func (b ActivityOptionsBuilder) WithOptionFuncs(funcs ...ActivityOptionFunc) ActivityOptionsBuilder {
+func (b ActivityOptionsBuilder) WithOptions(funcs ...ActivityOptionFunc) ActivityOptionsBuilder {
 	for _, f := range funcs {
 		b = f(b)
 	}
