@@ -8,7 +8,6 @@ import (
 	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/kibu-sh/kibu/pkg/foreman"
 	"github.com/kibu-sh/kibu/pkg/transport/httpx"
-	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/pkg/errors"
 	"go.temporal.io/sdk/client"
@@ -135,12 +134,10 @@ var DefaultSet = wire.NewSet(
 	NewLogger,
 
 	appcontext.Context,
-	temporal.NewWorker,
 	httpx.NewServer,
 	httpx.NewTCPListener,
 	httpx.NewStdLibMux,
 
 	wire.Bind(new(httpx.ServeMux), new(*httpx.StdLibMux)),
 	wire.Struct(new(httpx.NewServerParams), "*"),
-	wire.Value(temporal.TaskQueue("default")),
 )
