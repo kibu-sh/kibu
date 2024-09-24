@@ -1,8 +1,11 @@
 package directive
 
 import (
+	"encoding/gob"
+	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go/ast"
 	"strings"
 )
@@ -17,8 +20,20 @@ type Directive struct {
 	Options *OptionList
 }
 
+var _ gob.GobEncoder = (*OptionList)(nil)
+var _ gob.GobDecoder = (*OptionList)(nil)
+
 type OptionList struct {
 	om map[string][]string
+}
+
+func (ol *OptionList) GobDecode(bytes []byte) error {
+	ol.om = make(map[string][]string)
+	return json.Unmarshal(bytes, &ol.om)
+}
+
+func (ol *OptionList) GobEncode() ([]byte, error) {
+	return json.Marshal(ol.om)
 }
 
 func NewOptionList() *OptionList {
@@ -228,12 +243,14 @@ func tryIndex(pair []string, i int) []string {
 	return nil
 }
 
+type Map = orderedmap.OrderedMap[*ast.Ident, List]
+
 // FromDecls returns a list of directives cached by *ast.Ident
-func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
-	result = make(map[*ast.Ident]List)
+func FromDecls(decls []ast.Decl) (result *Map, err error) {
+	result = orderedmap.New[*ast.Ident, List]()
 
 	for _, decl := range decls {
-		if err = applyFromDecl(decl, result); err != nil {
+		if err = ApplyFromDecl(decl, result); err != nil {
 			return
 		}
 	}
@@ -241,7 +258,8 @@ func FromDecls(decls []ast.Decl) (result map[*ast.Ident]List, err error) {
 	return
 }
 
-func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
+// ApplyFromDecl applies the comments from a declaration to the result map
+func ApplyFromDecl(decl ast.Decl, result *Map) (err error) {
 	var comments *ast.CommentGroup
 
 	switch decl := decl.(type) {
@@ -265,15 +283,15 @@ func applyFromDecl(decl ast.Decl, result map[*ast.Ident]List) (err error) {
 		for _, spec := range decl.Specs {
 			switch spec := spec.(type) {
 			case *ast.TypeSpec:
-				result[spec.Name] = dirs
+				result.Set(spec.Name, dirs)
 			case *ast.ValueSpec:
 				for _, name := range spec.Names {
-					result[name] = dirs
+					result.Set(name, dirs)
 				}
 			}
 		}
 	case *ast.FuncDecl:
-		result[decl.Name] = dirs
+		result.Set(decl.Name, dirs)
 	}
 	return
 }

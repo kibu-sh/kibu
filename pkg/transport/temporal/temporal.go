@@ -1,10 +1,8 @@
 package temporal
 
 import (
-	"context"
 	"github.com/pkg/errors"
 	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"time"
@@ -17,20 +15,6 @@ type Future[T any] interface {
 	IsReady() bool
 	Underlying() workflow.Future
 	Select(workflow.Selector, FutureCallback[T]) workflow.Selector
-}
-
-type ChildWorkflowFuture[T any] interface {
-	Future[T]
-	UnderlyingChildWorkflowFuture() workflow.ChildWorkflowFuture
-	GetChildWorkflowExecution() Future[workflow.Execution]
-}
-
-type WorkflowRun[T any] interface {
-	GetID() string
-	GetRunID() string
-	Underlying() client.WorkflowRun
-	Get(ctx context.Context) (result T, err error)
-	GetWithOptions(ctx context.Context, options client.WorkflowRunGetOptions) (result T, err error)
 }
 
 func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {

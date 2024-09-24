@@ -1,8 +1,6 @@
 module github.com/kibu-sh/kibu
 
-go 1.23.0
-
-toolchain go1.23.1
+go 1.23.1
 
 require (
 	cloud.google.com/go/secretmanager v1.14.1
