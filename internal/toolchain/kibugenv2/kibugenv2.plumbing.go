@@ -195,24 +195,51 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 		g.Id("RunID").Params().Params(jen.String())
 		g.Id("Get").Params(namedCtxParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
 
-		for _, op := range svc.Operations {
-
-			// skip execute operations (it's handled by Get)
-			if op.Decorators.Some(isKibuWorkflowExecute) {
-				continue
-			}
-
+		signalsAndQueries := filterSignalAndQueryMethods(svc.Operations)
+		lo.ForEach(signalsAndQueries, func(op *kibumod.Operation, i int) {
 			g.Id(op.Name).
-				ParamsFunc(mapWorkflowOperationArgs(op)).
-				ParamsFunc(mapWorkflowOperationResults(op))
+				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
+				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
+		})
 
-			// TODO: implement the async interface
-			//if op.Decorators.Some(isKibuWorkflowUpdate) {
-			//	g.Id(nameAsync(op.Name)).
-			//		ParamsFunc(mapWorkflowOperationArgs(op)).
-			//		ParamsFunc(mapWorkflowOperationResults(op))
-			//}
-		}
+		updateMethods := filterUpdateMethods(svc.Operations)
+		// generate sync methods
+		lo.ForEach(updateMethods, func(op *kibumod.Operation, i int) {
+			g.Id(op.Name).
+				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
+				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
+		})
+
+		// generate async methods with the update handle
+		lo.ForEach(updateMethods, func(op *kibumod.Operation, i int) {
+			g.Id(op.Name).
+				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
+				ParamsFunc(func(g *jen.Group) {
+					for idx, result := range op.Results {
+						if idx == 0 {
+							g.Id(result.Name).Qual(kibuTemporalImportName, "UpdateHandle").
+								Types(exprToJen(result.Field.Type))
+						} else {
+							g.Id(result.Name).Add(exprToJen(result.Field.Type))
+						}
+					}
+				})
+		})
+	})
+}
+
+func filterUpdateMethods(operations []*kibumod.Operation) []*kibumod.Operation {
+	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+		return op.Decorators.Some(isKibuWorkflowUpdate)
+	})
+}
+
+func filterSignalAndQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
+	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+		return op.Decorators.Some(directive.OneOf(
+			isKibuWorkflowSignal,
+			isKibuWorkflowQuery,
+		))
 	})
 }
 
@@ -220,7 +247,7 @@ func nameAsync(name string) string {
 	return firstToUpper(fmt.Sprintf("%sAsync", name))
 }
 
-func mapWorkflowOperationArgs(op *kibumod.Operation) func(g *jen.Group) {
+func mapWorkflowOperationArgsForRunIface(op *kibumod.Operation) func(g *jen.Group) {
 	return func(g *jen.Group) {
 		g.Add(namedCtxParam())
 		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
@@ -231,7 +258,7 @@ func mapWorkflowOperationArgs(op *kibumod.Operation) func(g *jen.Group) {
 	}
 }
 
-func mapWorkflowOperationResults(op *kibumod.Operation) func(*jen.Group) {
+func mapWorkflowOperationResultsForRunIface(op *kibumod.Operation) func(*jen.Group) {
 	return func(g *jen.Group) {
 		for _, result := range op.Results {
 			g.Id(result.Name).Add(exprToJen(result.Field.Type))
@@ -249,7 +276,7 @@ func mapWorkflowExecuteResults(svc *kibumod.Service) func(g *jen.Group) {
 		}
 
 		for _, result := range exec.Results {
-			g.Add(exprToJen(result.Field.Type))
+			g.Add(paramToMaybeNamedExp(mo.Some(result)))
 		}
 	}
 }
@@ -257,12 +284,13 @@ func mapWorkflowExecuteResults(svc *kibumod.Service) func(g *jen.Group) {
 func namedCtxParam() jen.Code {
 	return jen.Id("ctx").Qual(ctxImportName, "Context")
 }
+func namedWorkflowCtxParam() jen.Code {
+	return jen.Id("ctx").Qual(temporalWorkflowImportName, "Context")
+}
 
 func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
 	return jen.Func().Id(signalChannelProviderFuncName(svc, op)).
-		ParamsFunc(func(g *jen.Group) {
-			g.Id("ctx").Qual(temporalWorkflowImportName, "Context")
-		}).
+		Params(namedWorkflowCtxParam()).
 		ParamsFunc(func(g *jen.Group) {
 			g.Qual(kibuTemporalImportName, "SignalChannel").
 				Types(paramToExp(paramAtIndex(op.Params, 1)))
