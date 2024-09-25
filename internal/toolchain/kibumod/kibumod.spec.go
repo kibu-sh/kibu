@@ -18,14 +18,14 @@ type Package struct {
 // A can be any native Go object, we use this to identify properties or func arguments/results
 type Type struct {
 	Name  string
-	field *ast.Field
+	Field *ast.Field
 }
 
 type Operation struct {
 	Name       string
 	Params     []Type
 	Results    []Type
-	method     *ast.Field
+	Method     *ast.Field
 	Doc        string
 	Decorators directive.List
 }
@@ -35,7 +35,7 @@ type Service struct {
 	Operations []*Operation
 	Decorators directive.List
 	Doc        string
-	decl       *ast.GenDecl
-	iface      *ast.InterfaceType
-	tspec      *ast.TypeSpec
+	Decl       *ast.GenDecl
+	Iface      *ast.InterfaceType
+	Tspec      *ast.TypeSpec
 }

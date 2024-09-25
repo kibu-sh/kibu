@@ -33,36 +33,20 @@ var Analyzer = &analysis.Analyzer{
 var missingPackageError = errors.New("missing result of kibumod analyzer")
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgs, ok := kibumod.FromPass(pass)
+	pkg, ok := kibumod.FromPass(pass)
 	if !ok {
 		return nil, missingPackageError
 	}
 
-	result := new(Artifact)
-	generators := []GenFunc{
-		generatePlumbing,
+	genFile := newGenFile(pass.Pkg)
+
+	result := &Artifact{
+		Files: []*jen.File{genFile},
 	}
 
-	return result, generate(&GenParams{
-		Pass:     pass,
-		Pkg:      pkgs,
-		Artifact: result,
-	}, generators...)
-}
-
-type GenParams struct {
-	Pass     *analysis.Pass
-	Pkg      *kibumod.Package
-	Artifact *Artifact
-}
-
-type GenFunc func(params *GenParams) error
-
-func generate(params *GenParams, generators ...GenFunc) error {
-	for _, generator := range generators {
-		if err := generator(params); err != nil {
-			return err
-		}
-	}
-	return nil
+	buildPkgCompilerAssertions(genFile, pkg)
+	buildPkgConstants(genFile, pkg)
+	buildSignalChannelFuncs(genFile, pkg)
+	buildWorkflowInterfaces(genFile, pkg)
+	return result, nil
 }

@@ -102,9 +102,9 @@ func extractServiceFromInterface(pass *analysis.Pass, opts extractServiceFromInt
 		Doc:        extractDoc(pass, opts.decl.Doc),
 		Decorators: extractDecorators(pass, opts.decl.Doc),
 		Operations: extractOperations(pass, opts.iface),
-		decl:       opts.decl,
-		iface:      opts.iface,
-		tspec:      opts.tspec,
+		Decl:       opts.decl,
+		Iface:      opts.iface,
+		Tspec:      opts.tspec,
 	}
 }
 
@@ -131,7 +131,7 @@ func extractOperation(pass *analysis.Pass, method *ast.Field) *Operation {
 	}
 	return &Operation{
 		Name:       tryName(method),
-		method:     method,
+		Method:     method,
 		Doc:        extractDoc(pass, method.Doc),
 		Params:     extractTypesFromFieldList(pass, fnt.Params),
 		Results:    extractTypesFromFieldList(pass, fnt.Results),
@@ -168,7 +168,7 @@ func tryName(param *ast.Field) string {
 func extractTypeFromField(pass *analysis.Pass, field *ast.Field) Type {
 	return Type{
 		Name:  tryName(field),
-		field: field,
+		Field: field,
 	}
 }
 

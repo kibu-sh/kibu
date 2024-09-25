@@ -29,6 +29,7 @@ var isDirectiveTests = []struct {
 	{"kibu:endpoint", true},
 	{"kibu:workflow", true},
 	{"kibu:activity", true},
+	{"kibu:workflow:update", true},
 }
 
 func TestIsDirective(t *testing.T) {
@@ -85,6 +86,16 @@ func TestParseDirective(t *testing.T) {
 				Tool: "kibu", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET", "POST"},
+				}),
+			},
+		},
+
+		"should parse third level key": {
+			in: "kibu:workflow:update ref=SomeOption",
+			out: Directive{
+				Tool: "kibu", Name: "workflow", Qualifier: "update",
+				Options: NewOptionListWithDefaults(map[string][]string{
+					"ref": []string{"SomeOption"},
 				}),
 			},
 		},

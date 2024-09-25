@@ -3,6 +3,7 @@ package directive
 import (
 	"encoding/gob"
 	"encoding/json"
+	"github.com/gobwas/glob"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -15,9 +16,18 @@ var ErrInvalidDirective = errors.New("invalid directive")
 // var ErrInvalidOption = errors.New("invalid option")
 
 type Directive struct {
-	Tool    string
-	Name    string
-	Options *OptionList
+	Tool      string
+	Name      string
+	Qualifier string
+	Options   *OptionList
+}
+
+func (d Directive) String() string {
+	fqn := []string{d.Tool, d.Name}
+	if d.Qualifier != "" {
+		fqn = append(fqn, d.Qualifier)
+	}
+	return strings.Join(fqn, ":")
 }
 
 var _ gob.GobEncoder = (*OptionList)(nil)
@@ -117,9 +127,42 @@ func OneOf(filters ...FilterFunc) FilterFunc {
 	}
 }
 
-func HasKey(tool, name string) FilterFunc {
+func HasKey(parts ...string) FilterFunc {
+	return Exactly(strings.Join(parts, ":"))
+}
+
+func Matches(pattern string) FilterFunc {
 	return func(d Directive) bool {
-		return d.Tool == tool && d.Name == name
+		gl, err := glob.Compile(pattern)
+		if err != nil {
+			return false
+		}
+
+		return gl.Match(d.String())
+	}
+}
+
+func HasQualifier(qualifier string) FilterFunc {
+	return func(d Directive) bool {
+		return d.Qualifier == qualifier
+	}
+}
+
+func HasPrefix(prefix string) FilterFunc {
+	return func(d Directive) bool {
+		return strings.HasPrefix(d.String(), prefix)
+	}
+}
+
+func HasSuffix(suffix string) FilterFunc {
+	return func(d Directive) bool {
+		return strings.HasSuffix(d.String(), suffix)
+	}
+}
+
+func Exactly(s string) FilterFunc {
+	return func(d Directive) bool {
+		return d.String() == s
 	}
 }
 
@@ -198,7 +241,7 @@ func Parse(d string) (dir Directive, err error) {
 	}
 
 	parts := strings.Split(d, " ")
-	dir.Tool, dir.Name, err = parseKey(parts[0])
+	dir.Tool, dir.Name, dir.Qualifier, err = parseKey(parts[0])
 	if err != nil {
 		return
 	}
@@ -211,13 +254,24 @@ func Parse(d string) (dir Directive, err error) {
 	return
 }
 
-func parseKey(s string) (string, string, error) {
+func parseKey(s string) (string, string, string, error) {
+	tool := ""
+	name := ""
+	qualifier := ""
+
 	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		return "", "", errors.Wrapf(ErrInvalidDirective,
+	if len(parts) < 2 {
+		return "", "", "", errors.Wrapf(ErrInvalidDirective,
 			"failed to parse key expected form at (tool:name) got %s", s)
 	}
-	return parts[0], parts[1], nil
+
+	tool = parts[0]
+	name = parts[1]
+
+	if len(parts) == 3 {
+		qualifier = parts[2]
+	}
+	return tool, name, qualifier, nil
 }
 
 func parseOptions(opts []string) (result *OptionList, err error) {
