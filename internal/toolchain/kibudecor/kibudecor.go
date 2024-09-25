@@ -1,4 +1,4 @@
-package kibudirectives
+package kibudecor
 
 import (
 	"github.com/kibu-sh/kibu/internal/parser/directive"

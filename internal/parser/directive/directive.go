@@ -123,6 +123,12 @@ func HasKey(tool, name string) FilterFunc {
 	}
 }
 
+func HasTool(tool string) FilterFunc {
+	return func(d Directive) bool {
+		return d.Tool == tool
+	}
+}
+
 // FromCommentGroup returns a list of directives by parsing an *ast.CommentGroup.
 func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
 	for _, comment := range d.List {

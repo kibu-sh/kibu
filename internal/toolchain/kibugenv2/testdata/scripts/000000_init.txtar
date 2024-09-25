@@ -1,3 +1,9 @@
+kibugenv2 $WORK/src ./...
+
+-- src/go.mod --
+module github.com/example/module
+
+-- src/billingv1/billingv1.spec.go --
 package billingv1
 
 import (

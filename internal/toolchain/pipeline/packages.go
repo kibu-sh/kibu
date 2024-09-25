@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -13,14 +14,75 @@ type Config struct {
 	FactStore        FactStore
 	Analyzers        []*analysis.Analyzer
 	RunDespiteErrors bool
-	Dir              string
 	LoaderConfig     *packages.Config
+	Logger           *slog.Logger
+}
+
+func (c *Config) WithLoaderConfig(loaderConfig *packages.Config) *Config {
+	c.LoaderConfig = loaderConfig
+	return c
+}
+
+func (c *Config) WithFactStore(factStore FactStore) *Config {
+	c.FactStore = factStore
+	return c
+}
+
+func (c *Config) WithLogger(logger *slog.Logger) *Config {
+	c.Logger = logger
+	return c
+}
+
+func (c *Config) WithRunDespiteErrors(runDespiteErrors bool) *Config {
+	c.RunDespiteErrors = runDespiteErrors
+	return c
+}
+
+func (c *Config) WithPatterns(patterns []string) *Config {
+	c.Patterns = patterns
+	return c
+}
+
+func (c *Config) WithDir(dir string) *Config {
+	return c.WithLoaderConfig(PackageLoaderConfig(dir))
+}
+
+func (c *Config) WithAnalyzers(analyzers []*analysis.Analyzer) *Config {
+	c.Analyzers = analyzers
+	return c
+}
+
+func ConfigDefaults() *Config {
+	return &Config{
+		Patterns:         []string{"."},
+		RunDespiteErrors: true,
+		FactStore:        NoOpFactStore{},
+		Logger:           slog.Default(),
+	}
+}
+
+func ConfigFromCWD() (*Config, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	return ConfigDefaults().WithDir(cwd), nil
 }
 
 func loadMode() packages.LoadMode {
 	return packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports |
 		packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo |
 		packages.NeedDeps | packages.NeedModule
+}
+
+func PackageLoaderConfig(dir string) *packages.Config {
+	return &packages.Config{
+		Tests: false,
+		Dir:   dir,
+		Mode:  loadMode(),
+		Env:   os.Environ(),
+	}
 }
 
 func TestingConfig(dir string) *packages.Config {
@@ -44,7 +106,7 @@ func TestingConfig(dir string) *packages.Config {
 	}
 }
 
-func LoadPackages(config Config) ([]*packages.Package, error) {
+func LoadPackages(config *Config) ([]*packages.Package, error) {
 	pkgs, err := packages.Load(config.LoaderConfig, config.Patterns...)
 	if err != nil {
 		return nil, err

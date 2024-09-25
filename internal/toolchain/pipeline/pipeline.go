@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"github.com/kibu-sh/kibu/internal/toolchain/dag"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
@@ -11,12 +12,19 @@ type Runner struct {
 	graph *dag.AcyclicGraph
 }
 
+var GraphError = errors.New("graph error")
+var GraphWalkError = errors.Join(GraphError, errors.New("walk error"))
+
 func (r *Runner) Execute(pass *analysis.Pass) error {
 	if err := r.graph.Validate(); err != nil {
-		return err
+		return errors.Join(GraphError, err)
 	}
 
-	return r.graph.Walk(r.walkFunc(pass))
+	if err := r.graph.Walk(r.walkFunc(pass)); err != nil {
+		return errors.Join(GraphWalkError, err)
+	}
+
+	return nil
 }
 
 func (r *Runner) walkFunc(pass *analysis.Pass) func(v dag.Vertex) error {
@@ -89,7 +97,7 @@ func maybeModule(pkg *packages.Package) *analysis.Module {
 	}
 }
 
-func Main(config Config) error {
+func Run(config *Config) error {
 	pkgs, err := LoadPackages(config)
 	if err != nil {
 		return err

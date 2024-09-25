@@ -17,5 +17,3 @@ node_modules/
 go.work*
 
 .DS_Store
-
-.idea/kubernetes-settings.xml
