@@ -178,7 +178,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	for _, svc := range pkg.Services {
 		f.Add(workflowRunInterface(svc))
 		f.Add(workflowChildRunInterface(svc))
-		//f.Add(workflowExternalRunInterface(svc))
+		f.Add(workflowExternalRunInterface(svc))
 		//f.Add(workflowClientInterface(svc))
 		//f.Add(workflowChildClientInterface(svc))
 	}
@@ -227,6 +227,7 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 		})
 	})
 }
+
 func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
@@ -253,11 +254,36 @@ func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 		// only signals are supported on child workflows
 		// queries must happen using a client inside an activity
 		// https://docs.temporal.io/docs/go/workflows#child-workflows
-		signalsAndQueries := filterSignalMethods(svc.Operations)
-		lo.ForEach(signalsAndQueries, func(op *kibumod.Operation, i int) {
+		signalMethods := filterSignalMethods(svc.Operations)
+		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
 			g.Id(op.Name).
 				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
 				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
+		})
+	})
+}
+func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(childRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+		g.Id("WorkflowID").Params().Params(jen.String())
+		g.Id("RunID").Params().Params(jen.String())
+		g.Id("RequestCancellation").Params(namedWorkflowContextParam()).Params(jen.Error())
+
+		// only signals are supported on child workflows
+		// queries must happen using a client inside an activity
+		// https://docs.temporal.io/docs/go/workflows#child-workflows
+		signalMethods := filterSignalMethods(svc.Operations)
+		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
+			g.Id(op.Name).
+				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
+				Params(jen.Error())
+
+			g.Id(nameAsync(op.Name)).
+				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
+				Params(qualWorkflowFuture())
 		})
 	})
 }
@@ -274,6 +300,10 @@ func filterSignalMethods(operations []*kibumod.Operation) []*kibumod.Operation {
 
 func qualWorkflowChildRunFuture() jen.Code {
 	return jen.Qual(temporalWorkflowImportName, "ChildWorkflowFuture")
+}
+
+func qualWorkflowFuture() jen.Code {
+	return jen.Qual(temporalWorkflowImportName, "Future")
 }
 
 func filterUpdateMethods(operations []*kibumod.Operation) []*kibumod.Operation {
