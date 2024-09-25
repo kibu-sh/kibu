@@ -177,7 +177,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
 		f.Add(workflowRunInterface(svc))
-		//f.Add(workflowChildRunInterface(svc))
+		f.Add(workflowChildRunInterface(svc))
 		//f.Add(workflowExternalRunInterface(svc))
 		//f.Add(workflowClientInterface(svc))
 		//f.Add(workflowChildClientInterface(svc))
@@ -193,7 +193,7 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 	return jen.Type().Id(runName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("WorkflowID").Params().Params(jen.String())
 		g.Id("RunID").Params().Params(jen.String())
-		g.Id("Get").Params(namedCtxParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
+		g.Id("Get").Params(namedStdContextParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
 
 		signalsAndQueries := filterSignalAndQueryMethods(svc.Operations)
 		lo.ForEach(signalsAndQueries, func(op *kibumod.Operation, i int) {
@@ -227,6 +227,54 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 		})
 	})
 }
+func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(childRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+		g.Id("WorkflowID").Params().Params(jen.String())
+		g.Id("IsReady").Params().Params(jen.Bool())
+		g.Id("Underlying").Params().Params(qualWorkflowChildRunFuture())
+		g.Id("Get").Params(namedWorkflowContextParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
+		g.Id("WaitStart").Params(namedWorkflowContextParam()).
+			Params(jen.Op("*").Add(qualWorkflowExecution()), jen.Error())
+
+		g.Id("Select").
+			Params(namedWorkflowSelectorParam(),
+				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
+			Params(namedWorkflowSelectorParam())
+
+		g.Id("SelectStart").
+			Params(namedWorkflowSelectorParam(),
+				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
+			Params(namedWorkflowSelectorParam())
+
+		// only signals are supported on child workflows
+		// queries must happen using a client inside an activity
+		// https://docs.temporal.io/docs/go/workflows#child-workflows
+		signalsAndQueries := filterSignalMethods(svc.Operations)
+		lo.ForEach(signalsAndQueries, func(op *kibumod.Operation, i int) {
+			g.Id(op.Name).
+				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
+				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
+		})
+	})
+}
+
+func qualWorkflowExecution() jen.Code {
+	return jen.Qual(temporalWorkflowImportName, "Execution")
+}
+
+func filterSignalMethods(operations []*kibumod.Operation) []*kibumod.Operation {
+	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+		return op.Decorators.Some(isKibuWorkflowSignal)
+	})
+}
+
+func qualWorkflowChildRunFuture() jen.Code {
+	return jen.Qual(temporalWorkflowImportName, "ChildWorkflowFuture")
+}
 
 func filterUpdateMethods(operations []*kibumod.Operation) []*kibumod.Operation {
 	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
@@ -249,7 +297,7 @@ func nameAsync(name string) string {
 
 func mapWorkflowOperationArgsForRunIface(op *kibumod.Operation) func(g *jen.Group) {
 	return func(g *jen.Group) {
-		g.Add(namedCtxParam())
+		g.Add(namedStdContextParam())
 		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
 
 		if op.Decorators.Some(isKibuWorkflowUpdate) {
@@ -281,16 +329,31 @@ func mapWorkflowExecuteResults(svc *kibumod.Service) func(g *jen.Group) {
 	}
 }
 
-func namedCtxParam() jen.Code {
-	return jen.Id("ctx").Qual(ctxImportName, "Context")
+func mapWorkflowOperationArgsForChildRunIface(op *kibumod.Operation) func(g *jen.Group) {
+	return func(g *jen.Group) {
+		g.Add(namedWorkflowContextParam())
+		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+	}
 }
-func namedWorkflowCtxParam() jen.Code {
-	return jen.Id("ctx").Qual(temporalWorkflowImportName, "Context")
+
+func namedContextParam(importName string) jen.Code {
+	return jen.Id("ctx").Qual(importName, "Context")
+}
+func namedStdContextParam() jen.Code {
+	return namedContextParam(ctxImportName)
+}
+
+func namedWorkflowContextParam() jen.Code {
+	return namedContextParam(temporalWorkflowImportName)
+}
+
+func namedWorkflowSelectorParam() jen.Code {
+	return jen.Id("sel").Qual(temporalWorkflowImportName, "Selector")
 }
 
 func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
 	return jen.Func().Id(signalChannelProviderFuncName(svc, op)).
-		Params(namedWorkflowCtxParam()).
+		Params(namedWorkflowContextParam()).
 		ParamsFunc(func(g *jen.Group) {
 			g.Qual(kibuTemporalImportName, "SignalChannel").
 				Types(paramToExp(paramAtIndex(op.Params, 1)))
