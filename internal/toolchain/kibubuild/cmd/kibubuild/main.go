@@ -16,7 +16,7 @@ func main() {
 
 	args := os.Args[1:]
 
-	err = pipeline.Run(pipeline.Config{
+	_, err = pipeline.Run(&pipeline.Config{
 		Patterns:         args,
 		FactStore:        pipeline.NoOpFactStore{},
 		Analyzers:        []*analysis.Analyzer{kibugenv2.Analyzer},

@@ -4,6 +4,7 @@ import (
 	"github.com/kibu-sh/kibu/internal/toolchain/pipeline"
 	"github.com/rogpeppe/go-internal/testscript"
 	"golang.org/x/tools/go/analysis"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -42,13 +43,23 @@ func TestGenerator(t *testing.T) {
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"kibugenv2": func(ts *testscript.TestScript, neg bool, args []string) {
+				root := args[0]
+
 				cfg := pipeline.ConfigDefaults().
 					WithPatterns(args).
-					WithDir(args[0]).
+					WithDir(root).
 					WithPatterns(args[1:]).
 					WithAnalyzers([]*analysis.Analyzer{Analyzer})
 
-				ts.Check(pipeline.Run(cfg))
+				results, err := pipeline.Run(cfg)
+				ts.Check(err)
+
+				outFiles, err := SaveArtifacts(root, results)
+				ts.Check(err)
+
+				for _, outFile := range outFiles {
+					_ = exec.Command("idea", outFile).Run()
+				}
 			},
 		},
 	})

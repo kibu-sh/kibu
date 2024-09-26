@@ -9,7 +9,7 @@ import (
 )
 
 type Artifact struct {
-	Files []*jen.File
+	File *jen.File
 }
 
 var resultType = reflect.TypeOf((*Artifact)(nil))
@@ -41,7 +41,7 @@ func run(pass *analysis.Pass) (any, error) {
 	genFile := newGenFile(pass.Pkg)
 
 	result := &Artifact{
-		Files: []*jen.File{genFile},
+		File: genFile,
 	}
 
 	buildPkgCompilerAssertions(genFile, pkg)

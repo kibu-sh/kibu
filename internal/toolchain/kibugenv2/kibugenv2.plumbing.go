@@ -45,10 +45,8 @@ var (
 	isActivityOrWorkflow  = directive.OneOf(isKibuWorkflow, isKibuActivity)
 )
 
-func WithGenExt(name string) string {
-	return fmt.Sprintf("%s.gen.go",
-		lo.SnakeCase(name),
-	)
+func fileWithGenGoExt(name string) string {
+	return fmt.Sprintf("%s.gen.go", name)
 }
 
 func firstToUpper(s string) string {
@@ -179,8 +177,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 		f.Add(workflowRunInterface(svc))
 		f.Add(workflowChildRunInterface(svc))
 		f.Add(workflowExternalRunInterface(svc))
-		//f.Add(workflowClientInterface(svc))
-		//f.Add(workflowChildClientInterface(svc))
+		f.Add(workflowClientInterface(svc))
 	}
 	return
 }
@@ -262,6 +259,7 @@ func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 		})
 	})
 }
+
 func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
@@ -286,6 +284,79 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 				Params(qualWorkflowFuture())
 		})
 	})
+}
+
+func workflowClientInterface(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(clientName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+		g.Id("GetHandle").
+			Params(namedStdContextParam(), namedGetHandleOpts()).
+			Params(jen.Id(runName(svc.Name)), jen.Error())
+
+		executeMethod, _ := findExecuteMethod(svc)
+		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+
+		g.Id("Execute").
+			ParamsFunc(func(g *jen.Group) {
+				g.Add(namedStdContextParam())
+				g.Id("req").Add(executeReq)
+				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+
+			}).
+			ParamsFunc(func(g *jen.Group) {
+				g.Id(runName(svc.Name))
+				g.Error()
+			})
+
+		//// only signals are supported when starting starting workflows
+		//// update with start may be coming soon
+		//// https://docs.temporal.io/docs/go/workflows
+		signalMethods := filterSignalMethods(svc.Operations)
+		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
+			g.Id(executeWithName(op.Name)).
+				ParamsFunc(func(g *jen.Group) {
+					g.Add(namedStdContextParam())
+
+					signalReq := paramToExp(paramAtIndex(op.Params, 1))
+					g.Id("req").Add(executeReq)
+					g.Id("sig").Add(signalReq)
+					g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+				}).
+				ParamsFunc(func(g *jen.Group) {
+					g.Id(runName(svc.Name))
+					g.Error()
+				})
+		})
+	})
+}
+
+func qualKibuTemporalWorkflowOptionFunc() jen.Code {
+	return jen.Qual(kibuTemporalImportName, "WorkflowOptionFunc")
+}
+
+func qualKibuTemporalExecuteWithSignalParams(req jen.Code, sig jen.Code) jen.Code {
+	return jen.Qual(kibuTemporalImportName, "ExecuteWithSignalParams").Types(req, sig)
+}
+
+func qualKibuTemporalExecuteParams(req jen.Code) jen.Code {
+	return jen.Qual(kibuTemporalImportName, "ExecuteParams").Types(req)
+}
+
+func executeWithName(name string) string {
+	return firstToUpper(fmt.Sprintf("ExecuteWith%s", firstToUpper(name)))
+}
+
+func findExecuteMethod(svc *kibumod.Service) (*kibumod.Operation, bool) {
+	return lo.Find(svc.Operations, func(op *kibumod.Operation) bool {
+		return op.Decorators.Some(isKibuWorkflowExecute)
+	})
+}
+
+func namedGetHandleOpts() jen.Code {
+	return jen.Id("opts").Qual(kibuTemporalImportName, "GetHandleOptions")
 }
 
 func qualWorkflowExecution() jen.Code {
@@ -398,7 +469,6 @@ func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.
 }
 
 type optionalParam = mo.Option[kibumod.Type]
-type optionCode = mo.Option[jen.Code]
 
 func paramAtIndex(params []kibumod.Type, index int) optionalParam {
 	if index < 0 || index >= len(params) {
@@ -411,6 +481,13 @@ func paramAtIndex(params []kibumod.Type, index int) optionalParam {
 func paramToExp(param optionalParam) jen.Code {
 	if param.IsAbsent() {
 		return jen.Null()
+	}
+	return exprToJen(param.MustGet().Field.Type)
+}
+
+func paramToExpOrAny(param optionalParam) jen.Code {
+	if param.IsAbsent() {
+		return jen.Any()
 	}
 	return exprToJen(param.MustGet().Field.Type)
 }

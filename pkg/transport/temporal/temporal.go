@@ -17,6 +17,17 @@ type Future[T any] interface {
 	Select(workflow.Selector, FutureCallback[T]) workflow.Selector
 }
 
+type ExecuteParams[T any] struct {
+	Request T
+	Options []WorkflowOptionFunc
+}
+
+type ExecuteWithSignalParams[T, S any] struct {
+	Request T
+	Signal  S
+	Options []WorkflowOptionFunc
+}
+
 func WithDefaultActivityOptions(ctx workflow.Context) workflow.Context {
 	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: time.Second * 30,

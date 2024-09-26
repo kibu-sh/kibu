@@ -97,18 +97,21 @@ func maybeModule(pkg *packages.Package) *analysis.Module {
 	}
 }
 
-func Run(config *Config) error {
-	pkgs, err := LoadPackages(config)
+func Run(config *Config) (result []*analysis.Pass, err error) {
+	var pkgs []*packages.Package
+	pkgs, err = LoadPackages(config)
 	if err != nil {
-		return err
+		return
 	}
 
-	runner := NewRunner(config.Analyzers...)
+	var runner = NewRunner(config.Analyzers...)
 	for _, pkg := range pkgs {
 		pass := NewAnalysisPass(pkg, config.FactStore)
-		if err := runner.Execute(pass); err != nil {
-			return err
+		err = runner.Execute(pass)
+		result = append(result, pass)
+		if err != nil {
+			return
 		}
 	}
-	return nil
+	return
 }
