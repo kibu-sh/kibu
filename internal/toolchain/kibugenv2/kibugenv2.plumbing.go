@@ -9,6 +9,7 @@ import (
 	"github.com/samber/mo"
 	"go/ast"
 	"go/types"
+	"net/http"
 	"unicode"
 )
 
@@ -35,8 +36,12 @@ const (
 )
 
 var (
-	isKibuService         = directive.HasKey(kibuPrefix, serviceName)
-	isKibuActivity        = directive.HasKey(kibuPrefix, activityName)
+	isKibuService       = directive.HasKey(kibuPrefix, serviceName)
+	isKibuServiceMethod = directive.HasKey(kibuPrefix, serviceName, "method")
+
+	isKibuActivity       = directive.HasKey(kibuPrefix, activityName)
+	isKibuActivityMethod = directive.HasKey(kibuPrefix, activityName, "method")
+
 	isKibuWorkflow        = directive.HasKey(kibuPrefix, workflowName)
 	isKibuWorkflowExecute = directive.HasKey(kibuPrefix, workflowName, workflowExecuteName)
 	isKibuWorkflowUpdate  = directive.HasKey(kibuPrefix, workflowName, workflowUpdateName)
@@ -71,6 +76,10 @@ func runName(name string) string {
 
 func childRunName(name string) string {
 	return firstToUpper(fmt.Sprintf("%sChildRun", name))
+}
+
+func controllerName(name string) string {
+	return firstToUpper(fmt.Sprintf("%sController", name))
 }
 
 func externalRunName(name string) string {
@@ -402,4 +411,68 @@ func compilerAssertionToInterface(iface, impl string) *jen.Statement {
 	return jen.Var().Id("_").Id(iface).Op("=").
 		Params(ptrExpr(impl)).
 		Parens(jen.Nil())
+}
+func buildServiceControllers(f *jen.File, pkg *kibumod.Package) {
+	for _, svc := range pkg.Services {
+		if !svc.Decorators.Some(isKibuService) {
+			continue
+		}
+
+		f.Type().Id(svc.Name + "Controller").Struct(
+			jen.Id("Service").Id(svc.Name),
+		)
+
+		f.Func().Params(
+			jen.Id("svc").Op("*").Id(svc.Name + "Controller"),
+		).Id("Build").Params().Params(
+			jen.Index().Op("*").Qual(kibuHttpxImportName, "Handler"),
+		).BlockFunc(func(g *jen.Group) {
+			g.Var().Id("handlers").Index().Op("*").Qual(kibuHttpxImportName, "Handler")
+			for _, op := range svc.Operations {
+				methodDecorator, _ := op.Decorators.Find(isKibuServiceMethod)
+
+				path, _ := methodDecorator.Options.GetOne("path",
+					fmt.Sprintf("/%s/%s/%s", pkg.Name, svc.Name, op.Name))
+
+				method, _ := methodDecorator.Options.GetOne("method",
+					http.MethodPost)
+
+				g.Id("handlers").Op("=").Append(jen.Id("handlers"),
+					jen.Qual(kibuHttpxImportName, "NewHandler").Call(
+						jen.Lit(path),
+						jen.Qual(kibuTransportImportName, "NewEndpoint").Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
+					).Dot("WithMethods").Call(jen.Lit(method)),
+				)
+			}
+			g.Return(jen.Id("handlers"))
+		})
+	}
+}
+
+func buildActivitiesControllers(f *jen.File, pkg *kibumod.Package) {
+	for _, svc := range pkg.Services {
+		if !svc.Decorators.Some(isKibuActivity) {
+			continue
+		}
+
+		f.Type().Id(controllerName(svc.Name)).Struct(
+			jen.Id("Activities").Id(svc.Name),
+		)
+
+		f.Func().Params(
+			jen.Id("act").Op("*").Id(controllerName(svc.Name)),
+		).Id("Build").Params(
+			jen.Id("registry").Qual(temporalWorkerImportName, "ActivityRegistry"),
+		).BlockFunc(func(g *jen.Group) {
+			for _, op := range svc.Operations {
+				g.Id("registry").Dot("RegisterActivityWithOptions").Call(
+					jen.Id("act").Dot("Activities").Dot(op.Name),
+					jen.Qual(temporalActivityImportName, "RegisterOptions").Values(jen.DictFunc(func(d jen.Dict) {
+						d[jen.Id("Name")] = jen.Id(operationConstName(svc, op))
+						d[jen.Id("DisableAlreadyRegisteredCheck")] = jen.True()
+					})),
+				)
+			}
+		})
+	}
 }

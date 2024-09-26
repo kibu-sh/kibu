@@ -67,10 +67,10 @@ func (ol *OptionList) Set(key string, val []string) {
 
 // GetOne returns a single option value by its key
 // If the option does not exist an empty string is returned
-func (ol *OptionList) GetOne(key, def string) (val string, ok bool) {
+func (ol *OptionList) GetOne(key, fallback string) (val string, ok bool) {
 	v, ok := ol.om[key]
 	if len(v) == 0 {
-		return def, false
+		return fallback, false
 	}
 	return v[0], true
 }

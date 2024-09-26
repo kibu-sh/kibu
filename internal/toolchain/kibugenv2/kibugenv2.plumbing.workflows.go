@@ -26,7 +26,6 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow implementations")
 	buildWorkflowsClientImplementation(f, pkg)
 	buildWorkflowsProxyImplementation(f, pkg)
-	buildWorkflowControllerImplementation(f, pkg)
 	return
 }
 
@@ -978,7 +977,7 @@ func workflowControllerStruct(svc *kibumod.Service) jen.Code {
 	)
 }
 
-func buildWorkflowControllerImplementation(f *jen.File, svc *kibumod.Package) {
+func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 	for _, svc := range svc.Services {
 		if !svc.Decorators.Some(isKibuWorkflow) {
 			continue
