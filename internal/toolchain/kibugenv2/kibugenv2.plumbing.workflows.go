@@ -557,6 +557,7 @@ func buildWorkflowChildRunImplementation(f *jen.File, svc *kibumod.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Type().Id(childRunStructName).Struct(
+		jen.Id("workflowId").String(),
 		jen.Id("childFuture").Qual(temporalWorkflowImportName, "ChildWorkflowFuture"),
 	)
 
@@ -604,7 +605,7 @@ func buildChildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
-		jen.Return(jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call().Dot("WorkflowID")),
+		jen.Return(jen.Id("r").Dot("workflowId")),
 	)
 }
 
@@ -706,7 +707,7 @@ func buildChildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Op
 				jen.Id("ctx"),
 				jen.Id(operationConstName(svc, op)),
 				jen.Id("req"),
-			)),
+			).Dot("Get").Call(jen.Id("ctx"), jen.Nil())),
 		)
 }
 
