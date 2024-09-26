@@ -18,6 +18,11 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	}
 	f.Add(workflowsProxyInterface(pkg))
 	f.Add(workflowsClientInterface(pkg))
+
+	f.Line()
+	f.Comment("workflow implementations")
+	buildWorkflowsClientImplementation(f, pkg)
+	buildWorkflowsProxyImplementation(f, pkg)
 	return
 }
 
@@ -39,6 +44,38 @@ func workflowsClientInterface(pkg *kibumod.Package) jen.Code {
 			}
 		}
 	})
+}
+
+func buildWorkflowsClientImplementation(f *jen.File, pkg *kibumod.Package) {
+	f.Type().Id("workflowsClient").Struct(
+		jen.Id("client").Qual(temporalClientImportName, "Client"),
+	)
+
+	for _, svc := range pkg.Services {
+		if !svc.Decorators.Some(isKibuWorkflow) {
+			continue
+		}
+		
+		f.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id(svc.Name).Params().Id(clientName(svc.Name)).Block(
+			jen.Return(jen.Op("&").Id(firstToLower(clientName(svc.Name))).Values(
+				jen.Id("client").Op(":").Id("w").Dot("client"),
+			)),
+		)
+	}
+}
+
+func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
+	f.Type().Id("workflowsProxy").Struct()
+
+	for _, svc := range pkg.Services {
+		if !svc.Decorators.Some(isKibuWorkflow) {
+			continue
+		}
+		
+		f.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id(svc.Name).Params().Id(childClientName(svc.Name)).Block(
+			jen.Return(jen.Op("&").Id(firstToLower(childClientName(svc.Name))).Values()),
+		)
+	}
 }
 
 func workflowRunInterface(svc *kibumod.Service) jen.Code {
