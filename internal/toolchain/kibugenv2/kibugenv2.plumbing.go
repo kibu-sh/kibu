@@ -77,6 +77,10 @@ func externalRunName(name string) string {
 	return firstToUpper(fmt.Sprintf("%sExternalRun", name))
 }
 
+func childClientName(name string) string {
+	return firstToLower(fmt.Sprintf("%sChildClient", name))
+}
+
 func clientName(name string) string {
 	return firstToUpper(fmt.Sprintf("%sClient", name))
 }
@@ -178,6 +182,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 		f.Add(workflowChildRunInterface(svc))
 		f.Add(workflowExternalRunInterface(svc))
 		f.Add(workflowClientInterface(svc))
+		f.Add(workflowChildClientInterface(svc))
 	}
 	return
 }
@@ -265,7 +270,7 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(childRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(externalRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("WorkflowID").Params().Params(jen.String())
 		g.Id("RunID").Params().Params(jen.String())
 		g.Id("RequestCancellation").Params(namedWorkflowContextParam()).Params(jen.Error())
@@ -285,7 +290,6 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 		})
 	})
 }
-
 func workflowClientInterface(svc *kibumod.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
@@ -330,6 +334,44 @@ func workflowClientInterface(svc *kibumod.Service) jen.Code {
 					g.Error()
 				})
 		})
+	})
+}
+
+func workflowChildClientInterface(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(childClientName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+		g.Id("External").
+			Params(namedGetHandleOpts()).
+			Params(jen.Id(externalRunName(svc.Name)))
+
+		executeMethod, _ := findExecuteMethod(svc)
+		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+		executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
+
+		g.Id("Execute").
+			ParamsFunc(func(g *jen.Group) {
+				g.Add(namedWorkflowContextParam())
+				g.Id("req").Add(executeReq)
+				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+			}).
+			ParamsFunc(func(g *jen.Group) {
+				g.Add(executeRes)
+				g.Error()
+			})
+
+		g.Id(nameAsync("Execute")).
+			ParamsFunc(func(g *jen.Group) {
+				g.Add(namedWorkflowContextParam())
+				g.Id("req").Add(executeReq)
+				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+			}).
+			ParamsFunc(func(g *jen.Group) {
+				g.Id(childRunName(svc.Name))
+				g.Error()
+			})
 	})
 }
 
