@@ -53,5 +53,6 @@ func run(pass *analysis.Pass) (any, error) {
 	buildWorkflowControllers(genFile, pkg)
 	buildActivitiesControllers(genFile, pkg)
 	buildServiceControllers(genFile, pkg)
+	buildWorkerController(genFile, pkg)
 	return result, nil
 }
