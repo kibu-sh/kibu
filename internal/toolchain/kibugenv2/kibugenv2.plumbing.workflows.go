@@ -7,10 +7,6 @@ import (
 	"github.com/samber/mo"
 )
 
-func buildWorkflowImplementations(file *jen.File, pkg *kibumod.Package) {
-
-}
-
 func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
