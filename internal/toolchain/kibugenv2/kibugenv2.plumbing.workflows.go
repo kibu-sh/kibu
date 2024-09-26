@@ -189,7 +189,93 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
 		f.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id(svc.Name).Params().Id(childClientName(svc.Name)).Block(
 			jen.Return(jen.Op("&").Id(firstToLower(childClientName(svc.Name))).Values()),
 		)
+
+		buildWorkflowChildClientImplementation(f, svc)
+		buildWorkflowChildRunImplementation(f, svc)
+		buildWorkflowExternalRunImplementation(f, svc)
 	}
+}
+
+func buildWorkflowChildClientImplementation(f *jen.File, svc *kibumod.Service) {
+	childClientStructName := firstToLower(childClientName(svc.Name))
+
+	f.Type().Id(childClientStructName).Struct()
+
+	buildChildClientExecuteMethod(f, svc)
+	buildChildClientExecuteAsyncMethod(f, svc)
+	buildChildClientExternalMethod(f, svc)
+}
+
+func buildChildClientExecuteMethod(f *jen.File, svc *kibumod.Service) {
+	childClientStructName := firstToLower(childClientName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+	executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
+
+	f.Func().Params(jen.Id("c").Op("*").Id(childClientStructName)).Id("Execute").
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedWorkflowContextParam())
+			g.Id("req").Add(executeReq)
+			g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+		}).
+		Params(executeRes, jen.Error()).
+		Block(
+			jen.Return(jen.Id("c").Dot("ExecuteAsync").Call(
+				jen.Id("ctx"),
+				jen.Id("req"),
+				jen.Id("mods").Op("..."),
+			).Dot("Get").Call(jen.Id("ctx"))),
+		)
+}
+
+func buildChildClientExecuteAsyncMethod(f *jen.File, svc *kibumod.Service) {
+	childClientStructName := firstToLower(childClientName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+
+	f.Func().Params(jen.Id("c").Op("*").Id(childClientStructName)).Id("ExecuteAsync").
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedWorkflowContextParam())
+			g.Id("req").Add(executeReq)
+			g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+		}).
+		Params(jen.Id(childRunName(svc.Name))).
+		BlockFunc(func(g *jen.Group) {
+			g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().
+				Dot("WithProvidersWhenSupported").Call(jen.Id("req")).
+				Dot("WithOptions").Call(jen.Id("mods").Op("...")).
+				Dot("WithTaskQueue").Call(jen.Id(packageNameConst())).
+				Dot("AsChildOptions").Call()
+
+			g.Id("ctx").Op("=").Qual(temporalWorkflowImportName, "WithChildOptions").Call(
+				jen.Id("ctx"),
+				jen.Id("options"),
+			)
+
+			g.Id("childFuture").Op(":=").Qual(temporalWorkflowImportName, "ExecuteChildWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id(svcConstName(svc)),
+				jen.Id("req"),
+			)
+
+			g.Return(jen.Op("&").Id(firstToLower(childRunName(svc.Name))).Values(
+				jen.Id("childFuture").Op(":").Id("childFuture"),
+			))
+		})
+}
+
+func buildChildClientExternalMethod(f *jen.File, svc *kibumod.Service) {
+	childClientStructName := firstToLower(childClientName(svc.Name))
+
+	f.Func().Params(jen.Id("c").Op("*").Id(childClientStructName)).Id("External").
+		Params(jen.Id("ref").Qual(kibuTemporalImportName, "GetHandleOpts")).
+		Params(jen.Id(externalRunName(svc.Name))).
+		Block(
+			jen.Return(jen.Op("&").Id(firstToLower(externalRunName(svc.Name))).Values(
+				jen.Id("workflowID").Op(":").Id("ref").Dot("WorkflowID"),
+				jen.Id("runID").Op(":").Id("ref").Dot("RunID"),
+			)),
+		)
 }
 
 func workflowRunInterface(svc *kibumod.Service) jen.Code {
@@ -431,4 +517,234 @@ func buildSignalChannelFuncs(f *jen.File, pkg *kibumod.Package) {
 		}
 	}
 	return
+}
+
+func buildWorkflowChildRunImplementation(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Type().Id(childRunStructName).Struct(
+		jen.Id("childFuture").Qual(temporalWorkflowImportName, "ChildWorkflowFuture"),
+	)
+
+	// Implement methods for childRunStructName
+	buildChildRunWorkflowIDMethod(f, svc)
+	buildChildRunIsReadyMethod(f, svc)
+	buildChildRunUnderlyingMethod(f, svc)
+	buildChildRunGetMethod(f, svc)
+	buildChildRunWaitStartMethod(f, svc)
+	buildChildRunSelectMethod(f, svc)
+	buildChildRunSelectStartMethod(f, svc)
+
+	// Implement signal methods
+	signalMethods := filterSignalMethods(svc.Operations)
+	for _, op := range signalMethods {
+		buildChildRunSignalMethod(f, svc, op)
+	}
+}
+
+func buildWorkflowExternalRunImplementation(f *jen.File, svc *kibumod.Service) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+
+	f.Type().Id(externalRunStructName).Struct(
+		jen.Id("workflowID").String(),
+		jen.Id("runID").String(),
+	)
+
+	// Implement methods for externalRunStructName
+	buildExternalRunWorkflowIDMethod(f, svc)
+	buildExternalRunRunIDMethod(f, svc)
+	buildExternalRunRequestCancellationMethod(f, svc)
+
+	// Implement signal methods
+	signalMethods := filterSignalMethods(svc.Operations)
+	for _, op := range signalMethods {
+		buildExternalRunSignalMethod(f, svc, op)
+		buildExternalRunSignalAsyncMethod(f, svc, op)
+	}
+}
+
+// Add implementation for child run methods (WorkflowID, IsReady, Underlying, Get, WaitStart, Select, SelectStart)
+// Add implementation for external run methods (WorkflowID, RunID, RequestCancellation, signal methods)
+
+func buildChildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
+		jen.Return(jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call().Dot("WorkflowID")),
+	)
+}
+
+func buildChildRunIsReadyMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("IsReady").Params().Params(jen.Bool()).Block(
+		jen.Return(jen.Id("r").Dot("childFuture").Dot("IsReady").Call()),
+	)
+}
+
+func buildChildRunUnderlyingMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Underlying").Params().Params(qualWorkflowChildRunFuture()).Block(
+		jen.Return(jen.Id("r").Dot("childFuture")),
+	)
+}
+
+func buildChildRunGetMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Get").
+		Params(namedWorkflowContextParam()).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(executeRes)
+			g.Error()
+		}).
+		Block(
+			jen.Var().Id("result").Add(executeRes),
+			jen.Err().Op(":=").Id("r").Dot("childFuture").Dot("Get").Call(jen.Id("ctx"), jen.Op("&").Id("result")),
+			jen.Return(jen.Id("result"), jen.Err()),
+		)
+}
+
+func buildChildRunWaitStartMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WaitStart").
+		Params(namedWorkflowContextParam()).
+		Params(jen.Op("*").Add(qualWorkflowExecution()), jen.Error()).
+		Block(
+			jen.Return(jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call()),
+		)
+}
+
+func buildChildRunSelectMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Select").
+		Params(
+			namedWorkflowSelectorParam(),
+			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
+		).
+		Params(namedWorkflowSelectorParam()).
+		Block(
+			jen.Return(jen.Id("sel").Dot("AddFuture").Call(
+				jen.Id("r").Dot("childFuture"),
+				jen.Func().Params(jen.Qual(temporalWorkflowImportName, "Future")).Block(
+					jen.Id("fn").Call(jen.Id("r")),
+				),
+			)),
+		)
+}
+
+func buildChildRunSelectStartMethod(f *jen.File, svc *kibumod.Service) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("SelectStart").
+		Params(
+			namedWorkflowSelectorParam(),
+			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
+		).
+		Params(namedWorkflowSelectorParam()).
+		Block(
+			jen.Return(jen.Id("sel").Dot("AddFuture").Call(
+				jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call(),
+				jen.Func().Params(jen.Qual(temporalWorkflowImportName, "Future")).Block(
+					jen.Id("fn").Call(jen.Id("r")),
+				),
+			)),
+		)
+}
+
+func buildChildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	childRunStructName := firstToLower(childRunName(svc.Name))
+	signalReq := paramToExp(paramAtIndex(op.Params, 1))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id(op.Name).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedWorkflowContextParam())
+			g.Id("req").Add(signalReq)
+		}).
+		Params(jen.Error()).
+		Block(
+			jen.Return(jen.Id("r").Dot("childFuture").Dot("SignalChildWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id(operationConstName(svc, op)),
+				jen.Id("req"),
+			)),
+		)
+}
+
+func buildExternalRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
+		jen.Return(jen.Id("r").Dot("workflowID")),
+	)
+}
+
+func buildExternalRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RunID").Params().Params(jen.String()).Block(
+		jen.Return(jen.Id("r").Dot("runID")),
+	)
+}
+
+func buildExternalRunRequestCancellationMethod(f *jen.File, svc *kibumod.Service) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RequestCancellation").
+		Params(namedWorkflowContextParam()).
+		Params(jen.Error()).
+		Block(
+			jen.Return(jen.Qual(temporalWorkflowImportName, "RequestCancelExternalWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("r").Dot("workflowID"),
+				jen.Id("r").Dot("runID"),
+			)),
+		)
+}
+
+func buildExternalRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	signalReq := paramToExp(paramAtIndex(op.Params, 1))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(op.Name).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedWorkflowContextParam())
+			g.Id("req").Add(signalReq)
+		}).
+		Params(jen.Error()).
+		Block(
+			jen.Return(jen.Qual(temporalWorkflowImportName, "SignalExternalWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("r").Dot("workflowID"),
+				jen.Id("r").Dot("runID"),
+				jen.Id(operationConstName(svc, op)),
+				jen.Id("req"),
+			)),
+		)
+}
+
+func buildExternalRunSignalAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	signalReq := paramToExp(paramAtIndex(op.Params, 1))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(nameAsync(op.Name)).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedWorkflowContextParam())
+			g.Id("req").Add(signalReq)
+		}).
+		Params(qualWorkflowFuture()).
+		Block(
+			jen.Return(jen.Qual(temporalWorkflowImportName, "SignalExternalWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("r").Dot("workflowID"),
+				jen.Id("r").Dot("runID"),
+				jen.Id(operationConstName(svc, op)),
+				jen.Id("req"),
+			)),
+		)
 }
