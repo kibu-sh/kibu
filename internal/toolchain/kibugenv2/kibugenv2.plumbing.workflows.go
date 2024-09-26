@@ -55,12 +55,126 @@ func buildWorkflowsClientImplementation(f *jen.File, pkg *kibumod.Package) {
 		if !svc.Decorators.Some(isKibuWorkflow) {
 			continue
 		}
-		
+
 		f.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id(svc.Name).Params().Id(clientName(svc.Name)).Block(
 			jen.Return(jen.Op("&").Id(firstToLower(clientName(svc.Name))).Values(
 				jen.Id("client").Op(":").Id("w").Dot("client"),
 			)),
 		)
+
+		buildWorkflowClientImplementation(f, svc)
+	}
+}
+
+func buildWorkflowClientImplementation(f *jen.File, svc *kibumod.Service) {
+	clientStructName := firstToLower(clientName(svc.Name))
+
+	f.Type().Id(clientStructName).Struct(
+		jen.Id("client").Qual(temporalClientImportName, "Client"),
+	)
+
+	buildExecuteMethod(f, svc)
+	buildGetHandleMethod(f, svc)
+	buildExecuteWithSignalMethods(f, svc)
+}
+
+func buildExecuteMethod(f *jen.File, svc *kibumod.Service) {
+	clientStructName := firstToLower(clientName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+
+	f.Func().Params(jen.Id("c").Op("*").Id(clientStructName)).Id("Execute").
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedStdContextParam())
+			g.Id("req").Add(executeReq)
+			g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+		}).
+		Params(jen.Id(runName(svc.Name)), jen.Error()).
+		BlockFunc(func(g *jen.Group) {
+			g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().Dot("WithProvidersWhenSupported").Call(jen.Id("req")).Dot("WithOptions").Call(jen.Id("mods").Op("...")).Dot("WithTaskQueue").Call(jen.Id(packageNameConst())).Dot("AsStartOptions").Call()
+			g.Line()
+			g.List(jen.Id("we"), jen.Err()).Op(":=").Id("c").Dot("client").Dot("ExecuteWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("options"),
+				jen.Id(svcConstName(svc)),
+				jen.Id("req"),
+			)
+			g.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Err()),
+			)
+			g.Line()
+			g.Return(
+				jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+					jen.Id("client").Op(":").Id("c").Dot("client"),
+					jen.Id("workflowRun").Op(":").Id("we"),
+				),
+				jen.Nil(),
+			)
+		})
+}
+
+func buildGetHandleMethod(f *jen.File, svc *kibumod.Service) {
+	clientStructName := firstToLower(clientName(svc.Name))
+
+	f.Func().Params(jen.Id("c").Op("*").Id(clientStructName)).Id("GetHandle").
+		Params(namedStdContextParam(), jen.Id("ref").Qual(kibuTemporalImportName, "GetHandleOpts")).
+		Params(jen.Id(runName(svc.Name)), jen.Error()).
+		Block(
+			jen.Return(
+				jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+					jen.Id("client").Op(":").Id("c").Dot("client"),
+					jen.Id("workflowRun").Op(":").Id("c").Dot("client").Dot("GetWorkflow").Call(
+						jen.Id("ctx"),
+						jen.Id("ref").Dot("WorkflowID"),
+						jen.Id("ref").Dot("RunID"),
+					),
+				),
+				jen.Nil(),
+			),
+		)
+}
+
+func buildExecuteWithSignalMethods(f *jen.File, svc *kibumod.Service) {
+	clientStructName := firstToLower(clientName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+
+	signalMethods := filterSignalMethods(svc.Operations)
+	for _, op := range signalMethods {
+		signalReq := paramToExp(paramAtIndex(op.Params, 1))
+
+		f.Func().Params(jen.Id("c").Op("*").Id(clientStructName)).Id(executeWithName(op.Name)).
+			ParamsFunc(func(g *jen.Group) {
+				g.Add(namedStdContextParam())
+				g.Id("req").Add(executeReq)
+				g.Id("sig").Add(signalReq)
+				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
+			}).
+			Params(jen.Id(runName(svc.Name)), jen.Error()).
+			BlockFunc(func(g *jen.Group) {
+				g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().Dot("WithProvidersWhenSupported").Call(jen.Id("req")).Dot("WithOptions").Call(jen.Id("mods").Op("...")).Dot("WithTaskQueue").Call(jen.Id(packageNameConst())).Dot("AsStartOptions").Call()
+				g.Line()
+				g.List(jen.Id("run"), jen.Err()).Op(":=").Id("c").Dot("client").Dot("SignalWithStartWorkflow").Call(
+					jen.Id("ctx"),
+					jen.Id("options").Dot("ID"),
+					jen.Id(operationConstName(svc, op)),
+					jen.Id("sig"),
+					jen.Id("options"),
+					jen.Id(svcConstName(svc)),
+					jen.Id("req"),
+				)
+				g.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Err()),
+				)
+				g.Line()
+				g.Return(
+					jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+						jen.Id("client").Op(":").Id("c").Dot("client"),
+						jen.Id("workflowRun").Op(":").Id("run"),
+					),
+					jen.Nil(),
+				)
+			})
 	}
 }
 
@@ -71,7 +185,7 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
 		if !svc.Decorators.Some(isKibuWorkflow) {
 			continue
 		}
-		
+
 		f.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id(svc.Name).Params().Id(childClientName(svc.Name)).Block(
 			jen.Return(jen.Op("&").Id(firstToLower(childClientName(svc.Name))).Values()),
 		)
