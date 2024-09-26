@@ -15,6 +15,9 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 		f.Add(workflowExternalRunInterface(svc))
 		f.Add(workflowClientInterface(svc))
 		f.Add(workflowChildClientInterface(svc))
+		f.Add(workflowInputStruct(svc))
+		f.Add(workflowFactoryType(svc))
+		f.Add(workflowControllerStruct(svc))
 	}
 	f.Add(workflowsProxyInterface(pkg))
 	f.Add(workflowsClientInterface(pkg))
@@ -23,6 +26,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow implementations")
 	buildWorkflowsClientImplementation(f, pkg)
 	buildWorkflowsProxyImplementation(f, pkg)
+	buildWorkflowControllerImplementation(f, pkg)
 	return
 }
 
@@ -932,4 +936,124 @@ func filterQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
 	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
 		return op.Decorators.Some(isKibuWorkflowQuery)
 	})
+}
+func workflowInputStruct(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(firstToLower(svc.Name) + "WorkflowInput").StructFunc(func(g *jen.Group) {
+		executeMethod, _ := findExecuteMethod(svc)
+		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+		g.Id("Request").Add(executeReq)
+
+		signalMethods := filterSignalMethods(svc.Operations)
+		for _, op := range signalMethods {
+			signalReq := paramToExp(paramAtIndex(op.Params, 1))
+			g.Id(firstToUpper(op.Name)+"Channel").Qual(kibuTemporalImportName, "SignalChannel").Types(signalReq)
+		}
+	})
+}
+
+func workflowFactoryType(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(svc.Name+"WorkflowFactory").Func().Params(
+		jen.Id("input").Op("*").Id(firstToLower(svc.Name)+"WorkflowInput"),
+	).Params(
+		jen.Id(svc.Name+"Workflow"),
+		jen.Error(),
+	)
+}
+
+func workflowControllerStruct(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuWorkflow) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(svc.Name + "WorkflowController").Struct(
+		jen.Id("Factory").Id(svc.Name + "WorkflowFactory"),
+	)
+}
+
+func buildWorkflowControllerImplementation(f *jen.File, svc *kibumod.Package) {
+	for _, svc := range svc.Services {
+		if !svc.Decorators.Some(isKibuWorkflow) {
+			continue
+		}
+
+		executeMethod, _ := findExecuteMethod(svc)
+		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
+		executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
+
+		f.Func().Params(
+			jen.Id("wk").Op("*").Id(svc.Name+"WorkflowController"),
+		).Id("Execute").Params(
+			namedWorkflowContextParam(),
+			jen.Id("req").Add(executeReq),
+		).Params(
+			jen.Id("res").Add(executeRes),
+			jen.Id("err").Error(),
+		).BlockFunc(func(g *jen.Group) {
+			g.Id("input").Op(":=").Op("&").Id(firstToLower(svc.Name) + "WorkflowInput").Values(jen.DictFunc(func(d jen.Dict) {
+				d[jen.Id("Request")] = jen.Id("req")
+				signalMethods := filterSignalMethods(svc.Operations)
+				for _, op := range signalMethods {
+					d[jen.Id(firstToUpper(op.Name)+"Channel")] = jen.Id(signalChannelProviderFuncName(svc, op)).Call(jen.Id("ctx"))
+				}
+			}))
+
+			g.List(jen.Id("wf"), jen.Err()).Op(":=").Id("wk").Dot("Factory").Call(jen.Id("input"))
+			g.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(),
+			)
+
+			queryMethods := filterQueryMethods(svc.Operations)
+			for _, op := range queryMethods {
+				g.If(
+					jen.Err().Op("=").Qual(temporalWorkflowImportName, "SetQueryHandler").Call(
+						jen.Id("ctx"),
+						jen.Id(operationConstName(svc, op)),
+						jen.Id("wf").Dot(op.Name),
+					),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(),
+				)
+			}
+
+			updateMethods := filterUpdateMethods(svc.Operations)
+			for _, op := range updateMethods {
+				g.If(
+					jen.Err().Op("=").Qual(temporalWorkflowImportName, "SetUpdateHandlerWithOptions").Call(
+						jen.Id("ctx"),
+						jen.Id(operationConstName(svc, op)),
+						jen.Id("wf").Dot(op.Name),
+						jen.Qual(temporalWorkflowImportName, "UpdateHandlerOptions").Values(),
+					),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(),
+				)
+			}
+
+			g.Return(jen.Id("wf").Dot("Execute").Call(jen.Id("ctx"), jen.Id("req")))
+		})
+
+		f.Func().Params(
+			jen.Id("wk").Op("*").Id(svc.Name + "WorkflowController"),
+		).Id("Build").Params(
+			jen.Id("registry").Qual(temporalWorkerImportName, "WorkflowRegistry"),
+		).Block(
+			jen.Id("registry").Dot("RegisterWorkflowWithOptions").Call(
+				jen.Id("wk").Dot("Execute"),
+				jen.Qual(temporalWorkflowImportName, "RegisterOptions").Values(jen.DictFunc(func(d jen.Dict) {
+					d[jen.Id("Name")] = jen.Id(svcConstName(svc))
+					d[jen.Id("DisableAlreadyRegisteredCheck")] = jen.True()
+				})),
+			),
+		)
+	}
 }
