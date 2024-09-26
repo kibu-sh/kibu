@@ -193,6 +193,7 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
 		buildWorkflowChildClientImplementation(f, svc)
 		buildWorkflowChildRunImplementation(f, svc)
 		buildWorkflowExternalRunImplementation(f, svc)
+		buildWorkflowRunImplementation(f, svc)
 	}
 }
 
@@ -519,6 +520,39 @@ func buildSignalChannelFuncs(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
+func buildWorkflowRunImplementation(f *jen.File, svc *kibumod.Service) {
+	runStructName := firstToLower(runName(svc.Name))
+
+	f.Type().Id(runStructName).Struct(
+		jen.Id("client").Qual(temporalClientImportName, "Client"),
+		jen.Id("workflowRun").Qual(temporalClientImportName, "WorkflowRun"),
+	)
+
+	// Implement methods for runStructName
+	buildRunWorkflowIDMethod(f, svc)
+	buildRunRunIDMethod(f, svc)
+	buildRunGetMethod(f, svc)
+
+	// Implement update methods
+	updateMethods := filterUpdateMethods(svc.Operations)
+	for _, op := range updateMethods {
+		buildRunUpdateMethod(f, svc, op)
+		buildRunUpdateAsyncMethod(f, svc, op)
+	}
+
+	// Implement query methods
+	queryMethods := filterQueryMethods(svc.Operations)
+	for _, op := range queryMethods {
+		buildRunQueryMethod(f, svc, op)
+	}
+
+	// Implement signal methods
+	signalMethods := filterSignalMethods(svc.Operations)
+	for _, op := range signalMethods {
+		buildRunSignalMethod(f, svc, op)
+	}
+}
+
 func buildWorkflowChildRunImplementation(f *jen.File, svc *kibumod.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
@@ -747,4 +781,154 @@ func buildExternalRunSignalAsyncMethod(f *jen.File, svc *kibumod.Service, op *ki
 				jen.Id("req"),
 			)),
 		)
+}
+func buildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+	runStructName := firstToLower(runName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
+		jen.Return(jen.Id("r").Dot("workflowRun").Dot("GetID").Call()),
+	)
+}
+
+func buildRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
+	runStructName := firstToLower(runName(svc.Name))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("RunID").Params().Params(jen.String()).Block(
+		jen.Return(jen.Id("r").Dot("workflowRun").Dot("GetRunID").Call()),
+	)
+}
+
+func buildRunGetMethod(f *jen.File, svc *kibumod.Service) {
+	runStructName := firstToLower(runName(svc.Name))
+	executeMethod, _ := findExecuteMethod(svc)
+	executeRes := paramToExp(paramAtIndex(executeMethod.Results, 0))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("Get").
+		Params(namedStdContextParam()).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(executeRes)
+			g.Error()
+		}).
+		Block(
+			jen.Var().Id("result").Add(executeRes),
+			jen.Err().Op(":=").Id("r").Dot("workflowRun").Dot("Get").Call(jen.Id("ctx"), jen.Op("&").Id("result")),
+			jen.Return(jen.Id("result"), jen.Err()),
+		)
+}
+
+func buildRunUpdateMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	runStructName := firstToLower(runName(svc.Name))
+	updateReq := paramToExp(paramAtIndex(op.Params, 1))
+	updateRes := paramToExp(paramAtIndex(op.Results, 0))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(op.Name).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedStdContextParam())
+			g.Id("req").Add(updateReq)
+			g.Id("mods").Op("...").Qual(kibuTemporalImportName, "UpdateOptionFunc")
+		}).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(updateRes)
+			g.Error()
+		}).
+		Block(
+			jen.List(jen.Id("handle"), jen.Err()).Op(":=").Id("r").Dot(nameAsync(op.Name)).Call(jen.Id("ctx"), jen.Id("req"), jen.Id("mods").Op("...")),
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Add(updateRes).Values(), jen.Err()),
+			),
+			jen.Return(jen.Id("handle").Dot("Get").Call(jen.Id("ctx"))),
+		)
+}
+
+func buildRunUpdateAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	runStructName := firstToLower(runName(svc.Name))
+	updateReq := paramToExp(paramAtIndex(op.Params, 1))
+	updateRes := paramToExp(paramAtIndex(op.Results, 0))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(nameAsync(op.Name)).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedStdContextParam())
+			g.Id("req").Add(updateReq)
+			g.Id("mods").Op("...").Qual(kibuTemporalImportName, "UpdateOptionFunc")
+		}).
+		Params(jen.Qual(kibuTemporalImportName, "UpdateHandle").Types(updateRes), jen.Error()).
+		Block(
+			jen.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewUpdateOptionsBuilder").Call().
+				Dot("WithUpdateName").Call(jen.Id(operationConstName(svc, op))).
+				Dot("WithWorkflowID").Call(jen.Id("r").Dot("WorkflowID").Call()).
+				Dot("WithRunID").Call(jen.Id("r").Dot("RunID").Call()).
+				Dot("WithProvidersWhenSupported").Call(jen.Id("req")).
+				Dot("WithOptions").Call(jen.Id("mods").Op("...")).
+				Dot("WithArgs").Call(jen.Id("req")).
+				Dot("Build").Call(),
+			jen.Line(),
+			jen.List(jen.Id("handle"), jen.Err()).Op(":=").Id("r").Dot("client").Dot("UpdateWorkflow").Call(jen.Id("ctx"), jen.Id("options")),
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Err()),
+			),
+			jen.Line(),
+			jen.Return(jen.Qual(kibuTemporalImportName, "NewUpdateHandle").Types(updateRes).Call(jen.Id("handle")), jen.Nil()),
+		)
+}
+
+func buildRunQueryMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	runStructName := firstToLower(runName(svc.Name))
+	// this one is tricky because queries aren't allowed to use context in their implementation
+	// unlike the other methods, the request type is at position 0
+	queryReq := paramToExp(paramAtIndex(op.Params, 0))
+	queryRes := paramToExp(paramAtIndex(op.Results, 0))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(op.Name).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedStdContextParam())
+			g.Id("req").Add(queryReq)
+		}).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(queryRes)
+			g.Error()
+		}).
+		Block(
+			jen.List(jen.Id("queryResponse"), jen.Err()).Op(":=").Id("r").Dot("client").Dot("QueryWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("r").Dot("WorkflowID").Call(),
+				jen.Id("r").Dot("RunID").Call(),
+				jen.Id(operationConstName(svc, op)),
+				jen.Id("req"),
+			),
+			jen.Line(),
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Add(queryRes).Values(), jen.Err()),
+			),
+			jen.Line(),
+			jen.Var().Id("result").Add(queryRes),
+			jen.Err().Op("=").Id("queryResponse").Dot("Get").Call(jen.Op("&").Id("result")),
+			jen.Return(jen.Id("result"), jen.Err()),
+		)
+}
+
+func buildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+	runStructName := firstToLower(runName(svc.Name))
+	signalReq := paramToExp(paramAtIndex(op.Params, 1))
+
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(op.Name).
+		ParamsFunc(func(g *jen.Group) {
+			g.Add(namedStdContextParam())
+			g.Id("req").Add(signalReq)
+		}).
+		Params(jen.Error()).
+		Block(
+			jen.Return(jen.Id("r").Dot("client").Dot("SignalWorkflow").Call(
+				jen.Id("ctx"),
+				jen.Id("r").Dot("WorkflowID").Call(),
+				jen.Id("r").Dot("RunID").Call(),
+				jen.Id(operationConstName(svc, op)),
+				jen.Id("req"),
+			)),
+		)
+}
+
+func filterQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
+	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+		return op.Decorators.Some(isKibuWorkflowQuery)
+	})
 }
