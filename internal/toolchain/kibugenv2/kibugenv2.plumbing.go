@@ -187,6 +187,43 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
+func buildActivityInterfaces(f *jen.File, pkg *kibumod.Package) {
+	f.Comment("activity interfaces")
+	for _, svc := range pkg.Services {
+		f.Add(activityProxyInterface(svc))
+	}
+	return
+}
+
+func activityProxyInterface(svc *kibumod.Service) jen.Code {
+	if !svc.Decorators.Some(isKibuActivity) {
+		return jen.Null()
+	}
+
+	return jen.Type().Id(proxyName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+		for _, op := range svc.Operations {
+			g.Id(op.Name).
+				ParamsFunc(func(g *jen.Group) {
+					g.Add(namedWorkflowContextParam())
+					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+				}).
+				ParamsFunc(func(g *jen.Group) {
+					g.Add(paramToExp(paramAtIndex(op.Results, 0)))
+					g.Error()
+				})
+
+			g.Id(nameAsync(op.Name)).
+				ParamsFunc(func(g *jen.Group) {
+					g.Add(namedWorkflowContextParam())
+					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+				}).
+				ParamsFunc(func(g *jen.Group) {
+					g.Add(qualKibuTemporalFuture(paramToExpOrAny(paramAtIndex(op.Results, 0))))
+				})
+		}
+	})
+}
+
 func workflowRunInterface(svc *kibumod.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
@@ -385,6 +422,10 @@ func qualKibuTemporalExecuteWithSignalParams(req jen.Code, sig jen.Code) jen.Cod
 
 func qualKibuTemporalExecuteParams(req jen.Code) jen.Code {
 	return jen.Qual(kibuTemporalImportName, "ExecuteParams").Types(req)
+}
+
+func qualKibuTemporalFuture(res jen.Code) jen.Code {
+	return jen.Qual(kibuTemporalImportName, "Future").Types(res)
 }
 
 func executeWithName(name string) string {

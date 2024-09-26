@@ -48,5 +48,6 @@ func run(pass *analysis.Pass) (any, error) {
 	buildPkgConstants(genFile, pkg)
 	buildSignalChannelFuncs(genFile, pkg)
 	buildWorkflowInterfaces(genFile, pkg)
+	buildActivityInterfaces(genFile, pkg)
 	return result, nil
 }
