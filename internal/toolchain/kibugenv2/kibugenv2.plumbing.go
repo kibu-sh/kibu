@@ -78,7 +78,7 @@ func externalRunName(name string) string {
 }
 
 func childClientName(name string) string {
-	return firstToLower(fmt.Sprintf("%sChildClient", name))
+	return firstToUpper(fmt.Sprintf("%sChildClient", name))
 }
 
 func clientName(name string) string {

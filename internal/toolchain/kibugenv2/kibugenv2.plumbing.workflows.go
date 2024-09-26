@@ -16,7 +16,29 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 		f.Add(workflowClientInterface(svc))
 		f.Add(workflowChildClientInterface(svc))
 	}
+	f.Add(workflowsProxyInterface(pkg))
+	f.Add(workflowsClientInterface(pkg))
 	return
+}
+
+func workflowsProxyInterface(pkg *kibumod.Package) jen.Code {
+	return jen.Type().Id("WorkflowsProxy").InterfaceFunc(func(g *jen.Group) {
+		for _, svc := range pkg.Services {
+			if svc.Decorators.Some(isKibuWorkflow) {
+				g.Id(svc.Name).Params().Id(childClientName(svc.Name))
+			}
+		}
+	})
+}
+
+func workflowsClientInterface(pkg *kibumod.Package) jen.Code {
+	return jen.Type().Id("WorkflowsClient").InterfaceFunc(func(g *jen.Group) {
+		for _, svc := range pkg.Services {
+			if svc.Decorators.Some(isKibuWorkflow) {
+				g.Id(svc.Name).Params().Id(clientName(svc.Name))
+			}
+		}
+	})
 }
 
 func workflowRunInterface(svc *kibumod.Service) jen.Code {
