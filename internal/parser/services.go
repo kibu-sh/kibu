@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -129,14 +129,14 @@ type Endpoint struct {
 	Methods    []string
 	Request    *Var
 	Response   *Var
-	Directives directive.List
+	Directives decorators.List
 	Public     bool
 }
 
 type Service struct {
 	*TypeMeta
 	Name       string
-	Directives directive.List
+	Directives decorators.List
 	Endpoints  map[*ast.Ident]*Endpoint
 }
 
@@ -174,7 +174,7 @@ func collectServices(pkg *Package) defMapperFunc {
 		// TODO: inject logger
 		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
-		if !dirs.Some(directive.HasKey("kibu", "service")) {
+		if !dirs.Some(decorators.HasKey("kibu", "service")) {
 			return
 		}
 
@@ -205,7 +205,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			continue
 		}
 
-		dir, isEndpoint := dirs.Find(directive.HasKey("kibu", "endpoint"))
+		dir, isEndpoint := dirs.Find(decorators.HasKey("kibu", "endpoint"))
 		if !isEndpoint {
 			continue
 		}

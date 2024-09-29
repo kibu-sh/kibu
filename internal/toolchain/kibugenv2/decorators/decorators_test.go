@@ -1,4 +1,4 @@
-package directive
+package decorators
 
 import (
 	"github.com/stretchr/testify/require"
@@ -43,17 +43,17 @@ func TestIsDirective(t *testing.T) {
 func TestParseDirective(t *testing.T) {
 	var parseDirectiveTests = map[string]struct {
 		in  string
-		out Directive
+		out Line
 		err error
 	}{
 		"should parse basic directive": {
 			in:  "kibu:service",
-			out: Directive{Tool: "kibu", Name: "service", Options: NewOptionList()},
+			out: Line{Tool: "kibu", Name: "service", Options: NewOptionList()},
 		},
 
 		"should parse directive with options": {
 			in: "kibu:endpoint method=GET path=/thing/place/:location",
-			out: Directive{
+			out: Line{
 				Tool: "kibu", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET"}, "path": []string{"/thing/place/:location"},
@@ -63,7 +63,7 @@ func TestParseDirective(t *testing.T) {
 
 		"should handle misc spaces": {
 			in: "kibu:endpoint method=GET  path=/thing/place/:location",
-			out: Directive{
+			out: Line{
 				Tool: "kibu", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET"}, "path": []string{"/thing/place/:location"},
@@ -72,7 +72,7 @@ func TestParseDirective(t *testing.T) {
 		},
 		"should parse multiple options": {
 			in: "kibu:endpoint method=GET method=POST",
-			out: Directive{
+			out: Line{
 				Tool: "kibu", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET", "POST"},
@@ -82,7 +82,7 @@ func TestParseDirective(t *testing.T) {
 
 		"should parse multiple options with comma": {
 			in: "kibu:endpoint method=GET,POST",
-			out: Directive{
+			out: Line{
 				Tool: "kibu", Name: "endpoint",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"method": []string{"GET", "POST"},
@@ -92,7 +92,7 @@ func TestParseDirective(t *testing.T) {
 
 		"should parse third level key": {
 			in: "kibu:workflow:update ref=SomeOption",
-			out: Directive{
+			out: Line{
 				Tool: "kibu", Name: "workflow", Qualifier: "update",
 				Options: NewOptionListWithDefaults(map[string][]string{
 					"ref": []string{"SomeOption"},

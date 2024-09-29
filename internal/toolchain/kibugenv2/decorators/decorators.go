@@ -1,4 +1,4 @@
-package directive
+package decorators
 
 import (
 	"encoding/gob"
@@ -13,16 +13,14 @@ import (
 
 var ErrInvalidDirective = errors.New("invalid directive")
 
-// var ErrInvalidOption = errors.New("invalid option")
-
-type Directive struct {
+type Line struct {
 	Tool      string
 	Name      string
 	Qualifier string
 	Options   *OptionList
 }
 
-func (d Directive) String() string {
+func (d Line) String() string {
 	fqn := []string{d.Tool, d.Name}
 	if d.Qualifier != "" {
 		fqn = append(fqn, d.Qualifier)
@@ -99,11 +97,11 @@ func (ol *OptionList) HasOneOf(keys ...string) bool {
 	return false
 }
 
-type List []Directive
-type FilterFunc func(d Directive) bool
+type List []Line
+type FilterFunc func(d Line) bool
 
 func (l List) Filter(filter FilterFunc) List {
-	return lo.Filter(l, func(d Directive, _ int) bool {
+	return lo.Filter(l, func(d Line, _ int) bool {
 		return filter(d)
 	})
 }
@@ -112,12 +110,12 @@ func (l List) Some(some FilterFunc) bool {
 	return lo.SomeBy(l, some)
 }
 
-func (l List) Find(predicate FilterFunc) (Directive, bool) {
+func (l List) Find(predicate FilterFunc) (Line, bool) {
 	return lo.Find(l, predicate)
 }
 
 func OneOf(filters ...FilterFunc) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		for _, filter := range filters {
 			if filter(d) {
 				return true
@@ -132,7 +130,7 @@ func HasKey(parts ...string) FilterFunc {
 }
 
 func Matches(pattern string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		gl, err := glob.Compile(pattern)
 		if err != nil {
 			return false
@@ -143,31 +141,31 @@ func Matches(pattern string) FilterFunc {
 }
 
 func HasQualifier(qualifier string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		return d.Qualifier == qualifier
 	}
 }
 
 func HasPrefix(prefix string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		return strings.HasPrefix(d.String(), prefix)
 	}
 }
 
 func HasSuffix(suffix string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		return strings.HasSuffix(d.String(), suffix)
 	}
 }
 
 func Exactly(s string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		return d.String() == s
 	}
 }
 
 func HasTool(tool string) FilterFunc {
-	return func(d Directive) bool {
+	return func(d Line) bool {
 		return d.Tool == tool
 	}
 }
@@ -178,7 +176,7 @@ func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
 		if comment.Text[:2] == "//" {
 			txt := comment.Text[2:]
 			if IsDirective(txt) {
-				var dir Directive
+				var dir Line
 				dir, err = Parse(txt)
 				if err != nil {
 					return
@@ -234,7 +232,7 @@ func IsDirective(c string) bool {
 // An Option is a key value pair separated by an equals sign
 // An Option key is an unquoted string literal (method)
 // An Option value is an unquoted string literal (GET)
-func Parse(d string) (dir Directive, err error) {
+func Parse(d string) (dir Line, err error) {
 	if !IsDirective(d) {
 		err = errors.Wrapf(ErrInvalidDirective, "%s", d)
 		return

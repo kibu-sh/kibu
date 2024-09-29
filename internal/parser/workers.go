@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"
@@ -11,7 +11,7 @@ import (
 type Method struct {
 	*TypeMeta
 	Name       string
-	Directives directive.List
+	Directives decorators.List
 	Request    *Var
 	Response   *Var
 }
@@ -24,7 +24,7 @@ type Worker struct {
 	Type       WorkerType
 	TaskQueue  string
 	Methods    map[*ast.Ident]*Method
-	Directives directive.List
+	Directives decorators.List
 }
 
 const (
@@ -66,7 +66,7 @@ func collectWorkers(pkg *Package) defMapperFunc {
 		// TODO: inject logger
 		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
-		dir, isWorker := dirs.Find(directive.HasKey("kibu", "worker"))
+		dir, isWorker := dirs.Find(decorators.HasKey("kibu", "worker"))
 		if !isWorker {
 			return
 		}
@@ -114,9 +114,9 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 			continue
 		}
 
-		_, isMethod := dirs.Find(directive.OneOf(
-			directive.HasKey("kibu", "workflow"),
-			directive.HasKey("kibu", "activity"),
+		_, isMethod := dirs.Find(decorators.OneOf(
+			decorators.HasKey("kibu", "workflow"),
+			decorators.HasKey("kibu", "activity"),
 		))
 
 		if !isMethod {

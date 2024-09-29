@@ -3,7 +3,7 @@ package kibugenv2
 import (
 	"fmt"
 	"github.com/dave/jennifer/jen"
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
 	"github.com/samber/lo"
 	"github.com/samber/mo"
@@ -36,18 +36,18 @@ const (
 )
 
 var (
-	isKibuService       = directive.HasKey(kibuPrefix, serviceName)
-	isKibuServiceMethod = directive.HasKey(kibuPrefix, serviceName, "method")
+	isKibuService       = decorators.HasKey(kibuPrefix, serviceName)
+	isKibuServiceMethod = decorators.HasKey(kibuPrefix, serviceName, "method")
 
-	isKibuActivity       = directive.HasKey(kibuPrefix, activityName)
-	isKibuActivityMethod = directive.HasKey(kibuPrefix, activityName, "method")
+	isKibuActivity       = decorators.HasKey(kibuPrefix, activityName)
+	isKibuActivityMethod = decorators.HasKey(kibuPrefix, activityName, "method")
 
-	isKibuWorkflow        = directive.HasKey(kibuPrefix, workflowName)
-	isKibuWorkflowExecute = directive.HasKey(kibuPrefix, workflowName, workflowExecuteName)
-	isKibuWorkflowUpdate  = directive.HasKey(kibuPrefix, workflowName, workflowUpdateName)
-	isKibuWorkflowQuery   = directive.HasKey(kibuPrefix, workflowName, workflowQueryName)
-	isKibuWorkflowSignal  = directive.HasKey(kibuPrefix, workflowName, workflowSignalName)
-	isActivityOrWorkflow  = directive.OneOf(isKibuWorkflow, isKibuActivity)
+	isKibuWorkflow        = decorators.HasKey(kibuPrefix, workflowName)
+	isKibuWorkflowExecute = decorators.HasKey(kibuPrefix, workflowName, workflowExecuteName)
+	isKibuWorkflowUpdate  = decorators.HasKey(kibuPrefix, workflowName, workflowUpdateName)
+	isKibuWorkflowQuery   = decorators.HasKey(kibuPrefix, workflowName, workflowQueryName)
+	isKibuWorkflowSignal  = decorators.HasKey(kibuPrefix, workflowName, workflowSignalName)
+	isActivityOrWorkflow  = decorators.OneOf(isKibuWorkflow, isKibuActivity)
 )
 
 func fileWithGenGoExt(name string) string {
@@ -265,7 +265,7 @@ func filterUpdateMethods(operations []*kibumod.Operation) []*kibumod.Operation {
 
 func filterSignalAndQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
 	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
-		return op.Decorators.Some(directive.OneOf(
+		return op.Decorators.Some(decorators.OneOf(
 			isKibuWorkflowSignal,
 			isKibuWorkflowQuery,
 		))

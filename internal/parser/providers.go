@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/pkg/errors"
 	"go/ast"
 	"go/types"
@@ -18,7 +18,7 @@ type Provider struct {
 	*TypeMeta
 	Name       string
 	Type       ProviderType
-	Directives directive.List
+	Directives decorators.List
 }
 
 func collectProviders(p *Package) defMapperFunc {
@@ -28,7 +28,7 @@ func collectProviders(p *Package) defMapperFunc {
 			return
 		}
 
-		if !dirs.Some(directive.HasKey("kibu", "provider")) {
+		if !dirs.Some(decorators.HasKey("kibu", "provider")) {
 			return
 		}
 

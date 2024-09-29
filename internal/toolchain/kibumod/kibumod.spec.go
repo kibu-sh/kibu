@@ -1,7 +1,7 @@
 package kibumod
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/analysis"
@@ -27,13 +27,13 @@ type Operation struct {
 	Results    []Type
 	Method     *ast.Field
 	Doc        string
-	Decorators directive.List
+	Decorators decorators.List
 }
 
 type Service struct {
 	Name       string
 	Operations []*Operation
-	Decorators directive.List
+	Decorators decorators.List
 	Doc        string
 	Decl       *ast.GenDecl
 	Iface      *ast.InterfaceType

@@ -3,7 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -24,7 +24,7 @@ type Package struct {
 	Middleware map[*ast.Ident]*Middleware
 
 	funcIdCache    map[*types.Func]*ast.Ident
-	directiveCache map[*ast.Ident]directive.List
+	directiveCache map[*ast.Ident]decorators.List
 }
 
 type PackagePath string
@@ -46,7 +46,7 @@ func NewPackage(p *packages.Package, dir string) *Package {
 		Providers:      make(map[*ast.Ident]*Provider),
 		Middleware:     make(map[*ast.Ident]*Middleware),
 		funcIdCache:    make(map[*types.Func]*ast.Ident),
-		directiveCache: make(map[*ast.Ident]directive.List),
+		directiveCache: make(map[*ast.Ident]decorators.List),
 	}
 }
 

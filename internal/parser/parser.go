@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -39,8 +39,8 @@ func collectByDefinition(mapperFuncs packageDefMapperFunc) packageMutationFunc {
 
 func parseDirectives(p *Package) (err error) {
 	for _, f := range p.GoPackage.Syntax {
-		var dirs = make(map[*ast.Ident]directive.List)
-		dirs, err = directive.FromDecls(f.Decls)
+		var dirs = make(map[*ast.Ident]decorators.List)
+		dirs, err = decorators.FromDecls(f.Decls)
 		if err != nil {
 			return
 		}

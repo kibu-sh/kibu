@@ -2,7 +2,7 @@ package kibudecor
 
 import (
 	"encoding/gob"
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
 	"os"
@@ -45,7 +45,7 @@ func TestAnalyzer(t *testing.T) {
 		Analyzer, "./...")
 
 	values := results[0].Result.(*Map)
-	var directives directive.List
+	var directives decorators.List
 	for dir := range values.ValuesFromOldest() {
 		directives = append(directives, dir...)
 	}
@@ -53,11 +53,11 @@ func TestAnalyzer(t *testing.T) {
 	err := saveGobData(testdata, directives)
 	require.NoError(t, err)
 
-	loaded, err := loadGobData[directive.List](testdata)
+	loaded, err := loadGobData[decorators.List](testdata)
 	require.NoError(t, err)
 	require.NotNil(t, directives)
 	require.Equal(t, directives, loaded)
 
-	hasKibuService := directives.Some(directive.HasKey("kibu", "service"))
+	hasKibuService := directives.Some(decorators.HasKey("kibu", "service"))
 	require.True(t, hasKibuService, "should have kibu:service")
 }

@@ -1,7 +1,7 @@
 package kibudecor
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go/ast"
 	"golang.org/x/tools/go/analysis"
@@ -10,7 +10,7 @@ import (
 	"reflect"
 )
 
-type Map = orderedmap.OrderedMap[*ast.Ident, directive.List]
+type Map = orderedmap.OrderedMap[*ast.Ident, decorators.List]
 
 var resultType = reflect.TypeOf((*Map)(nil))
 
@@ -29,7 +29,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	var result = orderedmap.New[*ast.Ident, directive.List]()
+	var result = orderedmap.New[*ast.Ident, decorators.List]()
 	walk := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -43,7 +43,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if err := directive.ApplyFromDecl(decl, result); err != nil {
+		if err := decorators.ApplyFromDecl(decl, result); err != nil {
 			pass.Reportf(n.Pos(), "failed to parse directive: %v", err)
 			return
 		}

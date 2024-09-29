@@ -3,7 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"github.com/kibu-sh/kibu/internal/parser/directive"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/types"
 	"strconv"
@@ -14,7 +14,7 @@ type Middleware struct {
 	Name       string
 	Tags       []string
 	Order      int
-	Directives directive.List
+	Directives decorators.List
 }
 
 func collectMiddleware(p *Package) defMapperFunc {
@@ -24,7 +24,7 @@ func collectMiddleware(p *Package) defMapperFunc {
 			return
 		}
 
-		dir, isMiddleware := dirs.Find(directive.HasKey("kibu", "middleware"))
+		dir, isMiddleware := dirs.Find(decorators.HasKey("kibu", "middleware"))
 		if !isMiddleware {
 			return
 		}

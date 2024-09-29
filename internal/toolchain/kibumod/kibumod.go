@@ -1,9 +1,9 @@
 package kibumod
 
 import (
-	"github.com/kibu-sh/kibu/internal/parser/directive"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibudecor"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibufuncs"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/samber/lo"
 	"go/ast"
 	"golang.org/x/tools/go/analysis"
@@ -58,8 +58,8 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// comments don't contain kibu decorators
-		decor, _ := directive.FromCommentGroup(decl.Doc)
-		if !decor.Some(directive.HasTool("kibu")) {
+		decor, _ := decorators.FromCommentGroup(decl.Doc)
+		if !decor.Some(decorators.HasTool("kibu")) {
 			return
 		}
 
@@ -139,11 +139,11 @@ func extractOperation(pass *analysis.Pass, method *ast.Field) *Operation {
 	}
 }
 
-func extractDecorators(pass *analysis.Pass, doc *ast.CommentGroup) directive.List {
+func extractDecorators(pass *analysis.Pass, doc *ast.CommentGroup) decorators.List {
 	if doc == nil {
 		return nil
 	}
-	dir, err := directive.FromCommentGroup(doc)
+	dir, err := decorators.FromCommentGroup(doc)
 	pass.Reportf(doc.Pos(), "%v", err)
 	return dir
 }
