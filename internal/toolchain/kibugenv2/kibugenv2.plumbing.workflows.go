@@ -16,6 +16,15 @@ func multiLineParen() jen.Options {
 	}
 }
 
+func multiLineCurly() jen.Options {
+	return jen.Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}
+}
+
 func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
@@ -780,13 +789,15 @@ func buildExternalRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod
 		}).
 		Params(jen.Error()).
 		Block(
-			jen.Return(jen.Qual(temporalWorkflowImportName, "SignalExternalWorkflow").Call(
-				jen.Id("ctx"),
-				jen.Id("r").Dot("workflowID"),
-				jen.Id("r").Dot("runID"),
-				jen.Id(operationConstName(svc, op)),
-				jen.Id("req"),
-			)),
+			jen.Return(jen.Qual(temporalWorkflowImportName, "SignalExternalWorkflow").
+				Call(
+					jen.Id("ctx"),
+					jen.Id("r").Dot("workflowID"),
+					jen.Id("r").Dot("runID"),
+					jen.Id(operationConstName(svc, op)),
+					jen.Id("req"),
+				).Dot("Get").Call(jen.Id("ctx"), jen.Nil()),
+			),
 		)
 }
 
@@ -1012,7 +1023,7 @@ func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 		executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
 
 		f.Func().Params(
-			jen.Id("wk").Op("*").Id(svc.Name+"WorkflowController"),
+			jen.Id("wk").Op("*").Id(suffixController(svc.Name)),
 		).Id("Execute").Params(
 			namedWorkflowContextParam(),
 			jen.Id("req").Add(executeReq),
@@ -1020,13 +1031,13 @@ func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 			jen.Id("res").Add(executeRes),
 			jen.Id("err").Error(),
 		).BlockFunc(func(g *jen.Group) {
-			g.Id("input").Op(":=").Op("&").Id(suffixInput(svc.Name)).Values(jen.DictFunc(func(d jen.Dict) {
-				d[jen.Id("Request")] = jen.Id("req")
+			g.Id("input").Op(":=").Op("&").Id(suffixInput(svc.Name)).CustomFunc(multiLineCurly(), func(g *jen.Group) {
+				g.Id("Request").Op(":").Id("req")
 				signalMethods := filterSignalMethods(svc.Operations)
 				for _, op := range signalMethods {
-					d[jen.Id(firstToUpper(op.Name)+"Channel")] = jen.Id(signalChannelProviderFuncName(svc, op)).Call(jen.Id("ctx"))
+					g.Id(suffixController(op.Name)).Op(":").Id(signalChannelProviderFuncName(svc, op)).Call(jen.Id("ctx"))
 				}
-			}))
+			})
 
 			g.List(jen.Id("wf"), jen.Err()).Op(":=").Id("wk").Dot("Factory").Call(jen.Id("input"))
 			g.If(jen.Err().Op("!=").Nil()).Block(
@@ -1066,7 +1077,7 @@ func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 		})
 
 		f.Func().Params(
-			jen.Id("wk").Op("*").Id(svc.Name + "WorkflowController"),
+			jen.Id("wk").Op("*").Id(suffixController(svc.Name)),
 		).Id("Build").Params(
 			jen.Id("registry").Qual(temporalWorkerImportName, "WorkflowRegistry"),
 		).Block(

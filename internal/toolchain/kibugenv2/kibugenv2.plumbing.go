@@ -273,6 +273,10 @@ func suffixAsync(name string) string {
 	return firstToUpper(fmt.Sprintf("%sAsync", name))
 }
 
+func suffixChannel(name string) string {
+	return firstToUpper(fmt.Sprintf("%sChannel", name))
+}
+
 func suffixFactory(name string) string {
 	return firstToUpper(fmt.Sprintf("%sFactory", name))
 }
