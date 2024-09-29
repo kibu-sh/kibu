@@ -7,6 +7,15 @@ import (
 	"github.com/samber/mo"
 )
 
+func multiLineParen() jen.Options {
+	return jen.Options{
+		Open:      "(",
+		Close:     ")",
+		Separator: ",",
+		Multi:     true,
+	}
+}
+
 func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
