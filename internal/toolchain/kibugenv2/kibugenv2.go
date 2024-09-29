@@ -44,15 +44,27 @@ func run(pass *analysis.Pass) (any, error) {
 		File: genFile,
 	}
 
-	buildPkgCompilerAssertions(genFile, pkg)
-	buildPkgConstants(genFile, pkg)
-	buildSignalChannelFuncs(genFile, pkg)
-	buildWorkflowInterfaces(genFile, pkg)
-	buildActivityInterfaces(genFile, pkg)
-	buildActivityImplementations(genFile, pkg)
-	buildWorkflowControllers(genFile, pkg)
-	buildActivitiesControllers(genFile, pkg)
-	buildServiceControllers(genFile, pkg)
-	buildWorkerController(genFile, pkg)
+	generate(genFile, pkg,
+		buildPkgCompilerAssertions,
+		buildPkgConstants,
+		buildSignalChannelFuncs,
+		buildWorkflowInterfaces,
+		buildActivityInterfaces,
+		buildActivityImplementations,
+		buildWorkflowControllers,
+		buildActivitiesControllers,
+		buildServiceControllers,
+		buildWorkerController,
+	)
+
 	return result, nil
+}
+
+type genFunc func(genFile *jen.File, pkg *kibumod.Package)
+
+func generate(genFile *jen.File, pkg *kibumod.Package, genFuncs ...genFunc) {
+	for _, genFunc := range genFuncs {
+		genFunc(genFile, pkg)
+	}
+	return
 }
