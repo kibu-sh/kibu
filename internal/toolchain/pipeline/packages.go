@@ -61,15 +61,6 @@ func ConfigDefaults() *Config {
 	}
 }
 
-func ConfigFromCWD() (*Config, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	return ConfigDefaults().WithDir(cwd), nil
-}
-
 func loadMode() packages.LoadMode {
 	return packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports |
 		packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo |

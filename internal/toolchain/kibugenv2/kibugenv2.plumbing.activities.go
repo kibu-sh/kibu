@@ -25,19 +25,26 @@ func buildActivityProxyMethod(svc *kibumod.Service, op *kibumod.Operation) jen.C
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
 			g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
-			g.Id("mods").Op("...").Qual(kibuTemporalImportName, "ActivityOptionFunc")
+			g.Id("mods").Op("...").Add(qualKibuTemporalActivityOptionFunc())
 		}).
 		ParamsFunc(func(g *jen.Group) {
 			g.Id("res").Add(paramToExp(paramAtIndex(op.Results, 0)))
 			g.Id("err").Error()
 		}).
 		Block(
-			jen.Return(jen.Id("a").Dot(nameAsync(op.Name)).Call(jen.Id("ctx"), jen.Id("req"), jen.Id("mods").Op("..."))).Dot("Get").Call(jen.Id("ctx")),
+			jen.Return(jen.Id("a").Dot(suffixAsync(op.Name)).Call(
+				jen.Id("ctx"),
+				jen.Id("req"),
+				jen.Id("mods").Op("..."))).Dot("Get").Call(jen.Id("ctx")),
 		)
 }
 
+func qualKibuTemporalActivityOptionFunc() jen.Code {
+	return jen.Qual(kibuTemporalImportName, "ActivityOptionFunc")
+}
+
 func buildActivityProxyAsyncMethod(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
-	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(nameAsync(op.Name)).
+	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(suffixAsync(op.Name)).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
 			g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))

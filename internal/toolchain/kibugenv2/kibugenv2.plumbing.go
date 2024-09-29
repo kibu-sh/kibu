@@ -110,17 +110,12 @@ func packageNameConst() string {
 func buildPkgCompilerAssertions(f *jen.File, pkg *kibumod.Package) {
 	f.Comment("compiler assertions")
 	for _, svc := range pkg.Services {
-		f.Add(matchingCompilerAssertion(svc.Name))
-
 		if svc.Decorators.Some(isKibuActivity) {
 			f.Add(compilerAssertionToInterface(
 				proxyName(svc.Name), firstToLower(proxyName(svc.Name))))
 		}
 
 		if svc.Decorators.Some(isKibuWorkflow) {
-			f.Add(compilerAssertionToInterface(
-				runName(svc.Name), firstToLower(runName(svc.Name))))
-
 			f.Add(compilerAssertionToInterface(
 				childRunName(svc.Name), firstToLower(childRunName(svc.Name))))
 
@@ -191,16 +186,18 @@ func activityProxyInterface(svc *kibumod.Service) jen.Code {
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(namedWorkflowContextParam())
 					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+					g.Id("mods").Op("...").Add(qualKibuTemporalActivityOptionFunc())
 				}).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(paramToExp(paramAtIndex(op.Results, 0)))
 					g.Error()
 				})
 
-			g.Id(nameAsync(op.Name)).
+			g.Id(suffixAsync(op.Name)).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(namedWorkflowContextParam())
 					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+					g.Id("mods").Op("...").Add(qualKibuTemporalActivityOptionFunc())
 				}).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(qualKibuTemporalFuture(paramToExpOrAny(paramAtIndex(op.Results, 0))))
@@ -236,7 +233,7 @@ func findExecuteMethod(svc *kibumod.Service) (*kibumod.Operation, bool) {
 }
 
 func namedGetHandleOpts() jen.Code {
-	return jen.Id("opts").Qual(kibuTemporalImportName, "GetHandleOptions")
+	return jen.Id("opts").Qual(kibuTemporalImportName, "GetHandleOpts")
 }
 
 func qualWorkflowExecution() jen.Code {
@@ -272,8 +269,20 @@ func filterSignalAndQueryMethods(operations []*kibumod.Operation) []*kibumod.Ope
 	})
 }
 
-func nameAsync(name string) string {
+func suffixAsync(name string) string {
 	return firstToUpper(fmt.Sprintf("%sAsync", name))
+}
+
+func suffixFactory(name string) string {
+	return firstToUpper(fmt.Sprintf("%sFactory", name))
+}
+
+func suffixInput(name string) string {
+	return firstToUpper(fmt.Sprintf("%sInput", name))
+}
+
+func suffixController(name string) string {
+	return firstToUpper(fmt.Sprintf("%sController", name))
 }
 
 func namedContextParam(importName string) jen.Code {
@@ -288,7 +297,11 @@ func namedWorkflowContextParam() jen.Code {
 }
 
 func namedWorkflowSelectorParam() jen.Code {
-	return jen.Id("sel").Qual(temporalWorkflowImportName, "Selector")
+	return jen.Id("sel").Add(qualWorkflowSelector())
+}
+
+func qualWorkflowSelector() jen.Code {
+	return jen.Qual(temporalWorkflowImportName, "Selector")
 }
 
 func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.Code {

@@ -318,7 +318,7 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 
 		// generate async methods with the update handle
 		lo.ForEach(updateMethods, func(op *kibumod.Operation, i int) {
-			g.Id(op.Name).
+			g.Id(suffixAsync(op.Name)).
 				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
 				ParamsFunc(func(g *jen.Group) {
 					for idx, result := range op.Results {
@@ -350,12 +350,12 @@ func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 		g.Id("Select").
 			Params(namedWorkflowSelectorParam(),
 				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
-			Params(namedWorkflowSelectorParam())
+			Params(qualWorkflowSelector())
 
 		g.Id("SelectStart").
 			Params(namedWorkflowSelectorParam(),
 				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
-			Params(namedWorkflowSelectorParam())
+			Params(qualWorkflowSelector())
 
 		// only signals are supported on child workflows
 		// queries must happen using a client inside an activity
@@ -388,7 +388,7 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
 				Params(jen.Error())
 
-			g.Id(nameAsync(op.Name)).
+			g.Id(suffixAsync(op.Name)).
 				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
 				Params(qualWorkflowFuture())
 		})
@@ -466,23 +466,25 @@ func workflowChildClientInterface(svc *kibumod.Service) jen.Code {
 				g.Error()
 			})
 
-		g.Id(nameAsync("Execute")).
+		g.Id(suffixAsync("Execute")).
 			ParamsFunc(func(g *jen.Group) {
 				g.Add(namedWorkflowContextParam())
 				g.Id("req").Add(executeReq)
 				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 			}).
-			ParamsFunc(func(g *jen.Group) {
-				g.Id(childRunName(svc.Name))
-				g.Error()
-			})
+			Params(jen.Id(childRunName(svc.Name)))
 	})
 }
 
 func mapWorkflowOperationArgsForRunIface(op *kibumod.Operation) func(g *jen.Group) {
 	return func(g *jen.Group) {
+		reqIdx := 1
+		if op.Decorators.Some(isKibuWorkflowQuery) {
+			reqIdx = 0
+		}
+
 		g.Add(namedStdContextParam())
-		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, reqIdx)))
 
 		if op.Decorators.Some(isKibuWorkflowUpdate) {
 			g.Id("mods").Op("...").Qual(kibuTemporalImportName, "UpdateOptionFunc")
@@ -661,9 +663,19 @@ func buildChildRunWaitStartMethod(f *jen.File, svc *kibumod.Service) {
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WaitStart").
 		Params(namedWorkflowContextParam()).
 		Params(jen.Op("*").Add(qualWorkflowExecution()), jen.Error()).
-		Block(
-			jen.Return(jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call()),
-		)
+		BlockFunc(func(g *jen.Group) {
+			g.Var().Id("exec").Add(qualWorkflowExecution())
+
+			g.Id("err").Op(":=").Id("r").Dot("childFuture").
+				Dot("GetChildWorkflowExecution").Call().Dot("Get").
+				Call(jen.Id("ctx"), jen.Op("&").Id("exec"))
+
+			g.If(jen.Id("err").Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Id("err")),
+			)
+
+			g.Return(jen.Op("&").Id("exec"), jen.Nil())
+		})
 }
 
 func buildChildRunSelectMethod(f *jen.File, svc *kibumod.Service) {
@@ -674,7 +686,7 @@ func buildChildRunSelectMethod(f *jen.File, svc *kibumod.Service) {
 			namedWorkflowSelectorParam(),
 			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
 		).
-		Params(namedWorkflowSelectorParam()).
+		Params(qualWorkflowSelector()).
 		Block(
 			jen.Return(jen.Id("sel").Dot("AddFuture").Call(
 				jen.Id("r").Dot("childFuture"),
@@ -693,7 +705,7 @@ func buildChildRunSelectStartMethod(f *jen.File, svc *kibumod.Service) {
 			namedWorkflowSelectorParam(),
 			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
 		).
-		Params(namedWorkflowSelectorParam()).
+		Params(qualWorkflowSelector()).
 		Block(
 			jen.Return(jen.Id("sel").Dot("AddFuture").Call(
 				jen.Id("r").Dot("childFuture").Dot("GetChildWorkflowExecution").Call(),
@@ -750,7 +762,10 @@ func buildExternalRunRequestCancellationMethod(f *jen.File, svc *kibumod.Service
 				jen.Id("ctx"),
 				jen.Id("r").Dot("workflowID"),
 				jen.Id("r").Dot("runID"),
-			)),
+			)).Dot("Get").Call(
+				jen.Id("ctx"),
+				jen.Nil(),
+			),
 		)
 }
 
@@ -779,7 +794,7 @@ func buildExternalRunSignalAsyncMethod(f *jen.File, svc *kibumod.Service, op *ki
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
-	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(nameAsync(op.Name)).
+	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(suffixAsync(op.Name)).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
 			g.Id("req").Add(signalReq)
@@ -845,7 +860,7 @@ func buildRunUpdateMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operati
 			g.Error()
 		}).
 		Block(
-			jen.List(jen.Id("handle"), jen.Err()).Op(":=").Id("r").Dot(nameAsync(op.Name)).Call(jen.Id("ctx"), jen.Id("req"), jen.Id("mods").Op("...")),
+			jen.List(jen.Id("handle"), jen.Err()).Op(":=").Id("r").Dot(suffixAsync(op.Name)).Call(jen.Id("ctx"), jen.Id("req"), jen.Id("mods").Op("...")),
 			jen.If(jen.Err().Op("!=").Nil()).Block(
 				jen.Return(jen.Add(updateRes).Values(), jen.Err()),
 			),
@@ -858,7 +873,7 @@ func buildRunUpdateAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Op
 	updateReq := paramToExp(paramAtIndex(op.Params, 1))
 	updateRes := paramToExp(paramAtIndex(op.Results, 0))
 
-	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(nameAsync(op.Name)).
+	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(suffixAsync(op.Name)).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedStdContextParam())
 			g.Id("req").Add(updateReq)
@@ -950,7 +965,7 @@ func workflowInputStruct(svc *kibumod.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(firstToLower(svc.Name) + "WorkflowInput").StructFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixInput(svc.Name)).StructFunc(func(g *jen.Group) {
 		executeMethod, _ := findExecuteMethod(svc)
 		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
 		g.Id("Request").Add(executeReq)
@@ -968,10 +983,10 @@ func workflowFactoryType(svc *kibumod.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(svc.Name+"WorkflowFactory").Func().Params(
-		jen.Id("input").Op("*").Id(firstToLower(svc.Name)+"WorkflowInput"),
+	return jen.Type().Id(suffixFactory(svc.Name)).Func().Params(
+		jen.Id("input").Op("*").Id(suffixInput(svc.Name)),
 	).Params(
-		jen.Id(svc.Name+"Workflow"),
+		jen.Id(svc.Name),
 		jen.Error(),
 	)
 }
@@ -981,8 +996,8 @@ func workflowControllerStruct(svc *kibumod.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(svc.Name + "WorkflowController").Struct(
-		jen.Id("Factory").Id(svc.Name + "WorkflowFactory"),
+	return jen.Type().Id(suffixController(svc.Name)).Struct(
+		jen.Id("Factory").Id(suffixFactory(svc.Name)),
 	)
 }
 
@@ -1005,7 +1020,7 @@ func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 			jen.Id("res").Add(executeRes),
 			jen.Id("err").Error(),
 		).BlockFunc(func(g *jen.Group) {
-			g.Id("input").Op(":=").Op("&").Id(firstToLower(svc.Name) + "WorkflowInput").Values(jen.DictFunc(func(d jen.Dict) {
+			g.Id("input").Op(":=").Op("&").Id(suffixInput(svc.Name)).Values(jen.DictFunc(func(d jen.Dict) {
 				d[jen.Id("Request")] = jen.Id("req")
 				signalMethods := filterSignalMethods(svc.Operations)
 				for _, op := range signalMethods {
