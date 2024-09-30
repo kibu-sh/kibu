@@ -53,7 +53,8 @@ func buildWorkerController(f *jen.File, pkg *kibumod.Package) {
 		)),
 	)
 
-	f.Var().Id("WireSet").Op("=").Qual(wireImportName, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
+	f.Comment("//kibu:provider")
+	f.Var().Id("GenWireSet").Op("=").Qual(wireImportName, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
 		g.Id("NewActivitiesProxy")
 		g.Id("NewWorkflowsProxy")
 		g.Id("NewWorkflowsClient")

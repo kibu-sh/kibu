@@ -490,7 +490,8 @@ func NewWorkflowsClient(client client.Client) WorkflowsClient {
 	return &workflowsClient{client: client}
 }
 
-var WireSet = wire.NewSet(
+//kibu:provider
+var GenWireSet = wire.NewSet(
 	NewActivitiesProxy,
 	NewWorkflowsProxy,
 	NewWorkflowsClient,

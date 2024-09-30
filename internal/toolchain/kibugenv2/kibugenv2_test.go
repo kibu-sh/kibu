@@ -55,10 +55,6 @@ func TestGenerator(t *testing.T) {
 
 				_, err = SaveArtifacts(root, results)
 				ts.Check(err)
-
-				//for _, outFile := range outFiles {
-				//	_ = exec.Command("idea", outFile).Run()
-				//}
 			},
 		},
 	})
