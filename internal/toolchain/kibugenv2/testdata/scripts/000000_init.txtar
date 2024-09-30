@@ -457,6 +457,7 @@ func (act *ActivitiesController) Build(registry worker.ActivityRegistry) {
 	})
 }
 
+//kibu:provider group=httpx.HandlerFactory
 type ServiceController struct {
 	Service Service
 }

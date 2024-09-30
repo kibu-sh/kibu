@@ -435,12 +435,13 @@ func buildServiceControllers(f *jen.File, pkg *kibumod.Package) {
 			continue
 		}
 
-		f.Type().Id(svc.Name + "Controller").Struct(
+		f.Comment("//kibu:provider group=httpx.HandlerFactory")
+		f.Type().Id(suffixController(svc.Name)).Struct(
 			jen.Id("Service").Id(svc.Name),
 		)
 
 		f.Func().Params(
-			jen.Id("svc").Op("*").Id(svc.Name + "Controller"),
+			jen.Id("svc").Op("*").Id(suffixController(svc.Name)),
 		).Id("Build").Params().Params(
 			jen.Index().Op("*").Qual(kibuHttpxImportName, "Handler"),
 		).BlockFunc(func(g *jen.Group) {
