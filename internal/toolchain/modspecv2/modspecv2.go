@@ -6,10 +6,36 @@ import (
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/analysis"
+	"path/filepath"
 )
 
-type Artifact struct {
-	File *jen.File
+type Artifact interface {
+	// File returns a generated jen.File that will be written to disk
+	File() *jen.File
+
+	// OutputPath returns a string to a file and its extension relative to the module root
+	// i.e., example.com/foo/bar/baz.go -> foo/bar/baz.gen.go
+	OutputPath() string
+}
+
+type PackageArtifact struct {
+	file *jen.File
+	pass *analysis.Pass
+}
+
+func (p *PackageArtifact) File() *jen.File {
+	return p.file
+}
+
+func (p *PackageArtifact) OutputPath() string {
+	return filepath.Join(RelPathFromPass(p.pass), GenGoExt(p.pass.Pkg.Name()))
+}
+
+func NewPackageArtifact(file *jen.File, pass *analysis.Pass) *PackageArtifact {
+	return &PackageArtifact{
+		file: file,
+		pass: pass,
+	}
 }
 
 type Package struct {

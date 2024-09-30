@@ -1,6 +1,7 @@
 package kibugenv2
 
 import (
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/kibu-sh/kibu/internal/toolchain/pipeline"
 	"github.com/rogpeppe/go-internal/testscript"
 	"golang.org/x/tools/go/analysis"
@@ -43,17 +44,18 @@ func TestGenerator(t *testing.T) {
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"kibugenv2": func(ts *testscript.TestScript, neg bool, args []string) {
 				root := args[0]
+				patterns := args[1:]
 
 				cfg := pipeline.ConfigDefaults().
-					WithPatterns(args).
 					WithDir(root).
-					WithPatterns(args[1:]).
+					WithPatterns(patterns).
 					WithAnalyzers([]*analysis.Analyzer{Analyzer})
 
 				results, err := pipeline.Run(cfg)
 				ts.Check(err)
 
-				_, err = SaveArtifacts(root, results)
+				artifacts := modspecv2.GatherArtifacts(results)
+				_, err = modspecv2.SaveArtifacts(root, artifacts)
 				ts.Check(err)
 			},
 		},

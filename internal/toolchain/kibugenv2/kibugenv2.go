@@ -9,10 +9,10 @@ import (
 	"reflect"
 )
 
-var resultType = reflect.TypeOf((*modspecv2.Artifact)(nil))
+var resultType = reflect.TypeOf((modspecv2.Artifact)(nil))
 
-func FromPass(pass *analysis.Pass) (*modspecv2.Artifact, bool) {
-	result, ok := pass.ResultOf[Analyzer].(*modspecv2.Artifact)
+func FromPass(pass *analysis.Pass) (modspecv2.Artifact, bool) {
+	result, ok := pass.ResultOf[Analyzer].(modspecv2.Artifact)
 	return result, ok
 }
 
@@ -35,11 +35,8 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, missingPackageError
 	}
 
-	genFile := newGenFile(pass.Pkg)
-
-	result := &modspecv2.Artifact{
-		File: genFile,
-	}
+	genFile := modspecv2.NewJenFileFromPackage(pass.Pkg)
+	result := modspecv2.NewPackageArtifact(genFile, pass)
 
 	generate(genFile, pkg,
 		buildPkgCompilerAssertions,
