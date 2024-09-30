@@ -4,7 +4,6 @@ import (
 	"github.com/kibu-sh/kibu/internal/toolchain/pipeline"
 	"github.com/rogpeppe/go-internal/testscript"
 	"golang.org/x/tools/go/analysis"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -31,8 +30,8 @@ func TestGenerator(t *testing.T) {
 	//srcfiles := filepath.Join(testdata, "src")
 
 	testscript.Run(t, testscript.Params{
-		Dir:      scripts,
-		TestWork: true,
+		Dir: scripts,
+		//TestWork: true,
 		Setup: func(env *testscript.Env) error {
 			// inject application env
 			//env.Vars = append(env.Vars, getGoEnv(t)...)
@@ -54,23 +53,13 @@ func TestGenerator(t *testing.T) {
 				results, err := pipeline.Run(cfg)
 				ts.Check(err)
 
-				outFiles, err := SaveArtifacts(root, results)
+				_, err = SaveArtifacts(root, results)
 				ts.Check(err)
 
-				for _, outFile := range outFiles {
-					_ = exec.Command("idea", outFile).Run()
-				}
+				//for _, outFile := range outFiles {
+				//	_ = exec.Command("idea", outFile).Run()
+				//}
 			},
 		},
 	})
 }
-
-//func getGoEnv(t *testing.T) []string {
-//	t.Helper()
-//	cmd := exec.Command("go", "env")
-//	out, err := cmd.Output()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	return strings.Split(string(out), "\n")
-//}
