@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/samber/lo"
 	"github.com/samber/mo"
 	"go/ast"
@@ -107,7 +107,7 @@ func packageNameConst() string {
 }
 
 // buildPkgCompilerAssertions creates compiler assertions for all services
-func buildPkgCompilerAssertions(f *jen.File, pkg *kibumod.Package) {
+func buildPkgCompilerAssertions(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("compiler assertions")
 	for _, svc := range pkg.Services {
 		if svc.Decorators.Some(isKibuActivity) {
@@ -126,24 +126,24 @@ func buildPkgCompilerAssertions(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
-func svcConstName(svc *kibumod.Service) string {
+func svcConstName(svc *modspecv2.Service) string {
 	return privateConstName(svc.Name)
 }
 
-func operationConstName(svc *kibumod.Service, op *kibumod.Operation) string {
+func operationConstName(svc *modspecv2.Service, op *modspecv2.Operation) string {
 	return privateConstName(fmt.Sprintf("%s%s", svc.Name, firstToUpper(op.Name)))
 }
 
-func svcConstLiteral(pkg *kibumod.Package, svc *kibumod.Service) string {
+func svcConstLiteral(pkg *modspecv2.Package, svc *modspecv2.Service) string {
 	return fmt.Sprintf("%s.%s", pkg.Name, svc.Name)
 }
 
-func operationConstLiteral(pkg *kibumod.Package, svc *kibumod.Service, op *kibumod.Operation) string {
+func operationConstLiteral(pkg *modspecv2.Package, svc *modspecv2.Service, op *modspecv2.Operation) string {
 	return fmt.Sprintf("%s.%s.%s", pkg.Name, svc.Name, op.Name)
 }
 
 // buildPkgConstants a set of constant references for later code
-func buildPkgConstants(f *jen.File, pkg *kibumod.Package) {
+func buildPkgConstants(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("system constants")
 	f.Const().DefsFunc(func(g *jen.Group) {
 		// packageName = "billingv1"
@@ -167,7 +167,7 @@ func buildPkgConstants(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
-func buildActivityInterfaces(f *jen.File, pkg *kibumod.Package) {
+func buildActivityInterfaces(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("activity interfaces")
 	for _, svc := range pkg.Services {
 		f.Add(activityProxyInterface(svc))
@@ -175,7 +175,7 @@ func buildActivityInterfaces(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
-func activityProxyInterface(svc *kibumod.Service) jen.Code {
+func activityProxyInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuActivity) {
 		return jen.Null()
 	}
@@ -226,8 +226,8 @@ func executeWithName(name string) string {
 	return firstToUpper(fmt.Sprintf("ExecuteWith%s", firstToUpper(name)))
 }
 
-func findExecuteMethod(svc *kibumod.Service) (*kibumod.Operation, bool) {
-	return lo.Find(svc.Operations, func(op *kibumod.Operation) bool {
+func findExecuteMethod(svc *modspecv2.Service) (*modspecv2.Operation, bool) {
+	return lo.Find(svc.Operations, func(op *modspecv2.Operation) bool {
 		return op.Decorators.Some(isKibuWorkflowExecute)
 	})
 }
@@ -240,8 +240,8 @@ func qualWorkflowExecution() jen.Code {
 	return jen.Qual(temporalWorkflowImportName, "Execution")
 }
 
-func filterSignalMethods(operations []*kibumod.Operation) []*kibumod.Operation {
-	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+func filterSignalMethods(operations []*modspecv2.Operation) []*modspecv2.Operation {
+	return lo.Filter(operations, func(op *modspecv2.Operation, _ int) bool {
 		return op.Decorators.Some(isKibuWorkflowSignal)
 	})
 }
@@ -254,14 +254,14 @@ func qualWorkflowFuture() jen.Code {
 	return jen.Qual(temporalWorkflowImportName, "Future")
 }
 
-func filterUpdateMethods(operations []*kibumod.Operation) []*kibumod.Operation {
-	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+func filterUpdateMethods(operations []*modspecv2.Operation) []*modspecv2.Operation {
+	return lo.Filter(operations, func(op *modspecv2.Operation, _ int) bool {
 		return op.Decorators.Some(isKibuWorkflowUpdate)
 	})
 }
 
-func filterSignalAndQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
-	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+func filterSignalAndQueryMethods(operations []*modspecv2.Operation) []*modspecv2.Operation {
+	return lo.Filter(operations, func(op *modspecv2.Operation, _ int) bool {
 		return op.Decorators.Some(decorators.OneOf(
 			isKibuWorkflowSignal,
 			isKibuWorkflowQuery,
@@ -308,7 +308,7 @@ func qualWorkflowSelector() jen.Code {
 	return jen.Qual(temporalWorkflowImportName, "Selector")
 }
 
-func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
+func signalChannelProviderFunc(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
 	return jen.Func().Id(signalChannelProviderFuncName(svc, op)).
 		Params(namedWorkflowContextParam()).
 		ParamsFunc(func(g *jen.Group) {
@@ -324,14 +324,14 @@ func signalChannelProviderFunc(svc *kibumod.Service, op *kibumod.Operation) jen.
 		})
 }
 
-type optionalParam = mo.Option[kibumod.Type]
+type optionalParam = mo.Option[modspecv2.Type]
 
-func paramAtIndex(params []kibumod.Type, index int) optionalParam {
+func paramAtIndex(params []modspecv2.Type, index int) optionalParam {
 	if index < 0 || index >= len(params) {
-		return mo.None[kibumod.Type]()
+		return mo.None[modspecv2.Type]()
 	}
 
-	return mo.Some[kibumod.Type](params[index])
+	return mo.Some[modspecv2.Type](params[index])
 }
 
 func paramToExp(param optionalParam) jen.Code {
@@ -394,7 +394,7 @@ func exprToJen(expr ast.Expr) jen.Code {
 	return jen.Any()
 }
 
-func signalChannelProviderFuncName(svc *kibumod.Service, op *kibumod.Operation) string {
+func signalChannelProviderFuncName(svc *modspecv2.Service, op *modspecv2.Operation) string {
 	return firstToUpper(fmt.Sprintf("New%sSignalChannel", firstToUpper(op.Name)))
 }
 
@@ -429,7 +429,7 @@ func compilerAssertionToInterface(iface, impl string) *jen.Statement {
 		Params(ptrExpr(impl)).
 		Parens(jen.Nil())
 }
-func buildServiceControllers(f *jen.File, pkg *kibumod.Package) {
+func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuService) {
 			continue
@@ -467,7 +467,7 @@ func buildServiceControllers(f *jen.File, pkg *kibumod.Package) {
 	}
 }
 
-func buildActivitiesControllers(f *jen.File, pkg *kibumod.Package) {
+func buildActivitiesControllers(f *jen.File, pkg *modspecv2.Package) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuActivity) {
 			continue

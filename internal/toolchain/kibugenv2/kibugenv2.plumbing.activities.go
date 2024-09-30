@@ -2,10 +2,10 @@ package kibugenv2
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 )
 
-func buildActivityImplementations(file *jen.File, pkg *kibumod.Package) {
+func buildActivityImplementations(file *jen.File, pkg *modspecv2.Package) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuActivity) {
 			continue
@@ -20,7 +20,7 @@ func buildActivityImplementations(file *jen.File, pkg *kibumod.Package) {
 	}
 }
 
-func buildActivityProxyMethod(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
+func buildActivityProxyMethod(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
 	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(op.Name).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
@@ -43,7 +43,7 @@ func qualKibuTemporalActivityOptionFunc() jen.Code {
 	return jen.Qual(kibuTemporalImportName, "ActivityOptionFunc")
 }
 
-func buildActivityProxyAsyncMethod(svc *kibumod.Service, op *kibumod.Operation) jen.Code {
+func buildActivityProxyAsyncMethod(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
 	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(suffixAsync(op.Name)).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())

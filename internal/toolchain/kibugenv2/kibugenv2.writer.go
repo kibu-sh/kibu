@@ -1,6 +1,7 @@
 package kibugenv2
 
 import (
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"golang.org/x/tools/go/analysis"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func SaveArtifacts(rootDir string, results []*analysis.Pass) ([]string, error) {
 	return outFiles, nil
 }
 
-func saveArtifact(dir string, artifact *Artifact, pass *analysis.Pass) (string, error) {
+func saveArtifact(dir string, artifact *modspecv2.Artifact, pass *analysis.Pass) (string, error) {
 	pkgDir := PackagePathFromAnalysis(dir, pass)
 	filename := filepath.Join(pkgDir, fileWithGenGoExt(pass.Pkg.Name()))
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)

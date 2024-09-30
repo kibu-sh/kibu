@@ -1,4 +1,4 @@
-package kibudecor
+package kibuwiregen
 
 import (
 	"encoding/gob"

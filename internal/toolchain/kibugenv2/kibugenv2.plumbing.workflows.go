@@ -2,7 +2,7 @@ package kibugenv2
 
 import (
 	"github.com/dave/jennifer/jen"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/samber/lo"
 	"github.com/samber/mo"
 )
@@ -25,7 +25,7 @@ func multiLineCurly() jen.Options {
 	}
 }
 
-func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
+func buildWorkflowInterfaces(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
 		f.Add(workflowRunInterface(svc))
@@ -47,7 +47,7 @@ func buildWorkflowInterfaces(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
-func workflowsProxyInterface(pkg *kibumod.Package) jen.Code {
+func workflowsProxyInterface(pkg *modspecv2.Package) jen.Code {
 	return jen.Type().Id("WorkflowsProxy").InterfaceFunc(func(g *jen.Group) {
 		for _, svc := range pkg.Services {
 			if svc.Decorators.Some(isKibuWorkflow) {
@@ -57,7 +57,7 @@ func workflowsProxyInterface(pkg *kibumod.Package) jen.Code {
 	})
 }
 
-func workflowsClientInterface(pkg *kibumod.Package) jen.Code {
+func workflowsClientInterface(pkg *modspecv2.Package) jen.Code {
 	return jen.Type().Id("WorkflowsClient").InterfaceFunc(func(g *jen.Group) {
 		for _, svc := range pkg.Services {
 			if svc.Decorators.Some(isKibuWorkflow) {
@@ -67,7 +67,7 @@ func workflowsClientInterface(pkg *kibumod.Package) jen.Code {
 	})
 }
 
-func buildWorkflowsClientImplementation(f *jen.File, pkg *kibumod.Package) {
+func buildWorkflowsClientImplementation(f *jen.File, pkg *modspecv2.Package) {
 	f.Type().Id("workflowsClient").Struct(
 		jen.Id("client").Qual(temporalClientImportName, "Client"),
 	)
@@ -87,7 +87,7 @@ func buildWorkflowsClientImplementation(f *jen.File, pkg *kibumod.Package) {
 	}
 }
 
-func buildWorkflowClientImplementation(f *jen.File, svc *kibumod.Service) {
+func buildWorkflowClientImplementation(f *jen.File, svc *modspecv2.Service) {
 	clientStructName := firstToLower(clientName(svc.Name))
 
 	f.Type().Id(clientStructName).Struct(
@@ -99,7 +99,7 @@ func buildWorkflowClientImplementation(f *jen.File, svc *kibumod.Service) {
 	buildExecuteWithSignalMethods(f, svc)
 }
 
-func buildExecuteMethod(f *jen.File, svc *kibumod.Service) {
+func buildExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 	clientStructName := firstToLower(clientName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -134,7 +134,7 @@ func buildExecuteMethod(f *jen.File, svc *kibumod.Service) {
 		})
 }
 
-func buildGetHandleMethod(f *jen.File, svc *kibumod.Service) {
+func buildGetHandleMethod(f *jen.File, svc *modspecv2.Service) {
 	clientStructName := firstToLower(clientName(svc.Name))
 
 	f.Func().Params(jen.Id("c").Op("*").Id(clientStructName)).Id("GetHandle").
@@ -155,7 +155,7 @@ func buildGetHandleMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildExecuteWithSignalMethods(f *jen.File, svc *kibumod.Service) {
+func buildExecuteWithSignalMethods(f *jen.File, svc *modspecv2.Service) {
 	clientStructName := firstToLower(clientName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -199,7 +199,7 @@ func buildExecuteWithSignalMethods(f *jen.File, svc *kibumod.Service) {
 	}
 }
 
-func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
+func buildWorkflowsProxyImplementation(f *jen.File, pkg *modspecv2.Package) {
 	f.Type().Id("workflowsProxy").Struct()
 
 	for _, svc := range pkg.Services {
@@ -218,7 +218,7 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *kibumod.Package) {
 	}
 }
 
-func buildWorkflowChildClientImplementation(f *jen.File, svc *kibumod.Service) {
+func buildWorkflowChildClientImplementation(f *jen.File, svc *modspecv2.Service) {
 	childClientStructName := firstToLower(childClientName(svc.Name))
 
 	f.Type().Id(childClientStructName).Struct()
@@ -228,7 +228,7 @@ func buildWorkflowChildClientImplementation(f *jen.File, svc *kibumod.Service) {
 	buildChildClientExternalMethod(f, svc)
 }
 
-func buildChildClientExecuteMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildClientExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 	childClientStructName := firstToLower(childClientName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -250,7 +250,7 @@ func buildChildClientExecuteMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildChildClientExecuteAsyncMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildClientExecuteAsyncMethod(f *jen.File, svc *modspecv2.Service) {
 	childClientStructName := firstToLower(childClientName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -286,7 +286,7 @@ func buildChildClientExecuteAsyncMethod(f *jen.File, svc *kibumod.Service) {
 		})
 }
 
-func buildChildClientExternalMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildClientExternalMethod(f *jen.File, svc *modspecv2.Service) {
 	childClientStructName := firstToLower(childClientName(svc.Name))
 
 	f.Func().Params(jen.Id("c").Op("*").Id(childClientStructName)).Id("External").
@@ -300,7 +300,7 @@ func buildChildClientExternalMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func workflowRunInterface(svc *kibumod.Service) jen.Code {
+func workflowRunInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -311,7 +311,7 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 		g.Id("Get").Params(namedStdContextParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
 
 		signalsAndQueries := filterSignalAndQueryMethods(svc.Operations)
-		lo.ForEach(signalsAndQueries, func(op *kibumod.Operation, i int) {
+		lo.ForEach(signalsAndQueries, func(op *modspecv2.Operation, i int) {
 			g.Id(op.Name).
 				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
 				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
@@ -319,14 +319,14 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 
 		updateMethods := filterUpdateMethods(svc.Operations)
 		// generate sync methods
-		lo.ForEach(updateMethods, func(op *kibumod.Operation, i int) {
+		lo.ForEach(updateMethods, func(op *modspecv2.Operation, i int) {
 			g.Id(op.Name).
 				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
 				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
 		})
 
 		// generate async methods with the update handle
-		lo.ForEach(updateMethods, func(op *kibumod.Operation, i int) {
+		lo.ForEach(updateMethods, func(op *modspecv2.Operation, i int) {
 			g.Id(suffixAsync(op.Name)).
 				ParamsFunc(mapWorkflowOperationArgsForRunIface(op)).
 				ParamsFunc(func(g *jen.Group) {
@@ -343,7 +343,7 @@ func workflowRunInterface(svc *kibumod.Service) jen.Code {
 	})
 }
 
-func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
+func workflowChildRunInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -370,7 +370,7 @@ func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 		// queries must happen using a client inside an activity
 		// https://docs.temporal.io/docs/go/workflows#child-workflows
 		signalMethods := filterSignalMethods(svc.Operations)
-		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
+		lo.ForEach(signalMethods, func(op *modspecv2.Operation, i int) {
 			g.Id(op.Name).
 				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
 				ParamsFunc(mapWorkflowOperationResultsForRunIface(op))
@@ -378,7 +378,7 @@ func workflowChildRunInterface(svc *kibumod.Service) jen.Code {
 	})
 }
 
-func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
+func workflowExternalRunInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -392,7 +392,7 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 		// queries must happen using a client inside an activity
 		// https://docs.temporal.io/docs/go/workflows#child-workflows
 		signalMethods := filterSignalMethods(svc.Operations)
-		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
+		lo.ForEach(signalMethods, func(op *modspecv2.Operation, i int) {
 			g.Id(op.Name).
 				ParamsFunc(mapWorkflowOperationArgsForChildRunIface(op)).
 				Params(jen.Error())
@@ -404,7 +404,7 @@ func workflowExternalRunInterface(svc *kibumod.Service) jen.Code {
 	})
 }
 
-func workflowClientInterface(svc *kibumod.Service) jen.Code {
+func workflowClientInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -433,7 +433,7 @@ func workflowClientInterface(svc *kibumod.Service) jen.Code {
 		//// update with start may be coming soon
 		//// https://docs.temporal.io/docs/go/workflows
 		signalMethods := filterSignalMethods(svc.Operations)
-		lo.ForEach(signalMethods, func(op *kibumod.Operation, i int) {
+		lo.ForEach(signalMethods, func(op *modspecv2.Operation, i int) {
 			g.Id(executeWithName(op.Name)).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(namedStdContextParam())
@@ -450,7 +450,7 @@ func workflowClientInterface(svc *kibumod.Service) jen.Code {
 		})
 	})
 }
-func workflowChildClientInterface(svc *kibumod.Service) jen.Code {
+func workflowChildClientInterface(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -485,7 +485,7 @@ func workflowChildClientInterface(svc *kibumod.Service) jen.Code {
 	})
 }
 
-func mapWorkflowOperationArgsForRunIface(op *kibumod.Operation) func(g *jen.Group) {
+func mapWorkflowOperationArgsForRunIface(op *modspecv2.Operation) func(g *jen.Group) {
 	return func(g *jen.Group) {
 		reqIdx := 1
 		if op.Decorators.Some(isKibuWorkflowQuery) {
@@ -501,7 +501,7 @@ func mapWorkflowOperationArgsForRunIface(op *kibumod.Operation) func(g *jen.Grou
 	}
 }
 
-func mapWorkflowOperationResultsForRunIface(op *kibumod.Operation) func(*jen.Group) {
+func mapWorkflowOperationResultsForRunIface(op *modspecv2.Operation) func(*jen.Group) {
 	return func(g *jen.Group) {
 		for _, result := range op.Results {
 			g.Id(result.Name).Add(exprToJen(result.Field.Type))
@@ -509,9 +509,9 @@ func mapWorkflowOperationResultsForRunIface(op *kibumod.Operation) func(*jen.Gro
 	}
 }
 
-func mapWorkflowExecuteResults(svc *kibumod.Service) func(g *jen.Group) {
+func mapWorkflowExecuteResults(svc *modspecv2.Service) func(g *jen.Group) {
 	return func(g *jen.Group) {
-		exec, found := lo.Find(svc.Operations, func(op *kibumod.Operation) bool {
+		exec, found := lo.Find(svc.Operations, func(op *modspecv2.Operation) bool {
 			return op.Decorators.Some(isKibuWorkflowExecute)
 		})
 		if !found {
@@ -524,14 +524,14 @@ func mapWorkflowExecuteResults(svc *kibumod.Service) func(g *jen.Group) {
 	}
 }
 
-func mapWorkflowOperationArgsForChildRunIface(op *kibumod.Operation) func(g *jen.Group) {
+func mapWorkflowOperationArgsForChildRunIface(op *modspecv2.Operation) func(g *jen.Group) {
 	return func(g *jen.Group) {
 		g.Add(namedWorkflowContextParam())
 		g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
 	}
 }
 
-func buildSignalChannelFuncs(f *jen.File, pkg *kibumod.Package) {
+func buildSignalChannelFuncs(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("signal channel providers")
 	for _, svc := range pkg.Services {
 		for _, op := range svc.Operations {
@@ -543,7 +543,7 @@ func buildSignalChannelFuncs(f *jen.File, pkg *kibumod.Package) {
 	return
 }
 
-func buildWorkflowRunImplementation(f *jen.File, svc *kibumod.Service) {
+func buildWorkflowRunImplementation(f *jen.File, svc *modspecv2.Service) {
 	runStructName := firstToLower(runName(svc.Name))
 
 	f.Type().Id(runStructName).Struct(
@@ -576,7 +576,7 @@ func buildWorkflowRunImplementation(f *jen.File, svc *kibumod.Service) {
 	}
 }
 
-func buildWorkflowChildRunImplementation(f *jen.File, svc *kibumod.Service) {
+func buildWorkflowChildRunImplementation(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Type().Id(childRunStructName).Struct(
@@ -600,7 +600,7 @@ func buildWorkflowChildRunImplementation(f *jen.File, svc *kibumod.Service) {
 	}
 }
 
-func buildWorkflowExternalRunImplementation(f *jen.File, svc *kibumod.Service) {
+func buildWorkflowExternalRunImplementation(f *jen.File, svc *modspecv2.Service) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 
 	f.Type().Id(externalRunStructName).Struct(
@@ -624,7 +624,7 @@ func buildWorkflowExternalRunImplementation(f *jen.File, svc *kibumod.Service) {
 // Add implementation for child run methods (WorkflowID, IsReady, Underlying, Get, WaitStart, Select, SelectStart)
 // Add implementation for external run methods (WorkflowID, RunID, RequestCancellation, signal methods)
 
-func buildChildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
@@ -632,7 +632,7 @@ func buildChildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildChildRunIsReadyMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunIsReadyMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("IsReady").Params().Params(jen.Bool()).Block(
@@ -640,7 +640,7 @@ func buildChildRunIsReadyMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildChildRunUnderlyingMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunUnderlyingMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Underlying").Params().Params(qualWorkflowChildRunFuture()).Block(
@@ -648,7 +648,7 @@ func buildChildRunUnderlyingMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildChildRunGetMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
@@ -666,7 +666,7 @@ func buildChildRunGetMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildChildRunWaitStartMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunWaitStartMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WaitStart").
@@ -687,7 +687,7 @@ func buildChildRunWaitStartMethod(f *jen.File, svc *kibumod.Service) {
 		})
 }
 
-func buildChildRunSelectMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunSelectMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Select").
@@ -706,7 +706,7 @@ func buildChildRunSelectMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildChildRunSelectStartMethod(f *jen.File, svc *kibumod.Service) {
+func buildChildRunSelectStartMethod(f *jen.File, svc *modspecv2.Service) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("SelectStart").
@@ -725,7 +725,7 @@ func buildChildRunSelectStartMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildChildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildChildRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	childRunStructName := firstToLower(childRunName(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
@@ -744,7 +744,7 @@ func buildChildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Op
 		)
 }
 
-func buildExternalRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+func buildExternalRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
@@ -752,7 +752,7 @@ func buildExternalRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildExternalRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
+func buildExternalRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RunID").Params().Params(jen.String()).Block(
@@ -760,7 +760,7 @@ func buildExternalRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildExternalRunRequestCancellationMethod(f *jen.File, svc *kibumod.Service) {
+func buildExternalRunRequestCancellationMethod(f *jen.File, svc *modspecv2.Service) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RequestCancellation").
@@ -778,7 +778,7 @@ func buildExternalRunRequestCancellationMethod(f *jen.File, svc *kibumod.Service
 		)
 }
 
-func buildExternalRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildExternalRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
@@ -801,7 +801,7 @@ func buildExternalRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod
 		)
 }
 
-func buildExternalRunSignalAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildExternalRunSignalAsyncMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	externalRunStructName := firstToLower(externalRunName(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
@@ -821,7 +821,7 @@ func buildExternalRunSignalAsyncMethod(f *jen.File, svc *kibumod.Service, op *ki
 			)),
 		)
 }
-func buildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
+func buildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 	runStructName := firstToLower(runName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
@@ -829,7 +829,7 @@ func buildRunWorkflowIDMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
+func buildRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
 	runStructName := firstToLower(runName(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("RunID").Params().Params(jen.String()).Block(
@@ -837,7 +837,7 @@ func buildRunRunIDMethod(f *jen.File, svc *kibumod.Service) {
 	)
 }
 
-func buildRunGetMethod(f *jen.File, svc *kibumod.Service) {
+func buildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
 	runStructName := firstToLower(runName(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeRes := paramToExp(paramAtIndex(executeMethod.Results, 0))
@@ -855,7 +855,7 @@ func buildRunGetMethod(f *jen.File, svc *kibumod.Service) {
 		)
 }
 
-func buildRunUpdateMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildRunUpdateMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	runStructName := firstToLower(runName(svc.Name))
 	updateReq := paramToExp(paramAtIndex(op.Params, 1))
 	updateRes := paramToExp(paramAtIndex(op.Results, 0))
@@ -879,7 +879,7 @@ func buildRunUpdateMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operati
 		)
 }
 
-func buildRunUpdateAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildRunUpdateAsyncMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	runStructName := firstToLower(runName(svc.Name))
 	updateReq := paramToExp(paramAtIndex(op.Params, 1))
 	updateRes := paramToExp(paramAtIndex(op.Results, 0))
@@ -910,7 +910,7 @@ func buildRunUpdateAsyncMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Op
 		)
 }
 
-func buildRunQueryMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildRunQueryMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	runStructName := firstToLower(runName(svc.Name))
 	// this one is tricky because queries aren't allowed to use context in their implementation
 	// unlike the other methods, the request type is at position 0
@@ -945,7 +945,7 @@ func buildRunQueryMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operatio
 		)
 }
 
-func buildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operation) {
+func buildRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
 	runStructName := firstToLower(runName(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
@@ -966,12 +966,12 @@ func buildRunSignalMethod(f *jen.File, svc *kibumod.Service, op *kibumod.Operati
 		)
 }
 
-func filterQueryMethods(operations []*kibumod.Operation) []*kibumod.Operation {
-	return lo.Filter(operations, func(op *kibumod.Operation, _ int) bool {
+func filterQueryMethods(operations []*modspecv2.Operation) []*modspecv2.Operation {
+	return lo.Filter(operations, func(op *modspecv2.Operation, _ int) bool {
 		return op.Decorators.Some(isKibuWorkflowQuery)
 	})
 }
-func workflowInputStruct(svc *kibumod.Service) jen.Code {
+func workflowInputStruct(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -989,7 +989,7 @@ func workflowInputStruct(svc *kibumod.Service) jen.Code {
 	})
 }
 
-func workflowFactoryType(svc *kibumod.Service) jen.Code {
+func workflowFactoryType(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -1002,7 +1002,7 @@ func workflowFactoryType(svc *kibumod.Service) jen.Code {
 	)
 }
 
-func workflowControllerStruct(svc *kibumod.Service) jen.Code {
+func workflowControllerStruct(svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuWorkflow) {
 		return jen.Null()
 	}
@@ -1012,7 +1012,7 @@ func workflowControllerStruct(svc *kibumod.Service) jen.Code {
 	)
 }
 
-func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
+func buildWorkflowControllers(f *jen.File, svc *modspecv2.Package) {
 	for _, svc := range svc.Services {
 		if !svc.Decorators.Some(isKibuWorkflow) {
 			continue

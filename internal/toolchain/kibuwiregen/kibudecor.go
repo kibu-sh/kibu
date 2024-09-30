@@ -1,4 +1,4 @@
-package kibudecor
+package kibuwiregen
 
 import (
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"

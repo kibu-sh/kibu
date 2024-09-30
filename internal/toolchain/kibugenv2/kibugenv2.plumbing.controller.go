@@ -3,10 +3,10 @@ package kibugenv2
 import (
 	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 )
 
-func buildWorkerController(f *jen.File, pkg *kibumod.Package) {
+func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("//kibu:provider group=temporal.WorkerFactory")
 	f.Type().Id("WorkerController").StructFunc(func(g *jen.Group) {
 		g.Id("Client").Qual(temporalClientImportName, "Client")

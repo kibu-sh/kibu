@@ -4,18 +4,15 @@ import (
 	"errors"
 	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"golang.org/x/tools/go/analysis"
 	"reflect"
 )
 
-type Artifact struct {
-	File *jen.File
-}
+var resultType = reflect.TypeOf((*modspecv2.Artifact)(nil))
 
-var resultType = reflect.TypeOf((*Artifact)(nil))
-
-func FromPass(pass *analysis.Pass) (*Artifact, bool) {
-	result, ok := pass.ResultOf[Analyzer].(*Artifact)
+func FromPass(pass *analysis.Pass) (*modspecv2.Artifact, bool) {
+	result, ok := pass.ResultOf[Analyzer].(*modspecv2.Artifact)
 	return result, ok
 }
 
@@ -40,7 +37,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	genFile := newGenFile(pass.Pkg)
 
-	result := &Artifact{
+	result := &modspecv2.Artifact{
 		File: genFile,
 	}
 
@@ -60,9 +57,9 @@ func run(pass *analysis.Pass) (any, error) {
 	return result, nil
 }
 
-type genFunc func(genFile *jen.File, pkg *kibumod.Package)
+type genFunc func(genFile *jen.File, pkg *modspecv2.Package)
 
-func generate(genFile *jen.File, pkg *kibumod.Package, genFuncs ...genFunc) {
+func generate(genFile *jen.File, pkg *modspecv2.Package, genFuncs ...genFunc) {
 	for _, genFunc := range genFuncs {
 		genFunc(genFile, pkg)
 	}

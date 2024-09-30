@@ -1,9 +1,10 @@
 package kibumod
 
 import (
-	"github.com/kibu-sh/kibu/internal/toolchain/kibudecor"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibufuncs"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibuwiregen"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/samber/lo"
 	"go/ast"
 	"golang.org/x/tools/go/analysis"
@@ -13,10 +14,10 @@ import (
 	"strings"
 )
 
-var returnType = reflect.TypeOf((*Package)(nil))
+var returnType = reflect.TypeOf((*modspecv2.Package)(nil))
 
-func FromPass(pass *analysis.Pass) (*Package, bool) {
-	result, ok := pass.ResultOf[Analyzer].(*Package)
+func FromPass(pass *analysis.Pass) (*modspecv2.Package, bool) {
+	result, ok := pass.ResultOf[Analyzer].(*modspecv2.Package)
 	return result, ok
 }
 
@@ -29,14 +30,14 @@ var Analyzer = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
 		kibufuncs.Analyzer,
-		kibudecor.Analyzer,
+		kibuwiregen.Analyzer,
 	},
 }
 
 func run(pass *analysis.Pass) (any, error) {
 	walk := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	pkg := &Package{
+	pkg := &modspecv2.Package{
 		Name:     pass.Pkg.Name(),
 		GoPkg:    pass.Pkg,
 		GoModule: pass.Module,
@@ -96,8 +97,8 @@ type extractServiceFromInterfaceParams struct {
 	tspec *ast.TypeSpec
 }
 
-func extractServiceFromInterface(pass *analysis.Pass, opts extractServiceFromInterfaceParams) *Service {
-	return &Service{
+func extractServiceFromInterface(pass *analysis.Pass, opts extractServiceFromInterfaceParams) *modspecv2.Service {
+	return &modspecv2.Service{
 		Name:       opts.tspec.Name.Name,
 		Doc:        extractDoc(pass, opts.decl.Doc),
 		Decorators: extractDecorators(pass, opts.decl.Doc),
@@ -108,7 +109,7 @@ func extractServiceFromInterface(pass *analysis.Pass, opts extractServiceFromInt
 	}
 }
 
-func extractOperations(pass *analysis.Pass, iface *ast.InterfaceType) (result []*Operation) {
+func extractOperations(pass *analysis.Pass, iface *ast.InterfaceType) (result []*modspecv2.Operation) {
 	if iface.Methods == nil {
 		return nil
 	}
@@ -119,7 +120,7 @@ func extractOperations(pass *analysis.Pass, iface *ast.InterfaceType) (result []
 	return
 }
 
-func extractOperation(pass *analysis.Pass, method *ast.Field) *Operation {
+func extractOperation(pass *analysis.Pass, method *ast.Field) *modspecv2.Operation {
 	// must be fn expression on interface;
 	// other types of expressions are embedded
 	// not supported at the moment, we shouldn't care
@@ -129,7 +130,7 @@ func extractOperation(pass *analysis.Pass, method *ast.Field) *Operation {
 		pass.Reportf(method.Pos(), "expected func type")
 		return nil
 	}
-	return &Operation{
+	return &modspecv2.Operation{
 		Name:       tryName(method),
 		Method:     method,
 		Doc:        extractDoc(pass, method.Doc),
@@ -165,14 +166,14 @@ func tryName(param *ast.Field) string {
 	return lo.FromPtr(lo.FirstOrEmpty(param.Names)).Name
 }
 
-func extractTypeFromField(pass *analysis.Pass, field *ast.Field) Type {
-	return Type{
+func extractTypeFromField(pass *analysis.Pass, field *ast.Field) modspecv2.Type {
+	return modspecv2.Type{
 		Name:  tryName(field),
 		Field: field,
 	}
 }
 
-func extractTypesFromFieldList(pass *analysis.Pass, fields *ast.FieldList) (result []Type) {
+func extractTypesFromFieldList(pass *analysis.Pass, fields *ast.FieldList) (result []modspecv2.Type) {
 	// TODO: types of CTX can vary between different service types
 	// for example, we shouldn't be using context.Context in workflows
 	for _, field := range fields.List {
