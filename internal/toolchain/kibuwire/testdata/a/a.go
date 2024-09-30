@@ -2,7 +2,7 @@ package a
 
 import "github.com/google/wire"
 
-//kibu:provider group=httpx.HandlerFactory
+//kibu:provider import=github.com/kibu-sh/kibu/pkg/transport/httpx group=HandlerFactory
 type Service struct{}
 
 //kibu:provider

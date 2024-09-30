@@ -172,6 +172,10 @@ func HasTool(tool string) FilterFunc {
 
 // FromCommentGroup returns a list of directives by parsing an *ast.CommentGroup.
 func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
+	if d == nil {
+		return
+	}
+
 	for _, comment := range d.List {
 		if comment.Text[:2] == "//" {
 			txt := comment.Text[2:]

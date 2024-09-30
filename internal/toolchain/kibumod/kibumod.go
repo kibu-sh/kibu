@@ -3,7 +3,7 @@ package kibumod
 import (
 	"github.com/kibu-sh/kibu/internal/toolchain/kibufuncs"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibuwiregen"
+	"github.com/kibu-sh/kibu/internal/toolchain/kibuwire"
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/samber/lo"
 	"go/ast"
@@ -30,7 +30,7 @@ var Analyzer = &analysis.Analyzer{
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
 		kibufuncs.Analyzer,
-		kibuwiregen.Analyzer,
+		kibuwire.Analyzer,
 	},
 }
 
