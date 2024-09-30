@@ -12,20 +12,20 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-//type AccountStatus string
-//
-//const (
-//	AccountStatusUnsubscribed   AccountStatus = "trial"
-//	AccountStatusSubscribed     AccountStatus = "subscribed"
-//	AccountStatusPaymentFailed  AccountStatus = "payment_failed"
-//	AccountStatusPaymentPending AccountStatus = "payment_pending"
-//	AccountStatusCanceled       AccountStatus = "canceled"
-//)
+type AccountStatus string
+
+const (
+	AccountStatusUnsubscribed   AccountStatus = "trial"
+	AccountStatusSubscribed     AccountStatus = "subscribed"
+	AccountStatusPaymentFailed  AccountStatus = "payment_failed"
+	AccountStatusPaymentPending AccountStatus = "payment_pending"
+	AccountStatusCanceled       AccountStatus = "canceled"
+)
 
 type WatchAccountRequest struct{}
 
 type WatchAccountResponse struct {
-	//Status AccountStatus
+	Status AccountStatus
 }
 
 type ChargePaymentMethodRequest struct {
