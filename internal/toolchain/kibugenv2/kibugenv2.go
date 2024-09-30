@@ -36,7 +36,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	genFile := modspecv2.NewJenFileFromPackage(pass.Pkg)
-	result := modspecv2.NewPackageArtifact(genFile, pass)
+	result := modspecv2.NewPackageArtifact(genFile, pass, "")
 
 	generate(genFile, pkg,
 		buildPkgCompilerAssertions,

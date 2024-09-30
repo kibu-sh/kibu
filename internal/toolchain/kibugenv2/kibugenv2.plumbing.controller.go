@@ -55,7 +55,7 @@ func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
 	)
 
 	f.Comment("//kibu:provider")
-	f.Var().Id("GenWireSet").Op("=").Qual(wireImportName, "NewSet").CustomFunc(multiLineParen(), func(g *jen.Group) {
+	f.Var().Id("GenWireSet").Op("=").Qual(wireImportName, "NewSet").CustomFunc(modspecv2.MultiLineParen(), func(g *jen.Group) {
 		g.Id("NewActivitiesProxy")
 		g.Id("NewWorkflowsProxy")
 		g.Id("NewWorkflowsClient")

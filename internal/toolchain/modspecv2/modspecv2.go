@@ -21,6 +21,7 @@ type Artifact interface {
 type PackageArtifact struct {
 	file *jen.File
 	pass *analysis.Pass
+	ext  string
 }
 
 func (p *PackageArtifact) File() *jen.File {
@@ -28,13 +29,14 @@ func (p *PackageArtifact) File() *jen.File {
 }
 
 func (p *PackageArtifact) OutputPath() string {
-	return filepath.Join(RelPathFromPass(p.pass), GenGoExt(p.pass.Pkg.Name()))
+	return filepath.Join(RelPathFromPass(p.pass), GenGoExt(p.pass.Pkg.Name()+p.ext))
 }
 
-func NewPackageArtifact(file *jen.File, pass *analysis.Pass) *PackageArtifact {
+func NewPackageArtifact(file *jen.File, pass *analysis.Pass, ext string) *PackageArtifact {
 	return &PackageArtifact{
 		file: file,
 		pass: pass,
+		ext:  ext,
 	}
 }
 

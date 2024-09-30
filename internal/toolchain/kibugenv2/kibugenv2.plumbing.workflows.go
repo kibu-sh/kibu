@@ -7,24 +7,6 @@ import (
 	"github.com/samber/mo"
 )
 
-func multiLineParen() jen.Options {
-	return jen.Options{
-		Open:      "(",
-		Close:     ")",
-		Separator: ",",
-		Multi:     true,
-	}
-}
-
-func multiLineCurly() jen.Options {
-	return jen.Options{
-		Open:      "{",
-		Close:     "}",
-		Separator: ",",
-		Multi:     true,
-	}
-}
-
 func buildWorkflowInterfaces(f *jen.File, pkg *modspecv2.Package) {
 	f.Comment("workflow interfaces")
 	for _, svc := range pkg.Services {
@@ -1031,7 +1013,7 @@ func buildWorkflowControllers(f *jen.File, svc *modspecv2.Package) {
 			jen.Id("res").Add(executeRes),
 			jen.Id("err").Error(),
 		).BlockFunc(func(g *jen.Group) {
-			g.Id("input").Op(":=").Op("&").Id(suffixInput(svc.Name)).CustomFunc(multiLineCurly(), func(g *jen.Group) {
+			g.Id("input").Op(":=").Op("&").Id(suffixInput(svc.Name)).CustomFunc(modspecv2.MultiLineCurly(), func(g *jen.Group) {
 				g.Id("Request").Op(":").Id("req")
 				signalMethods := filterSignalMethods(svc.Operations)
 				for _, op := range signalMethods {

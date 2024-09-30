@@ -54,7 +54,7 @@ func TestGenerator(t *testing.T) {
 				results, err := pipeline.Run(cfg)
 				ts.Check(err)
 
-				artifacts := modspecv2.GatherArtifacts(results)
+				artifacts := modspecv2.GatherResults[modspecv2.Artifact](results)
 				_, err = modspecv2.SaveArtifacts(root, artifacts)
 				ts.Check(err)
 			},

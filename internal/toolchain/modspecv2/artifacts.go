@@ -50,11 +50,11 @@ func NewJenFileFromPackage(pkg *types.Package) *jen.File {
 	return f
 }
 
-func GatherArtifacts(results []*analysis.Pass) (artifacts []Artifact) {
+func GatherResults[T any](results []*analysis.Pass) (resultsMap []T) {
 	for _, pass := range results {
 		for _, result := range pass.ResultOf {
-			if artifact, ok := result.(Artifact); ok {
-				artifacts = append(artifacts, artifact)
+			if result, ok := result.(T); ok {
+				resultsMap = append(resultsMap, result)
 			}
 		}
 	}

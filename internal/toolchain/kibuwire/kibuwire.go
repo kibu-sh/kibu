@@ -2,7 +2,9 @@ package kibuwire
 
 import (
 	"fmt"
+	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go/ast"
 	"go/types"
@@ -11,6 +13,14 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"reflect"
 )
+
+type Provider struct {
+	Symbol       ast.Decl
+	ProviderLine decorators.Line
+	Decorators   decorators.List
+	GoPackage    *types.Package
+	Group        *Group
+}
 
 type Group struct {
 	Name   string
@@ -21,12 +31,11 @@ func (g *Group) FQN() string {
 	return fmt.Sprintf("%s.%s", g.Import, g.Name)
 }
 
-type Provider struct {
-	Symbol       ast.Decl
-	ProviderLine decorators.Line
-	Decorators   decorators.List
-	GoPackage    *types.Package
-	Group        *Group
+var _ modspecv2.Artifact = (*Artifact)(nil)
+
+type Artifact struct {
+	Providers ProviderList
+	*modspecv2.PackageArtifact
 }
 
 type ProviderList []*Provider
@@ -98,10 +107,10 @@ func GroupByFQN() func(p *Provider) string {
 	}
 }
 
-var resultType = reflect.TypeOf((ProviderList)(nil))
+var resultType = reflect.TypeOf((*Artifact)(nil))
 
-func FromPass(pass *analysis.Pass) (ProviderList, bool) {
-	result, ok := pass.ResultOf[Analyzer].(ProviderList)
+func FromPass(pass *analysis.Pass) (*Artifact, bool) {
+	result, ok := pass.ResultOf[Analyzer].(*Artifact)
 	return result, ok
 }
 
@@ -132,8 +141,13 @@ var (
 )
 
 func run(pass *analysis.Pass) (any, error) {
-	var result ProviderList
+	file := modspecv2.NewJenFileFromPackage(pass.Pkg)
 	walk := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	var result = &Artifact{
+		PackageArtifact: modspecv2.NewPackageArtifact(file, pass, ".wire"),
+		Providers:       ProviderList{},
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.GenDecl)(nil),
@@ -165,7 +179,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		result = append(result, &Provider{
+		result.Providers = append(result.Providers, &Provider{
 			Symbol:       decl,
 			ProviderLine: providerLine,
 			GoPackage:    pass.Pkg,
@@ -175,7 +189,54 @@ func run(pass *analysis.Pass) (any, error) {
 
 	})
 
+	generateWireSet(file, result.Providers)
+
 	return result, nil
+}
+
+func generateWireSet(f *jen.File, providers ProviderList) {
+	f.Var().Id("WireSet").Op("=").Qual("github.com/google/wire", "NewSet").
+		CustomFunc(modspecv2.MultiLineParen(), func(g *jen.Group) {
+			for _, provider := range providers {
+				generateSymbolForFunc(g, provider)
+				generateSymbolForStruct(g, provider)
+			}
+		})
+}
+
+const wireImportName = "github.com/google/wire"
+
+func generateSymbolForStruct(g *jen.Group, provider *Provider) {
+	genDecl, ok := provider.Symbol.(*ast.GenDecl)
+	if !ok {
+		return
+	}
+
+	if len(genDecl.Specs) < 1 {
+		return
+	}
+
+	spec, ok := genDecl.Specs[0].(*ast.TypeSpec)
+	if !ok {
+		return
+	}
+
+	// generate pointer wire struct provider
+	// wire.Struct(new(ServiceController), "*"),
+	g.Qual(wireImportName, "Struct").CallFunc(func(g *jen.Group) {
+		g.New(jen.Id(spec.Name.Name))
+		g.Lit("*")
+	})
+	return
+}
+
+func generateSymbolForFunc(g *jen.Group, provider *Provider) {
+	funcDecl, ok := provider.Symbol.(*ast.FuncDecl)
+	if !ok {
+		return
+	}
+
+	g.Id(funcDecl.Name.Name)
 }
 
 func groupFromProviderOptions(options *decorators.OptionList) *Group {

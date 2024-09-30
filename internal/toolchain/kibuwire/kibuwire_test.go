@@ -1,12 +1,12 @@
 package kibuwire
 
 import (
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/kibu-sh/kibu/internal/toolchain/pipeline"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -17,7 +17,8 @@ func TestAnalyzer(t *testing.T) {
 	results := analysistest.Run(t, analyzerPath,
 		Analyzer, "./...")
 
-	providers, ok := results[0].Result.(ProviderList)
+	artifact, ok := results[0].Result.(*Artifact)
+	providers := artifact.Providers
 	require.True(t, ok)
 	require.NotNil(t, providers)
 	require.Equal(t, 3, providers.Len())
@@ -45,23 +46,14 @@ func ResolveDir(t *testing.T, rel string) string {
 func TestGenerator(t *testing.T) {
 	testdata := ResolveDir(t, "testdata")
 	scripts := filepath.Join(testdata, "scripts")
-	//srcfiles := filepath.Join(testdata, "src")
 
 	testscript.Run(t, testscript.Params{
 		Dir:      scripts,
 		TestWork: true,
-		Setup: func(env *testscript.Env) error {
-			// inject application env
-			//env.Vars = append(env.Vars, getGoEnv(t)...)
-			//env.Setenv("GOWORK", "")
-			//env.Setenv("GOMOD", "")
-			//return os.CopyFS(env.WorkDir, os.DirFS(srcfiles))
-			return nil
-		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"kibuwire": func(ts *testscript.TestScript, neg bool, args []string) {
 				root := args[0]
-				genDir := args[1]
+				//genDir := args[1]
 				patterns := args[2:]
 
 				cfg := pipeline.ConfigDefaults().
@@ -72,10 +64,9 @@ func TestGenerator(t *testing.T) {
 				results, err := pipeline.Run(cfg)
 				ts.Check(err)
 
-				_, err = SaveArtifacts(root, results)
+				artifacts := modspecv2.GatherResults[modspecv2.Artifact](results)
+				_, err = modspecv2.SaveArtifacts(root, artifacts)
 				ts.Check(err)
-
-				_ = exec.Command("open", root).Run()
 			},
 		},
 	})
