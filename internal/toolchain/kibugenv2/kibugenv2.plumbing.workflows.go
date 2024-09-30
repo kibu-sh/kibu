@@ -984,7 +984,7 @@ func workflowInputStruct(svc *kibumod.Service) jen.Code {
 		signalMethods := filterSignalMethods(svc.Operations)
 		for _, op := range signalMethods {
 			signalReq := paramToExp(paramAtIndex(op.Params, 1))
-			g.Id(firstToUpper(op.Name)+"Channel").Qual(kibuTemporalImportName, "SignalChannel").Types(signalReq)
+			g.Id(suffixChannel(op.Name)).Qual(kibuTemporalImportName, "SignalChannel").Types(signalReq)
 		}
 	})
 }
@@ -1035,7 +1035,7 @@ func buildWorkflowControllers(f *jen.File, svc *kibumod.Package) {
 				g.Id("Request").Op(":").Id("req")
 				signalMethods := filterSignalMethods(svc.Operations)
 				for _, op := range signalMethods {
-					g.Id(suffixController(op.Name)).Op(":").Id(signalChannelProviderFuncName(svc, op)).Call(jen.Id("ctx"))
+					g.Id(suffixChannel(op.Name)).Op(":").Id(signalChannelProviderFuncName(svc, op)).Call(jen.Id("ctx"))
 				}
 			})
 
