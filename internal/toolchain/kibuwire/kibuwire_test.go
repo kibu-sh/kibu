@@ -3,12 +3,14 @@ package kibuwire
 import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
+	"path/filepath"
 	"testing"
 )
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	results := analysistest.Run(t, testdata,
+	analyzerPath := filepath.Join(testdata, "analyzer")
+	results := analysistest.Run(t, analyzerPath,
 		Analyzer, "./...")
 
 	providers, ok := results[0].Result.(ProviderList)
