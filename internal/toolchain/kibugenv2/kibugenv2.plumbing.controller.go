@@ -7,6 +7,7 @@ import (
 )
 
 func buildWorkerController(f *jen.File, pkg *kibumod.Package) {
+	f.Comment("//kibu:provider group=temporal.WorkerFactory")
 	f.Type().Id("WorkerController").StructFunc(func(g *jen.Group) {
 		g.Id("Client").Qual(temporalClientImportName, "Client")
 		g.Id("Options").Qual(temporalWorkerImportName, "Options")

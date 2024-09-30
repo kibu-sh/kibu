@@ -468,6 +468,7 @@ func (svc *ServiceController) Build() []*httpx.Handler {
 	return handlers
 }
 
+//kibu:provider group=temporal.WorkerFactory
 type WorkerController struct {
 	Client                                  client.Client
 	Options                                 worker.Options
