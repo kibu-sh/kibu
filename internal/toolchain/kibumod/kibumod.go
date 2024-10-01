@@ -139,7 +139,9 @@ func extractDecorators(pass *analysis.Pass, doc *ast.CommentGroup) decorators.Li
 		return nil
 	}
 	dir, err := decorators.FromCommentGroup(doc)
-	pass.Reportf(doc.Pos(), "%v", err)
+	if err != nil {
+		pass.Reportf(doc.Pos(), "%v", err)
+	}
 	return dir
 }
 
