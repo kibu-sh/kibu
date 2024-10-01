@@ -95,7 +95,5 @@ func newDevUpRunE(params NewDevUpCmdParams) RunE {
 				fmt.Println(e.Type.String())
 			}
 		}
-
-		return
 	}
 }
