@@ -22,6 +22,17 @@ type Provider struct {
 	Group        *Group
 }
 
+func (p *Provider) SymbolName() string {
+	switch decl := p.Symbol.(type) {
+	case *ast.FuncDecl:
+		return decl.Name.Name
+	case *ast.GenDecl:
+		return decl.Specs[0].(*ast.TypeSpec).Name.Name
+	default:
+		panic(fmt.Errorf("unsupported provider symbol type: %T", decl))
+	}
+}
+
 type Group struct {
 	Name   string
 	Import string
@@ -212,11 +223,11 @@ func generateSymbolForStruct(g *jen.Group, provider *Provider) {
 		return
 	}
 
-	if len(genDecl.Specs) < 1 {
+	if len(genDecl.Specs) == 0 {
 		return
 	}
 
-	spec, ok := genDecl.Specs[0].(*ast.TypeSpec)
+	_, ok = genDecl.Specs[0].(*ast.TypeSpec)
 	if !ok {
 		return
 	}
@@ -224,19 +235,19 @@ func generateSymbolForStruct(g *jen.Group, provider *Provider) {
 	// generate pointer wire struct provider
 	// wire.Struct(new(ServiceController), "*"),
 	g.Qual(wireImportName, "Struct").CallFunc(func(g *jen.Group) {
-		g.New(jen.Id(spec.Name.Name))
+		g.New(jen.Id(provider.SymbolName()))
 		g.Lit("*")
 	})
 	return
 }
 
 func generateSymbolForFunc(g *jen.Group, provider *Provider) {
-	funcDecl, ok := provider.Symbol.(*ast.FuncDecl)
+	_, ok := provider.Symbol.(*ast.FuncDecl)
 	if !ok {
 		return
 	}
 
-	g.Id(funcDecl.Name.Name)
+	g.Id(provider.SymbolName())
 }
 
 func groupFromProviderOptions(options *decorators.OptionList) *Group {

@@ -29,6 +29,11 @@ func GenGoExt(name string) string {
 
 func saveArtifact(moduleRoot string, artifact Artifact) (string, error) {
 	filename := filepath.Join(moduleRoot, artifact.OutputPath())
+	outDir := filepath.Dir(filename)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return "", err
+	}
+
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
