@@ -51,11 +51,11 @@ func TestGenerator(t *testing.T) {
 					WithPatterns(patterns).
 					WithAnalyzers([]*analysis.Analyzer{Analyzer})
 
-				results, err := pipeline.Run(cfg)
+				results, pkgs, err := pipeline.Run(cfg)
 				ts.Check(err)
 
 				artifacts := modspecv2.GatherResults[modspecv2.Artifact](results)
-				_, err = modspecv2.SaveArtifacts(root, artifacts)
+				_, err = modspecv2.SaveArtifacts(pkgs[0].Module, artifacts)
 				ts.Check(err)
 			},
 		},

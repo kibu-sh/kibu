@@ -97,8 +97,7 @@ func maybeModule(pkg *packages.Package) *analysis.Module {
 	}
 }
 
-func Run(config *Config) (result []*analysis.Pass, err error) {
-	var pkgs []*packages.Package
+func Run(config *Config) (result []*analysis.Pass, pkgs []*packages.Package, err error) {
 	pkgs, err = LoadPackages(config)
 	if err != nil {
 		return

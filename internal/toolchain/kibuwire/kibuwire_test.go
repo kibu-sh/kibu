@@ -67,8 +67,11 @@ func TestGenerator(t *testing.T) {
 
 				patterns = fset.Args()
 
-				if filepath.IsAbs(genDir) {
-					genDir = strings.TrimPrefix(genDir, root)
+				if !filepath.IsAbs(genDir) {
+					genDir, err = filepath.Rel(root, genDir)
+					if err != nil {
+						ts.Check(err)
+					}
 				}
 
 				cfg := pipeline.ConfigDefaults().
@@ -76,14 +79,15 @@ func TestGenerator(t *testing.T) {
 					WithPatterns(patterns).
 					WithAnalyzers([]*analysis.Analyzer{Analyzer})
 
-				results, err := pipeline.Run(cfg)
+				results, pkgs, err := pipeline.Run(cfg)
 				ts.Check(err)
 
+				wireModPrefix := strings.TrimPrefix(genDir, pkgs[0].Module.Dir)
 				providerArtifacts := modspecv2.GatherResults[*Artifact](results)
-				wiremod := buildKibuWireModule(genDir, providerArtifacts)
+				wiremod := buildKibuWireModule(wireModPrefix, providerArtifacts)
 				artifacts := modspecv2.GatherResults[modspecv2.Artifact](results)
 				artifacts = append(artifacts, wiremod)
-				_, err = modspecv2.SaveArtifacts(root, artifacts)
+				_, err = modspecv2.SaveArtifacts(pkgs[0].Module, artifacts)
 			},
 		},
 	})

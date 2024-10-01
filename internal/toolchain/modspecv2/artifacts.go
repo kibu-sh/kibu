@@ -5,15 +5,17 @@ import (
 	"github.com/dave/jennifer/jen"
 	"go/types"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/packages"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func SaveArtifacts(moduleRoot string, artifacts []Artifact) ([]string, error) {
+// SaveArtifacts saves the artifacts to disk relative to the module directory
+func SaveArtifacts(module *packages.Module, artifacts []Artifact) ([]string, error) {
 	var outFiles []string
 	for _, artifact := range artifacts {
-		outfile, err := saveArtifact(moduleRoot, artifact)
+		outfile, err := saveArtifact(module.Dir, artifact)
 		if err != nil {
 			return outFiles, err
 		}
