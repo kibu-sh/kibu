@@ -46,6 +46,7 @@ func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
 		jen.Return(jen.Op("&").Id("workflowsProxy").Values()),
 	)
 
+	f.Comment("//kibu:provider")
 	f.Func().Id("NewWorkflowsClient").Params(
 		jen.Id("client").Qual(temporalClientImportName, "Client"),
 	).Id("WorkflowsClient").Block(
@@ -53,19 +54,4 @@ func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
 			jen.Id("client").Op(":").Id("client"),
 		)),
 	)
-
-	f.Comment("//kibu:provider")
-	f.Var().Id("GenWireSet").Op("=").Qual(wireImportName, "NewSet").CustomFunc(modspecv2.MultiLineParen(), func(g *jen.Group) {
-		g.Id("NewActivitiesProxy")
-		g.Id("NewWorkflowsProxy")
-		g.Id("NewWorkflowsClient")
-		g.Qual(wireImportName, "Struct").Call(jen.Op("new").Parens(jen.Id("WorkerController")), jen.Lit("*"))
-		g.Qual(wireImportName, "Struct").Call(jen.Op("new").Parens(jen.Id("ServiceController")), jen.Lit("*"))
-		g.Qual(wireImportName, "Struct").Call(jen.Op("new").Parens(jen.Id("ActivitiesController")), jen.Lit("*"))
-		for _, svc := range pkg.Services {
-			if svc.Decorators.Some(isKibuWorkflow) {
-				g.Qual(wireImportName, "Struct").Call(jen.Op("new").Parens(jen.Id(suffixController(svc.Name))), jen.Lit("*"))
-			}
-		}
-	})
 }

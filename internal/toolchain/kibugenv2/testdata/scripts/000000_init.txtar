@@ -118,7 +118,6 @@ package billingv1
 
 import (
 	"context"
-	wire "github.com/google/wire"
 	transport "github.com/kibu-sh/kibu/pkg/transport"
 	httpx "github.com/kibu-sh/kibu/pkg/transport/httpx"
 	temporal "github.com/kibu-sh/kibu/pkg/transport/temporal"
@@ -488,17 +487,8 @@ func NewActivitiesProxy() ActivitiesProxy {
 func NewWorkflowsProxy() WorkflowsProxy {
 	return &workflowsProxy{}
 }
+
+//kibu:provider
 func NewWorkflowsClient(client client.Client) WorkflowsClient {
 	return &workflowsClient{client: client}
 }
-
-//kibu:provider
-var GenWireSet = wire.NewSet(
-	NewActivitiesProxy,
-	NewWorkflowsProxy,
-	NewWorkflowsClient,
-	wire.Struct(new(WorkerController), "*"),
-	wire.Struct(new(ServiceController), "*"),
-	wire.Struct(new(ActivitiesController), "*"),
-	wire.Struct(new(CustomerSubscriptionsWorkflowController), "*"),
-)
