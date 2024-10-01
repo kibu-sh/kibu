@@ -380,10 +380,19 @@ func buildSuperSet(f *jen.File, providers ProviderList) {
 			// includes the group set
 			g.Id("GroupSet")
 
-			for _, provider := range providers.Filter(FilterUngrouped) {
+			// remove ungrouped providers, group by package
+			hasExportedWireSets := providers.Filter(FilterUngrouped).GroupBy(GroupByPackage)
+
+			// we only need to import the exported wire sets into our superset
+			for list := range hasExportedWireSets.ValuesFromOldest() {
+				provider, _ := list.First()
 				g.Qual(provider.GoPackage.Path(), "WireSet")
 			}
 		})
+}
+
+func GroupByPackage(p *Provider) string {
+	return p.GoPackage.Path()
 }
 
 func FilterUngrouped(p *Provider) bool {
