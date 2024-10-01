@@ -456,7 +456,7 @@ func (act *ActivitiesController) Build(registry worker.ActivityRegistry) {
 	})
 }
 
-//kibu:provider group=httpx.HandlerFactory
+//kibu:provider group=HandlerFactory import=github.com/kibu-sh/kibu/pkg/transport/httpx
 type ServiceController struct {
 	Service Service
 }
@@ -481,9 +481,13 @@ func (wc *WorkerController) Build() worker.Worker {
 	wc.CustomerSubscriptionsWorkflowController.Build(wk)
 	return wk
 }
+
+//kibu:provider
 func NewActivitiesProxy() ActivitiesProxy {
 	return &activitiesProxy{}
 }
+
+//kibu:provider
 func NewWorkflowsProxy() WorkflowsProxy {
 	return &workflowsProxy{}
 }

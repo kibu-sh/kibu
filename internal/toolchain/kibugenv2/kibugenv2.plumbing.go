@@ -424,7 +424,7 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 			continue
 		}
 
-		f.Comment("//kibu:provider group=httpx.HandlerFactory")
+		f.Comment("//kibu:provider group=HandlerFactory import=github.com/kibu-sh/kibu/pkg/transport/httpx")
 		f.Type().Id(suffixController(svc.Name)).Struct(
 			jen.Id("Service").Id(svc.Name),
 		)

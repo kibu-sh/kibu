@@ -38,10 +38,12 @@ func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
 			g.Return(jen.Id("wk"))
 		})
 
+	f.Comment("//kibu:provider")
 	f.Func().Id("NewActivitiesProxy").Params().Id("ActivitiesProxy").Block(
 		jen.Return(jen.Op("&").Id("activitiesProxy").Values()),
 	)
 
+	f.Comment("//kibu:provider")
 	f.Func().Id("NewWorkflowsProxy").Params().Id("WorkflowsProxy").Block(
 		jen.Return(jen.Op("&").Id("workflowsProxy").Values()),
 	)
