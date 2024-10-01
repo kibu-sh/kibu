@@ -1,5 +1,5 @@
 parse $WORK
-cmp exp/gen/openapi.yaml $WORK/gen/openapi.yaml
+cmp $WORK/gen/kibugen/openapi.yaml exp/gen/openapi.yaml
 
 -- src/go.mod --
 module github.com/example/module

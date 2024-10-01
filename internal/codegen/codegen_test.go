@@ -11,8 +11,11 @@ import (
 func TestGenerate(t *testing.T) {
 	cwd, _ := os.Getwd()
 	testscript.Run(t, testscript.Params{
-		Dir: filepath.Join(cwd, "testdata"),
+		// uncomment to keep temp dir around
+		//TestWork: true,
+		// uncomment to update the contents of the test script files with the diff
 		//UpdateScripts: true,
+		Dir: filepath.Join(cwd, "testdata"),
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"parse": func(ts *testscript.TestScript, neg bool, args []string) {
 				ts.Check(Generate(GenerateParams{
