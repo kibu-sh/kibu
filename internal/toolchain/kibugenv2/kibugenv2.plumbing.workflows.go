@@ -33,7 +33,7 @@ func workflowsProxyInterface(pkg *modspecv2.Package) jen.Code {
 	return jen.Type().Id("WorkflowsProxy").InterfaceFunc(func(g *jen.Group) {
 		for _, svc := range pkg.Services {
 			if svc.Decorators.Some(isKibuWorkflow) {
-				g.Id(svc.Name).Params().Id(childClientName(svc.Name))
+				g.Id(svc.Name).Params().Id(suffixChildClient(svc.Name))
 			}
 		}
 	})
@@ -43,7 +43,7 @@ func workflowsClientInterface(pkg *modspecv2.Package) jen.Code {
 	return jen.Type().Id("WorkflowsClient").InterfaceFunc(func(g *jen.Group) {
 		for _, svc := range pkg.Services {
 			if svc.Decorators.Some(isKibuWorkflow) {
-				g.Id(svc.Name).Params().Id(clientName(svc.Name))
+				g.Id(svc.Name).Params().Id(suffixClient(svc.Name))
 			}
 		}
 	})
@@ -59,8 +59,8 @@ func buildWorkflowsClientImplementation(f *jen.File, pkg *modspecv2.Package) {
 			continue
 		}
 
-		f.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id(svc.Name).Params().Id(clientName(svc.Name)).Block(
-			jen.Return(jen.Op("&").Id(firstToLower(clientName(svc.Name))).Values(
+		f.Func().Params(jen.Id("w").Op("*").Id("workflowsClient")).Id(svc.Name).Params().Id(suffixClient(svc.Name)).Block(
+			jen.Return(jen.Op("&").Id(firstToLower(suffixClient(svc.Name))).Values(
 				jen.Id("client").Op(":").Id("w").Dot("client"),
 			)),
 		)
@@ -70,7 +70,7 @@ func buildWorkflowsClientImplementation(f *jen.File, pkg *modspecv2.Package) {
 }
 
 func buildWorkflowClientImplementation(f *jen.File, svc *modspecv2.Service) {
-	clientStructName := firstToLower(clientName(svc.Name))
+	clientStructName := firstToLower(suffixClient(svc.Name))
 
 	f.Type().Id(clientStructName).Struct(
 		jen.Id("client").Qual(temporalClientImportName, "Client"),
@@ -82,7 +82,7 @@ func buildWorkflowClientImplementation(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildExecuteMethod(f *jen.File, svc *modspecv2.Service) {
-	clientStructName := firstToLower(clientName(svc.Name))
+	clientStructName := firstToLower(suffixClient(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
 
@@ -92,7 +92,7 @@ func buildExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 			g.Id("req").Add(executeReq)
 			g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 		}).
-		Params(jen.Id(runName(svc.Name)), jen.Error()).
+		Params(jen.Id(suffixRun(svc.Name)), jen.Error()).
 		BlockFunc(func(g *jen.Group) {
 			g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().Dot("WithProvidersWhenSupported").Call(jen.Id("req")).Dot("WithOptions").Call(jen.Id("mods").Op("...")).Dot("WithTaskQueue").Call(jen.Id(packageNameConst())).Dot("AsStartOptions").Call()
 			g.Line()
@@ -107,7 +107,7 @@ func buildExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 			)
 			g.Line()
 			g.Return(
-				jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+				jen.Op("&").Id(firstToLower(suffixRun(svc.Name))).Values(
 					jen.Id("client").Op(":").Id("c").Dot("client"),
 					jen.Id("workflowRun").Op(":").Id("we"),
 				),
@@ -117,14 +117,14 @@ func buildExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildGetHandleMethod(f *jen.File, svc *modspecv2.Service) {
-	clientStructName := firstToLower(clientName(svc.Name))
+	clientStructName := firstToLower(suffixClient(svc.Name))
 
 	f.Func().Params(jen.Id("c").Op("*").Id(clientStructName)).Id("GetHandle").
 		Params(namedStdContextParam(), jen.Id("ref").Qual(kibuTemporalImportName, "GetHandleOpts")).
-		Params(jen.Id(runName(svc.Name)), jen.Error()).
+		Params(jen.Id(suffixRun(svc.Name)), jen.Error()).
 		Block(
 			jen.Return(
-				jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+				jen.Op("&").Id(firstToLower(suffixRun(svc.Name))).Values(
 					jen.Id("client").Op(":").Id("c").Dot("client"),
 					jen.Id("workflowRun").Op(":").Id("c").Dot("client").Dot("GetWorkflow").Call(
 						jen.Id("ctx"),
@@ -138,7 +138,7 @@ func buildGetHandleMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildExecuteWithSignalMethods(f *jen.File, svc *modspecv2.Service) {
-	clientStructName := firstToLower(clientName(svc.Name))
+	clientStructName := firstToLower(suffixClient(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
 
@@ -153,7 +153,7 @@ func buildExecuteWithSignalMethods(f *jen.File, svc *modspecv2.Service) {
 				g.Id("sig").Add(signalReq)
 				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 			}).
-			Params(jen.Id(runName(svc.Name)), jen.Error()).
+			Params(jen.Id(suffixRun(svc.Name)), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
 				g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().Dot("WithProvidersWhenSupported").Call(jen.Id("req")).Dot("WithOptions").Call(jen.Id("mods").Op("...")).Dot("WithTaskQueue").Call(jen.Id(packageNameConst())).Dot("AsStartOptions").Call()
 				g.Line()
@@ -171,7 +171,7 @@ func buildExecuteWithSignalMethods(f *jen.File, svc *modspecv2.Service) {
 				)
 				g.Line()
 				g.Return(
-					jen.Op("&").Id(firstToLower(runName(svc.Name))).Values(
+					jen.Op("&").Id(firstToLower(suffixRun(svc.Name))).Values(
 						jen.Id("client").Op(":").Id("c").Dot("client"),
 						jen.Id("workflowRun").Op(":").Id("run"),
 					),
@@ -189,8 +189,8 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *modspecv2.Package) {
 			continue
 		}
 
-		f.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id(svc.Name).Params().Id(childClientName(svc.Name)).Block(
-			jen.Return(jen.Op("&").Id(firstToLower(childClientName(svc.Name))).Values()),
+		f.Func().Params(jen.Id("w").Op("*").Id("workflowsProxy")).Id(svc.Name).Params().Id(suffixChildClient(svc.Name)).Block(
+			jen.Return(jen.Op("&").Id(firstToLower(suffixChildClient(svc.Name))).Values()),
 		)
 
 		buildWorkflowChildClientImplementation(f, svc)
@@ -201,7 +201,7 @@ func buildWorkflowsProxyImplementation(f *jen.File, pkg *modspecv2.Package) {
 }
 
 func buildWorkflowChildClientImplementation(f *jen.File, svc *modspecv2.Service) {
-	childClientStructName := firstToLower(childClientName(svc.Name))
+	childClientStructName := firstToLower(suffixChildClient(svc.Name))
 
 	f.Type().Id(childClientStructName).Struct()
 
@@ -211,7 +211,7 @@ func buildWorkflowChildClientImplementation(f *jen.File, svc *modspecv2.Service)
 }
 
 func buildChildClientExecuteMethod(f *jen.File, svc *modspecv2.Service) {
-	childClientStructName := firstToLower(childClientName(svc.Name))
+	childClientStructName := firstToLower(suffixChildClient(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
 	executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
@@ -233,7 +233,7 @@ func buildChildClientExecuteMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildClientExecuteAsyncMethod(f *jen.File, svc *modspecv2.Service) {
-	childClientStructName := firstToLower(childClientName(svc.Name))
+	childClientStructName := firstToLower(suffixChildClient(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
 
@@ -243,7 +243,7 @@ func buildChildClientExecuteAsyncMethod(f *jen.File, svc *modspecv2.Service) {
 			g.Id("req").Add(executeReq)
 			g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 		}).
-		Params(jen.Id(childRunName(svc.Name))).
+		Params(jen.Id(suffixChildRun(svc.Name))).
 		BlockFunc(func(g *jen.Group) {
 			g.Id("options").Op(":=").Qual(kibuTemporalImportName, "NewWorkflowOptionsBuilder").Call().
 				Dot("WithProvidersWhenSupported").Call(jen.Id("req")).
@@ -262,20 +262,20 @@ func buildChildClientExecuteAsyncMethod(f *jen.File, svc *modspecv2.Service) {
 				jen.Id("req"),
 			)
 
-			g.Return(jen.Op("&").Id(firstToLower(childRunName(svc.Name))).Values(
+			g.Return(jen.Op("&").Id(firstToLower(suffixChildRun(svc.Name))).Values(
 				jen.Id("childFuture").Op(":").Id("childFuture"),
 			))
 		})
 }
 
 func buildChildClientExternalMethod(f *jen.File, svc *modspecv2.Service) {
-	childClientStructName := firstToLower(childClientName(svc.Name))
+	childClientStructName := firstToLower(suffixChildClient(svc.Name))
 
 	f.Func().Params(jen.Id("c").Op("*").Id(childClientStructName)).Id("External").
 		Params(jen.Id("ref").Qual(kibuTemporalImportName, "GetHandleOpts")).
-		Params(jen.Id(externalRunName(svc.Name))).
+		Params(jen.Id(suffixExternalRun(svc.Name))).
 		Block(
-			jen.Return(jen.Op("&").Id(firstToLower(externalRunName(svc.Name))).Values(
+			jen.Return(jen.Op("&").Id(firstToLower(suffixExternalRun(svc.Name))).Values(
 				jen.Id("workflowID").Op(":").Id("ref").Dot("WorkflowID"),
 				jen.Id("runID").Op(":").Id("ref").Dot("RunID"),
 			)),
@@ -287,7 +287,7 @@ func workflowRunInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(runName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixRun(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("WorkflowID").Params().Params(jen.String())
 		g.Id("RunID").Params().Params(jen.String())
 		g.Id("Get").Params(namedStdContextParam()).ParamsFunc(mapWorkflowExecuteResults(svc))
@@ -330,7 +330,7 @@ func workflowChildRunInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(childRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixChildRun(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("WorkflowID").Params().Params(jen.String())
 		g.Id("IsReady").Params().Params(jen.Bool())
 		g.Id("Underlying").Params().Params(qualWorkflowChildRunFuture())
@@ -340,12 +340,12 @@ func workflowChildRunInterface(svc *modspecv2.Service) jen.Code {
 
 		g.Id("Select").
 			Params(namedWorkflowSelectorParam(),
-				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
+				jen.Id("fn").Func().Params(jen.Id(suffixChildRun(svc.Name)))).
 			Params(qualWorkflowSelector())
 
 		g.Id("SelectStart").
 			Params(namedWorkflowSelectorParam(),
-				jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name)))).
+				jen.Id("fn").Func().Params(jen.Id(suffixChildRun(svc.Name)))).
 			Params(qualWorkflowSelector())
 
 		// only signals are supported on child workflows
@@ -365,7 +365,7 @@ func workflowExternalRunInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(externalRunName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixExternalRun(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("WorkflowID").Params().Params(jen.String())
 		g.Id("RunID").Params().Params(jen.String())
 		g.Id("RequestCancellation").Params(namedWorkflowContextParam()).Params(jen.Error())
@@ -391,10 +391,10 @@ func workflowClientInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(clientName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixClient(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("GetHandle").
 			Params(namedStdContextParam(), namedGetHandleOpts()).
-			Params(jen.Id(runName(svc.Name)), jen.Error())
+			Params(jen.Id(suffixRun(svc.Name)), jen.Error())
 
 		executeMethod, _ := findExecuteMethod(svc)
 		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -407,7 +407,7 @@ func workflowClientInterface(svc *modspecv2.Service) jen.Code {
 
 			}).
 			ParamsFunc(func(g *jen.Group) {
-				g.Id(runName(svc.Name))
+				g.Id(suffixRun(svc.Name))
 				g.Error()
 			})
 
@@ -426,7 +426,7 @@ func workflowClientInterface(svc *modspecv2.Service) jen.Code {
 					g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 				}).
 				ParamsFunc(func(g *jen.Group) {
-					g.Id(runName(svc.Name))
+					g.Id(suffixRun(svc.Name))
 					g.Error()
 				})
 		})
@@ -437,10 +437,10 @@ func workflowChildClientInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(childClientName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixChildClient(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		g.Id("External").
 			Params(namedGetHandleOpts()).
-			Params(jen.Id(externalRunName(svc.Name)))
+			Params(jen.Id(suffixExternalRun(svc.Name)))
 
 		executeMethod, _ := findExecuteMethod(svc)
 		executeReq := paramToExpOrAny(paramAtIndex(executeMethod.Params, 1))
@@ -463,7 +463,7 @@ func workflowChildClientInterface(svc *modspecv2.Service) jen.Code {
 				g.Id("req").Add(executeReq)
 				g.Id("mods").Op("...").Add(qualKibuTemporalWorkflowOptionFunc())
 			}).
-			Params(jen.Id(childRunName(svc.Name)))
+			Params(jen.Id(suffixChildRun(svc.Name)))
 	})
 }
 
@@ -526,7 +526,7 @@ func buildSignalChannelFuncs(f *jen.File, pkg *modspecv2.Package) {
 }
 
 func buildWorkflowRunImplementation(f *jen.File, svc *modspecv2.Service) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 
 	f.Type().Id(runStructName).Struct(
 		jen.Id("client").Qual(temporalClientImportName, "Client"),
@@ -559,7 +559,7 @@ func buildWorkflowRunImplementation(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildWorkflowChildRunImplementation(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Type().Id(childRunStructName).Struct(
 		jen.Id("workflowId").String(),
@@ -583,7 +583,7 @@ func buildWorkflowChildRunImplementation(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildWorkflowExternalRunImplementation(f *jen.File, svc *modspecv2.Service) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 
 	f.Type().Id(externalRunStructName).Struct(
 		jen.Id("workflowID").String(),
@@ -607,7 +607,7 @@ func buildWorkflowExternalRunImplementation(f *jen.File, svc *modspecv2.Service)
 // Add implementation for external run methods (WorkflowID, RunID, RequestCancellation, signal methods)
 
 func buildChildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
 		jen.Return(jen.Id("r").Dot("workflowId")),
@@ -615,7 +615,7 @@ func buildChildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunIsReadyMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("IsReady").Params().Params(jen.Bool()).Block(
 		jen.Return(jen.Id("r").Dot("childFuture").Dot("IsReady").Call()),
@@ -623,7 +623,7 @@ func buildChildRunIsReadyMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunUnderlyingMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Underlying").Params().Params(qualWorkflowChildRunFuture()).Block(
 		jen.Return(jen.Id("r").Dot("childFuture")),
@@ -631,7 +631,7 @@ func buildChildRunUnderlyingMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeRes := paramToExpOrAny(paramAtIndex(executeMethod.Results, 0))
 
@@ -649,7 +649,7 @@ func buildChildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunWaitStartMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("WaitStart").
 		Params(namedWorkflowContextParam()).
@@ -670,12 +670,12 @@ func buildChildRunWaitStartMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunSelectMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("Select").
 		Params(
 			namedWorkflowSelectorParam(),
-			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
+			jen.Id("fn").Func().Params(jen.Id(suffixChildRun(svc.Name))),
 		).
 		Params(qualWorkflowSelector()).
 		Block(
@@ -689,12 +689,12 @@ func buildChildRunSelectMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunSelectStartMethod(f *jen.File, svc *modspecv2.Service) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id("SelectStart").
 		Params(
 			namedWorkflowSelectorParam(),
-			jen.Id("fn").Func().Params(jen.Id(childRunName(svc.Name))),
+			jen.Id("fn").Func().Params(jen.Id(suffixChildRun(svc.Name))),
 		).
 		Params(qualWorkflowSelector()).
 		Block(
@@ -708,7 +708,7 @@ func buildChildRunSelectStartMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildChildRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	childRunStructName := firstToLower(childRunName(svc.Name))
+	childRunStructName := firstToLower(suffixChildRun(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(childRunStructName)).Id(op.Name).
@@ -727,7 +727,7 @@ func buildChildRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv
 }
 
 func buildExternalRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
 		jen.Return(jen.Id("r").Dot("workflowID")),
@@ -735,7 +735,7 @@ func buildExternalRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildExternalRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RunID").Params().Params(jen.String()).Block(
 		jen.Return(jen.Id("r").Dot("runID")),
@@ -743,7 +743,7 @@ func buildExternalRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildExternalRunRequestCancellationMethod(f *jen.File, svc *modspecv2.Service) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id("RequestCancellation").
 		Params(namedWorkflowContextParam()).
@@ -761,7 +761,7 @@ func buildExternalRunRequestCancellationMethod(f *jen.File, svc *modspecv2.Servi
 }
 
 func buildExternalRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(op.Name).
@@ -784,7 +784,7 @@ func buildExternalRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modsp
 }
 
 func buildExternalRunSignalAsyncMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	externalRunStructName := firstToLower(externalRunName(svc.Name))
+	externalRunStructName := firstToLower(suffixExternalRun(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(externalRunStructName)).Id(suffixAsync(op.Name)).
@@ -804,7 +804,7 @@ func buildExternalRunSignalAsyncMethod(f *jen.File, svc *modspecv2.Service, op *
 		)
 }
 func buildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("WorkflowID").Params().Params(jen.String()).Block(
 		jen.Return(jen.Id("r").Dot("workflowRun").Dot("GetID").Call()),
@@ -812,7 +812,7 @@ func buildRunWorkflowIDMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id("RunID").Params().Params(jen.String()).Block(
 		jen.Return(jen.Id("r").Dot("workflowRun").Dot("GetRunID").Call()),
@@ -820,7 +820,7 @@ func buildRunRunIDMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 	executeMethod, _ := findExecuteMethod(svc)
 	executeRes := paramToExp(paramAtIndex(executeMethod.Results, 0))
 
@@ -838,7 +838,7 @@ func buildRunGetMethod(f *jen.File, svc *modspecv2.Service) {
 }
 
 func buildRunUpdateMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 	updateReq := paramToExp(paramAtIndex(op.Params, 1))
 	updateRes := paramToExp(paramAtIndex(op.Results, 0))
 
@@ -862,7 +862,7 @@ func buildRunUpdateMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Ope
 }
 
 func buildRunUpdateAsyncMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 	updateReq := paramToExp(paramAtIndex(op.Params, 1))
 	updateRes := paramToExp(paramAtIndex(op.Results, 0))
 
@@ -893,7 +893,7 @@ func buildRunUpdateAsyncMethod(f *jen.File, svc *modspecv2.Service, op *modspecv
 }
 
 func buildRunQueryMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 	// this one is tricky because queries aren't allowed to use context in their implementation
 	// unlike the other methods, the request type is at position 0
 	queryReq := paramToExp(paramAtIndex(op.Params, 0))
@@ -928,7 +928,7 @@ func buildRunQueryMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Oper
 }
 
 func buildRunSignalMethod(f *jen.File, svc *modspecv2.Service, op *modspecv2.Operation) {
-	runStructName := firstToLower(runName(svc.Name))
+	runStructName := firstToLower(suffixRun(svc.Name))
 	signalReq := paramToExp(paramAtIndex(op.Params, 1))
 
 	f.Func().Params(jen.Id("r").Op("*").Id(runStructName)).Id(op.Name).

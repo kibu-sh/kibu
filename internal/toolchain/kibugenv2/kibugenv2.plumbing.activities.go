@@ -11,7 +11,7 @@ func buildActivityImplementations(file *jen.File, pkg *modspecv2.Package) {
 			continue
 		}
 
-		file.Type().Id(firstToLower(proxyName(svc.Name))).Struct()
+		file.Type().Id(firstToLower(suffixProxy(svc.Name))).Struct()
 
 		for _, op := range svc.Operations {
 			file.Add(buildActivityProxyMethod(svc, op))
@@ -21,7 +21,7 @@ func buildActivityImplementations(file *jen.File, pkg *modspecv2.Package) {
 }
 
 func buildActivityProxyMethod(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
-	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(op.Name).
+	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(suffixProxy(svc.Name)))).Id(op.Name).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
 			g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
@@ -44,7 +44,7 @@ func qualKibuTemporalActivityOptionFunc() jen.Code {
 }
 
 func buildActivityProxyAsyncMethod(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
-	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(proxyName(svc.Name)))).Id(suffixAsync(op.Name)).
+	return jen.Func().Params(jen.Id("a").Op("*").Id(firstToLower(suffixProxy(svc.Name)))).Id(suffixAsync(op.Name)).
 		ParamsFunc(func(g *jen.Group) {
 			g.Add(namedWorkflowContextParam())
 			g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))

@@ -8,6 +8,8 @@ import (
 	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/kibu-sh/kibu/pkg/foreman"
 	"github.com/kibu-sh/kibu/pkg/transport/httpx"
+	"github.com/kibu-sh/kibu/pkg/transport/middleware"
+	"github.com/kibu-sh/kibu/pkg/transport/temporal"
 	"github.com/kibu-sh/kibu/pkg/workspace"
 	"github.com/pkg/errors"
 	"go.temporal.io/sdk/client"
@@ -124,20 +126,47 @@ func startWorker(wrk worker.Worker, logger *slog.Logger) foreman.StartFunc {
 	}
 }
 
-var DefaultSet = wire.NewSet(
+func BindHTTPHandlers(factories []httpx.HandlerFactory, reg *middleware.Registry) (httpxHandlers []*httpx.Handler) {
+	for _, factory := range factories {
+		httpxHandlers = append(httpxHandlers, factory.HTTPHandlerFactory(reg)...)
+	}
+	return
+}
+
+func BindWorkers(factories []temporal.WorkerFactory) (workers []worker.Worker) {
+	for _, factory := range factories {
+		workers = append(workers, factory.Build())
+	}
+	return
+}
+
+var Required = wire.NewSet(
+	appcontext.Context,
+	NewConfigStore,
 	NewForeman,
-	ProvideServerAddress,
-	NewListeners,
+	NewLogger,
+)
+
+var Temporal = wire.NewSet(
 	NewTemporalClient,
 	NewTemporalOptions,
-	NewConfigStore,
-	NewLogger,
+	BindWorkers,
+)
 
-	appcontext.Context,
+var HTTPServeMux = wire.NewSet(
+	NewListeners,
+	ProvideServerAddress,
+	BindHTTPHandlers,
+	middleware.NewRegistry,
 	httpx.NewServer,
 	httpx.NewTCPListener,
 	httpx.NewStdLibMux,
-
 	wire.Bind(new(httpx.ServeMux), new(*httpx.StdLibMux)),
 	wire.Struct(new(httpx.NewServerParams), "*"),
+)
+
+var DefaultSet = wire.NewSet(
+	Required,
+	Temporal,
+	HTTPServeMux,
 )

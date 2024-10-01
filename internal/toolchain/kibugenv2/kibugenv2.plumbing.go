@@ -56,31 +56,47 @@ func firstToUpper(s string) string {
 	return string(r)
 }
 
-func proxyName(name string) string {
+func suffixProxy(name string) string {
 	return firstToUpper(fmt.Sprintf("%sProxy", name))
 }
 
-func runName(name string) string {
+func suffixRun(name string) string {
 	return firstToUpper(fmt.Sprintf("%sRun", name))
 }
 
-func childRunName(name string) string {
+func suffixChildRun(name string) string {
 	return firstToUpper(fmt.Sprintf("%sChildRun", name))
 }
 
-func controllerName(name string) string {
+func suffixController(name string) string {
 	return firstToUpper(fmt.Sprintf("%sController", name))
 }
 
-func externalRunName(name string) string {
+func suffixAsync(name string) string {
+	return firstToUpper(fmt.Sprintf("%sAsync", name))
+}
+
+func suffixChannel(name string) string {
+	return firstToUpper(fmt.Sprintf("%sChannel", name))
+}
+
+func suffixFactory(name string) string {
+	return firstToUpper(fmt.Sprintf("%sFactory", name))
+}
+
+func suffixInput(name string) string {
+	return firstToUpper(fmt.Sprintf("%sInput", name))
+}
+
+func suffixExternalRun(name string) string {
 	return firstToUpper(fmt.Sprintf("%sExternalRun", name))
 }
 
-func childClientName(name string) string {
+func suffixChildClient(name string) string {
 	return firstToUpper(fmt.Sprintf("%sChildClient", name))
 }
 
-func clientName(name string) string {
+func suffixClient(name string) string {
 	return firstToUpper(fmt.Sprintf("%sClient", name))
 }
 
@@ -102,15 +118,15 @@ func buildPkgCompilerAssertions(f *jen.File, pkg *modspecv2.Package) {
 	for _, svc := range pkg.Services {
 		if svc.Decorators.Some(isKibuActivity) {
 			f.Add(compilerAssertionToInterface(
-				proxyName(svc.Name), firstToLower(proxyName(svc.Name))))
+				suffixProxy(svc.Name), firstToLower(suffixProxy(svc.Name))))
 		}
 
 		if svc.Decorators.Some(isKibuWorkflow) {
 			f.Add(compilerAssertionToInterface(
-				childRunName(svc.Name), firstToLower(childRunName(svc.Name))))
+				suffixChildRun(svc.Name), firstToLower(suffixChildRun(svc.Name))))
 
 			f.Add(compilerAssertionToInterface(
-				clientName(svc.Name), firstToLower(clientName(svc.Name))))
+				suffixClient(svc.Name), firstToLower(suffixClient(svc.Name))))
 		}
 	}
 	return
@@ -170,7 +186,7 @@ func activityProxyInterface(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(proxyName(svc.Name)).InterfaceFunc(func(g *jen.Group) {
+	return jen.Type().Id(suffixProxy(svc.Name)).InterfaceFunc(func(g *jen.Group) {
 		for _, op := range svc.Operations {
 			g.Id(op.Name).
 				ParamsFunc(func(g *jen.Group) {
@@ -257,26 +273,6 @@ func filterSignalAndQueryMethods(operations []*modspecv2.Operation) []*modspecv2
 			isKibuWorkflowQuery,
 		))
 	})
-}
-
-func suffixAsync(name string) string {
-	return firstToUpper(fmt.Sprintf("%sAsync", name))
-}
-
-func suffixChannel(name string) string {
-	return firstToUpper(fmt.Sprintf("%sChannel", name))
-}
-
-func suffixFactory(name string) string {
-	return firstToUpper(fmt.Sprintf("%sFactory", name))
-}
-
-func suffixInput(name string) string {
-	return firstToUpper(fmt.Sprintf("%sInput", name))
-}
-
-func suffixController(name string) string {
-	return firstToUpper(fmt.Sprintf("%sController", name))
 }
 
 func namedContextParam(importName string) jen.Code {
@@ -469,12 +465,13 @@ func buildActivitiesControllers(f *jen.File, pkg *modspecv2.Package) {
 			continue
 		}
 
-		f.Type().Id(controllerName(svc.Name)).Struct(
+		f.Comment("//kibu:provider")
+		f.Type().Id(suffixController(svc.Name)).Struct(
 			jen.Id("Activities").Id(svc.Name),
 		)
 
 		f.Func().Params(
-			jen.Id("act").Op("*").Id(controllerName(svc.Name)),
+			jen.Id("act").Op("*").Id(suffixController(svc.Name)),
 		).Id("Build").Params(
 			jen.Id("registry").Qual(temporalWorkerImportName, "ActivityRegistry"),
 		).BlockFunc(func(g *jen.Group) {
