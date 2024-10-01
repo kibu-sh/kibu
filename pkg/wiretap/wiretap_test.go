@@ -57,10 +57,22 @@ func (s *WiretapSuite) SetupSuite() {
 		StartInReplayMode()
 	s.Require().NoError(err)
 
-	s.echoServer = httptest.NewServer(internalmock.EchoHandler())
+	s.echoServer = httptest.NewUnstartedServer(internalmock.EchoHandler())
+	s.echoServer.StartTLS()
 
-	go s.replayProxy.Serve()
-	go s.captureProxy.Serve()
+	go func() {
+		err := s.replayProxy.Serve()
+		if err != nil {
+			s.T().Logf("replay proxy error: %v", err)
+		}
+	}()
+
+	go func() {
+		err := s.captureProxy.Serve()
+		if err != nil {
+			s.T().Logf("capture proxy error: %v", err)
+		}
+	}()
 }
 
 func (s *WiretapSuite) TearDownSuite() {
@@ -72,6 +84,7 @@ func (s *WiretapSuite) TearDownSuite() {
 func (s *WiretapSuite) TestProxyWithReplay() {
 	var msg spec.Snapshot
 	s.Run("should successfully proxy and capture a request", func() {
+		var err error
 		r := s.Require()
 		ctx, cancel := context.WithTimeout(s.ctx, time.Second*5)
 		defer cancel()
@@ -85,7 +98,7 @@ func (s *WiretapSuite) TestProxyWithReplay() {
 		r.NotNil(res)
 		r.Equal(http.StatusOK, res.StatusCode)
 
-		msg, _, err := s.stream.Next(ctx)
+		msg, _, err = s.stream.Next(ctx)
 		r.NoError(err)
 		r.FileExists(archive.Filename(s.dir, msg.Ref()))
 
@@ -95,6 +108,7 @@ func (s *WiretapSuite) TestProxyWithReplay() {
 	})
 
 	s.Run("should successfully capture a round trip record", func() {
+		var err error
 		r := s.Require()
 		ctx, cancel := context.WithTimeout(s.ctx, time.Second*5)
 		defer cancel()

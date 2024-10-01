@@ -12,6 +12,16 @@ import (
 )
 
 func New(tripper http.RoundTripper) *httputil.ReverseProxy {
+	// FIXME: this is a hack to force the mitm to connect to an https endpoint event if it can't be verified
+	//  we might not care about this, since we're already hacking the network
+	if tripper, ok := tripper.(*http.Transport); ok {
+		if tripper.TLSClientConfig == nil {
+			tripper.TLSClientConfig = &tls.Config{}
+		}
+
+		tripper.TLSClientConfig.InsecureSkipVerify = true
+	}
+
 	return &httputil.ReverseProxy{
 		Director:  newConnectProxyDirector(),
 		Transport: tripper,
