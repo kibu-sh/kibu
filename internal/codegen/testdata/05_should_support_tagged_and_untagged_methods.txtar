@@ -1,5 +1,5 @@
 parse $WORK
-cmp exp/systems/foo/foo.gen.go $WORK/src/systems/foo/foo.gen.go
+cmp $WORK/src/systems/foo/foo.gen.go exp/systems/foo/foo.gen.go
 
 -- src/go.mod --
 module github.com/example/module
@@ -116,17 +116,17 @@ type Workflow__Client struct {
 	Temporal client.Client
 }
 
-func (p Workflow__Client) A(ctx context.Context, id string, req Request) (temporal.WorkflowRun[Response], error) {
+func (c Workflow__Client) A(ctx context.Context, id string, req Request) (temporal.WorkflowRun[Response], error) {
 	return temporal.NewWorkflowRunWithErr[Response](
-		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		c.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        id,
 			TaskQueue: "default",
 		}, "foo.Workflow.A", req),
 	)
 }
-func (p Workflow__Client) Z(ctx context.Context, id string, req Request) (temporal.WorkflowRun[Response], error) {
+func (c Workflow__Client) Z(ctx context.Context, id string, req Request) (temporal.WorkflowRun[Response], error) {
 	return temporal.NewWorkflowRunWithErr[Response](
-		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		c.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        id,
 			TaskQueue: "default",
 		}, "foo.Workflow.Z", req),

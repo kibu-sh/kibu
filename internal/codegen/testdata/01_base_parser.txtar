@@ -1,6 +1,6 @@
 parse $WORK
-cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
-cmp exp/gen/kibugen/wire_set.gen.go $WORK/gen/kibugen/wire_set.gen.go
+cmp $WORK/src/pkg/auth/auth.gen.go exp/pkg/auth/auth.gen.go
+cmp $WORK/gen/kibugen/wire_set.gen.go exp/gen/kibugen/wire_set.gen.go
 ! exists src/pkg/nope/nope.gen.go
 
 parse $WORK
@@ -174,9 +174,9 @@ type workflows__Client struct {
 	Temporal client.Client
 }
 
-func (p workflows__Client) Verify(ctx context.Context, id string, req VerifyRequest) (temporal.WorkflowRun[VerifyResponse], error) {
+func (c workflows__Client) Verify(ctx context.Context, id string, req VerifyRequest) (temporal.WorkflowRun[VerifyResponse], error) {
 	return temporal.NewWorkflowRunWithErr[VerifyResponse](
-		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		c.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        id,
 			TaskQueue: "default",
 		}, "auth.workflows.Verify", req),

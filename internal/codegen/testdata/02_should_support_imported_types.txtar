@@ -1,5 +1,5 @@
 parse $WORK
-cmp exp/systems/foo/foo.gen.go $WORK/src/systems/foo/foo.gen.go
+cmp $WORK/src/systems/foo/foo.gen.go exp/systems/foo/foo.gen.go
 
 -- src/go.mod --
 module github.com/example/module
@@ -50,12 +50,12 @@ package foo
 
 import (
 	"context"
+	spec1 "github.com/example/module/systems/bar/spec"
+	spec "github.com/example/module/systems/foo/spec"
 	transport "github.com/kibu-sh/kibu/pkg/transport"
 	httpx "github.com/kibu-sh/kibu/pkg/transport/httpx"
 	middleware "github.com/kibu-sh/kibu/pkg/transport/middleware"
 	temporal "github.com/kibu-sh/kibu/pkg/transport/temporal"
-	spec1 "github.com/example/module/systems/bar/spec"
-	spec "github.com/example/module/systems/foo/spec"
 	client "go.temporal.io/sdk/client"
 	workflow "go.temporal.io/sdk/workflow"
 )
@@ -97,17 +97,17 @@ type Workflow__Client struct {
 	Temporal client.Client
 }
 
-func (p Workflow__Client) Example1(ctx context.Context, id string, req spec.Request) (temporal.WorkflowRun[spec.Response], error) {
+func (c Workflow__Client) Example1(ctx context.Context, id string, req spec.Request) (temporal.WorkflowRun[spec.Response], error) {
 	return temporal.NewWorkflowRunWithErr[spec.Response](
-		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		c.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        id,
 			TaskQueue: "default",
 		}, "foo.Workflow.Example1", req),
 	)
 }
-func (p Workflow__Client) Example2(ctx context.Context, id string, req spec1.Request) (temporal.WorkflowRun[spec1.Response], error) {
+func (c Workflow__Client) Example2(ctx context.Context, id string, req spec1.Request) (temporal.WorkflowRun[spec1.Response], error) {
 	return temporal.NewWorkflowRunWithErr[spec1.Response](
-		p.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		c.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        id,
 			TaskQueue: "default",
 		}, "foo.Workflow.Example2", req),
