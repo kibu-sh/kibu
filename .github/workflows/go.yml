@@ -25,13 +25,31 @@ jobs:
       uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go }}
+
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 9
+
+    - name: Install Go Mods
+      run: go mod download
+
+    - name: Install pnpm
+      run: pnpm install
     
+    - name: Generate
+      run: go generate ./...
+
     - name: Build
       run: go build -v ./...
 
     - name: Test
       run: go test -v ./...
-      
-    
+
     - name: Vet
       run: go vet ./...
