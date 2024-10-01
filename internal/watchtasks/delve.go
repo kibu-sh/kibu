@@ -58,7 +58,7 @@ func (b *Builder) runDebugServer(started chan struct{}) {
 	retry:
 		conn, err := net.DialTimeout("tcp", DefaultDebugServerAddr, time.Second*5)
 		if err != nil {
-			b.log.Debug("waiting for debug server", err)
+			b.log.Debug("waiting for debug server", "error", err)
 			time.Sleep(delay)
 			delay *= time.Duration(coefficient)
 			if delay >= maxDelay {
@@ -82,7 +82,7 @@ func (b *Builder) runDebugServer(started chan struct{}) {
 			DebugServerAddr: DefaultDebugServerAddr,
 		}))
 		if err != nil {
-			b.log.Debug("debug server exited", err)
+			b.log.Debug("debug server exited", "error", err)
 		}
 		if errors.Is(err, context.Canceled) {
 			return
@@ -114,13 +114,13 @@ func (b *Builder) runDebugLoop() {
 			b.log.Debug("shutting down debug server")
 			client, _, err := newRPCClient(DefaultDebugServerAddr, time.Second*5)
 			if err != nil {
-				b.log.Debug("failed to connect to debug server", err)
+				b.log.Debug("failed to connect to debug server", "error", err)
 				return
 			}
 
 			err = client.Detach(true)
 			if err != nil {
-				b.log.Debug("failed to shutdown debug server", err)
+				b.log.Debug("failed to shutdown debug server", "error", err)
 				return
 			}
 		case <-b.restart:
@@ -130,14 +130,14 @@ func (b *Builder) runDebugLoop() {
 			if state != nil && state.Running {
 				_, err := client.Halt()
 				if err != nil {
-					b.log.Debug("failed to halt debug server", err)
+					b.log.Debug("failed to halt debug server", "error", err)
 					continue
 				}
 			}
 
 			_, err = client.Restart(true)
 			if err != nil {
-				b.log.Debug("failed to restart debug server", err)
+				b.log.Debug("failed to restart debug server", "error", err)
 				continue
 			}
 
