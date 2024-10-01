@@ -68,10 +68,7 @@ func TestGenerator(t *testing.T) {
 				patterns = fset.Args()
 
 				if !filepath.IsAbs(genDir) {
-					genDir, err = filepath.Rel(root, genDir)
-					if err != nil {
-						ts.Check(err)
-					}
+					genDir = filepath.Clean(filepath.Join(root, genDir))
 				}
 
 				cfg := pipeline.ConfigDefaults().

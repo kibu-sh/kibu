@@ -204,6 +204,10 @@ func run(pass *analysis.Pass) (any, error) {
 
 	generateWireSet(file, result.Providers)
 
+	if result.Providers.Len() == 0 {
+		return nil, nil
+	}
+
 	return result, nil
 }
 

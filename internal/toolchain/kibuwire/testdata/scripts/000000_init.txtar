@@ -1,9 +1,13 @@
 kibuwire -cwd $WORK/src -out $WORK/src/gen/ ./...
 cmp $WORK/exp/billingv1/billingv1.wire.gen.go $WORK/src/billingv1/billingv1.wire.gen.go
 cmp $WORK/exp/gen/kibuwire/kibuwire.gen.go $WORK/src/gen/kibuwire/kibuwire.gen.go
+! exists src/backend/backend.wire.gen.go
 
 -- src/go.mod --
 module github.com/example/module
+
+-- src/backend/example.go --
+package backend
 
 -- src/billingv1/billingv1.gen.go --
 package billingv1
