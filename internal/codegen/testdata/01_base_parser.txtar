@@ -4,8 +4,9 @@ cmp $WORK/gen/kibugen/kibu.gen.go exp/gen/kibugen/kibu.gen.go
 ! exists src/pkg/nope/nope.gen.go
 
 parse $WORK
-cmp exp/pkg/auth/auth.gen.go $WORK/src/pkg/auth/auth.gen.go
-cmp exp/gen/kibugen/kibu.gen.go $WORK/gen/kibugen/kibu.gen.go
+cmp $WORK/src/pkg/auth/auth.gen.go exp/pkg/auth/auth.gen.go
+cmp $WORK/gen/kibugen/kibu.gen.go exp/gen/kibugen/kibu.gen.go
+cmp $WORK/gen/kibugen/openapi.yaml exp/gen/kibugen/openapi.yaml
 
 -- src/go.mod --
 module github.com/example/module
@@ -314,3 +315,72 @@ func (m *Middleware) CheckPermissions(tctx transport.Context, next transport.Han
 
 //kibu:middleware tag=cache
 func (m *Middleware) CacheMiddleware(tctx transport.Context, next transport.Handler) error { return }
+
+-- exp/gen/kibugen/openapi.yaml --
+openapi: 3.1.0
+info:
+    title: Discern API
+    contact:
+        name: MN3, Inc.
+        email: support@discern.com
+    version: 0.0.1
+paths:
+    /verify:
+        get:
+            tags:
+                - auth
+            summary: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            description: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            operationId: Verify
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/pkg.auth.VerifyResponse'
+    /example:
+        get:
+            tags:
+                - example
+            summary: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            description: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            operationId: Example
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/pkg.example.ExampleRequest'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/pkg.example.ExampleResponse'
+        post:
+            tags:
+                - example
+            summary: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            description: 'TODO: this needs to be implemented, where should we pull this from in Go? A the comment above the function?'
+            operationId: Example
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/pkg.example.ExampleRequest'
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/pkg.example.ExampleResponse'
+components:
+    schemas:
+        pkg.auth.VerifyResponse:
+            type: object
+            title: VerifyResponse
+        pkg.example.ExampleRequest:
+            type: object
+            title: ExampleRequest
+        pkg.example.ExampleResponse:
+            type: object
+            title: ExampleResponse
