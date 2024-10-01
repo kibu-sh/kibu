@@ -213,6 +213,7 @@ type CustomerSubscriptionsWorkflowInput struct {
 	CancelBillingChannel temporal.SignalChannel[CancelBillingRequest]
 }
 type CustomerSubscriptionsWorkflowFactory func(input *CustomerSubscriptionsWorkflowInput) (CustomerSubscriptionsWorkflow, error)
+
 //kibu:provider
 type CustomerSubscriptionsWorkflowController struct {
 	Factory CustomerSubscriptionsWorkflowFactory

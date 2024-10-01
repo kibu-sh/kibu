@@ -989,7 +989,7 @@ func workflowControllerStruct(svc *modspecv2.Service) jen.Code {
 		return jen.Null()
 	}
 
-	return jen.Type().Id(suffixController(svc.Name)).Struct(
+	return jen.Comment("//kibu:provider").Line().Type().Id(suffixController(svc.Name)).Struct(
 		jen.Id("Factory").Id(suffixFactory(svc.Name)),
 	)
 }
