@@ -15,8 +15,8 @@ type Registry struct {
 	cache map[string][]*RegistryItem
 }
 
-// Register takes a MiddlewareSetItem and adds it to the cache for each of its tag
-func (r Registry) Register(item RegistryItem) {
+// Register takes a MiddlewareSetItem and adds it to the cache for each of its tags
+func (r *Registry) Register(item RegistryItem) {
 	for _, tag := range item.Tags {
 		r.cache[tag] = append(r.cache[tag], &item)
 		sort.Slice(r.cache[tag], func(i, j int) bool {
@@ -34,7 +34,7 @@ type GetParams struct {
 // Get returns a list of Middleware for the given tags
 // "global" middleware are always returned as a part of the list
 // "auth" middleware are always returned if a tag of "public" is not specified
-func (r Registry) Get(params GetParams) (result []transport.Middleware) {
+func (r *Registry) Get(params GetParams) (result []transport.Middleware) {
 	var tags = params.Tags
 
 	if !params.ExcludeGlobal {
@@ -69,14 +69,3 @@ func NewRegistry() *Registry {
 		},
 	}
 }
-
-// func nextMiddlewareWeight(base int, items []*MiddlewareSetItem) int {
-// 	if math.Abs(float64(base)) > 0 {
-// 		return base
-// 	}
-//
-// 	if len(items) == 0 {
-// 		return 0
-// 	}
-// 	return items[len(items)-1].Weight + 1
-// }
