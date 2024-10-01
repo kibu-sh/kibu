@@ -35,6 +35,10 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, missingPackageError
 	}
 
+	if len(pkg.Services) == 0 {
+		return nil, nil
+	}
+
 	genFile := modspecv2.NewJenFileFromPackage(pass.Pkg)
 	result := modspecv2.NewPackageArtifact(genFile, pass, "")
 

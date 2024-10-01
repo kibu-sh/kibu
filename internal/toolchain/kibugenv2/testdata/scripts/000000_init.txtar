@@ -1,8 +1,16 @@
 kibugenv2 $WORK/src ./...
 cmp $WORK/exp/billingv1/billingv1.gen.go $WORK/src/billingv1/billingv1.gen.go
 
+! exists src/lib/lib.gen.go
+! exists src/lib/lib.wire.gen.go
+
 -- src/go.mod --
 module github.com/example/module
+
+-- src/lib/lib.go --
+package lib
+# this go file has no providers
+# so its package should no have a generated module
 
 -- src/billingv1/billingv1.spec.go --
 package billingv1
