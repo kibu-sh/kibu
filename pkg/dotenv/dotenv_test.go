@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	parentShared = "DISCERN_PARENT_SHARED"
-	parentOnly   = "DISCERN_PARENT_ONLY"
+	parentShared = "KIBU_PARENT_SHARED"
+	parentOnly   = "KIBU_PARENT_ONLY"
 )
 
 var log = slog.Default()

@@ -9,12 +9,13 @@ import (
 
 func TestGCPSecretManagerStore(t *testing.T) {
 	ctx := context.Background()
+	t.Skip("FIXME: skipping test until we can get a test account")
 
 	temp, err := os.MkdirTemp("", "cloud_store_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(temp)
 
-	s, err := NewGCPSecretManagerStore(ctx, "discern-devops")
+	s, err := NewGCPSecretManagerStore(ctx, "TEST")
 	require.NoError(t, err)
 	relativeSecretPath := "level1/secret.json"
 

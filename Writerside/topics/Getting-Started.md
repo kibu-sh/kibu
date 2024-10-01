@@ -13,7 +13,7 @@ kibu init # does not work right now
 
 ### kibu.gen.go
 ```go
-package discern
+package myapp
 
 //go:generate go run -mod=readonly github.com/kibu-sh/kibu/cmd/kibu build ./src/backend/systems/...
 ```

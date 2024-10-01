@@ -319,10 +319,10 @@ func (m *Middleware) CacheMiddleware(tctx transport.Context, next transport.Hand
 -- exp/gen/kibugen/openapi.yaml --
 openapi: 3.1.0
 info:
-    title: Discern API
+    title: Kibu API
     contact:
-        name: MN3, Inc.
-        email: support@discern.com
+        name: Kibu.sh
+        email: hello@kibu.sh
     version: 0.0.1
 paths:
     /verify:

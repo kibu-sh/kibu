@@ -2,7 +2,7 @@ import type { NamedColorspace } from '@textea/json-viewer'
 
 export const darkJSON: NamedColorspace = {
   scheme: 'dark-json',
-  author: 'James Qualls (https://discern.com)',
+  author: 'James Qualls (https://kibu.sh)',
   base00: 'rgba(43,48,59,0)', // background
   base01: '#343d46',
   base02: '#363f45',

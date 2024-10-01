@@ -28,10 +28,10 @@ func (wf *Workflow) Example(ctx context.Context, req Request) (res Response, err
 -- exp/gen/openapi.yaml --
 openapi: 3.1.0
 info:
-    title: Discern API
+    title: Kibu API
     contact:
-        name: MN3, Inc.
-        email: support@discern.com
+        name: Kibu.sh
+        email: hello@kibu.sh
     version: 0.0.1
 paths: {}
 components: {}

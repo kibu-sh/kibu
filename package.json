@@ -6,7 +6,7 @@
     "lint:fix": "pnpm run lint --fix",
     "clean:modules": "find ./ -type d -name \"node_modules\" | xargs rm -rf \"{}\""
   },
-  "author": "engineering@discern.com",
+  "author": "hello@kibu.sh",
   "license": "SEE LICENSE IN LICENSE.md",
   "dependencies": {
     "@types/react-syntax-highlighter": "^15.5.7",

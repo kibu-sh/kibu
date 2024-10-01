@@ -21,11 +21,11 @@ func BuildOpenAPISpec(opts *PipelineOptions) (err error) {
 	doc := &v3.Document{
 		Version: "3.1.0",
 		Info: &base.Info{
-			Title:   "Discern API",
+			Title:   "Kibu API",
 			Version: "0.0.1",
 			Contact: &base.Contact{
-				Name:  "MN3, Inc.",
-				Email: "support@discern.com",
+				Name:  "Kibu.sh",
+				Email: "hello@kibu.sh",
 			},
 		},
 		Paths: &v3.Paths{
