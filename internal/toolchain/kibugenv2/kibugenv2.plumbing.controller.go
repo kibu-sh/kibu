@@ -7,7 +7,7 @@ import (
 )
 
 func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
-	f.Comment("//kibu:provider group=temporal.WorkerFactory")
+	f.Comment("//kibu:provider group=WorkerFactory import=github.com/kibu-sh/kibu/pkg/transport/temporal")
 	f.Type().Id("WorkerController").StructFunc(func(g *jen.Group) {
 		g.Id("Client").Qual(temporalClientImportName, "Client")
 		g.Id("Options").Qual(temporalWorkerImportName, "Options")

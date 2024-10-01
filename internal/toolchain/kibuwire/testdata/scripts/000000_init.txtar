@@ -18,6 +18,12 @@ func (svc *ServiceController) Build() []*httpx.Handler {
 	return []*httpx.Handler{}
 }
 
+//kibu:provider group=WorkerFactory import=github.com/kibu-sh/kibu/pkg/transport/temporal
+type WorkerController struct {}
+func (wc *WorkerController) Build() worker.Worker {
+	return &worker.Worker{}
+}
+
 //kibu:provider
 func NewServiceController() ServiceController {
 	return ServiceController{}
@@ -35,6 +41,7 @@ import wire "github.com/google/wire"
 
 var WireSet = wire.NewSet(
 	wire.Struct(new(ServiceController), "*"),
+	wire.Struct(new(WorkerController), "*"),
 	NewServiceController,
 	ShouldOnlyProvideOnce,
 )
@@ -47,10 +54,11 @@ import (
 	billingv1 "github.com/example/module/billingv1"
 	wire "github.com/google/wire"
 	httpx "github.com/kibu-sh/kibu/pkg/transport/httpx"
+	temporal "github.com/kibu-sh/kibu/pkg/transport/temporal"
 )
 
 type HttpxHandlerFactoryGroup struct {
-	Billingv1ServiceController billingv1.ServiceController
+	Billingv1ServiceController *billingv1.ServiceController
 }
 
 func HttpxHandlerFactoryProvider(group *HttpxHandlerFactoryGroup) []httpx.HandlerFactory {
@@ -59,9 +67,21 @@ func HttpxHandlerFactoryProvider(group *HttpxHandlerFactoryGroup) []httpx.Handle
 	}
 }
 
+type TemporalWorkerFactoryGroup struct {
+	Billingv1WorkerController *billingv1.WorkerController
+}
+
+func TemporalWorkerFactoryProvider(group *TemporalWorkerFactoryGroup) []temporal.WorkerFactory {
+	return []temporal.WorkerFactory{
+		group.Billingv1WorkerController,
+	}
+}
+
 var GroupSet = wire.NewSet(
 	wire.Struct(new(HttpxHandlerFactoryGroup), "*"),
 	HttpxHandlerFactoryProvider,
+	wire.Struct(new(TemporalWorkerFactoryGroup), "*"),
+	TemporalWorkerFactoryProvider,
 )
 var SuperSet = wire.NewSet(
 	GroupSet,

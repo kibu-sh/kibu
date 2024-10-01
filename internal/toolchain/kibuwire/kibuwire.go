@@ -346,7 +346,7 @@ func buildGroupedProviderSet(f *jen.File, providers ProviderList) {
 		group := groupedList[0].Group
 		f.Type().Id(groupProviderName(group)).StructFunc(func(g *jen.Group) {
 			for _, provider := range groupedList {
-				g.Id(groupedProviderFieldName(provider)).Add(providerQualName(provider))
+				g.Id(groupedProviderFieldName(provider)).Op("*").Add(providerQualName(provider))
 			}
 		})
 

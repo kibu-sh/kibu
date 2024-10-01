@@ -42,7 +42,7 @@ import (
 )
 
 type HttpxHandlerFactoryGroup struct {
-	Billingv1ServiceController billingv1.ServiceController
+	Billingv1ServiceController *billingv1.ServiceController
 }
 
 func HttpxHandlerFactoryProvider(group *HttpxHandlerFactoryGroup) []httpx.HandlerFactory {

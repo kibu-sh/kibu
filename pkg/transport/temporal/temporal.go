@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 	"time"
 )
@@ -70,4 +71,8 @@ func ErrorIs(err, target error) (match bool) {
 		return receivedErr.Type() == targetErr.Type()
 	}
 	return false
+}
+
+type WorkerFactory interface {
+	Build() worker.Worker
 }
