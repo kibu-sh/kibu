@@ -22,9 +22,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 	ResultType:       resultType,
 	RunDespiteErrors: true,
-	Requires: []*analysis.Analyzer{
-		kibumod.Analyzer,
-	},
+	Requires:         []*analysis.Analyzer{kibumod.Analyzer},
 }
 
 var missingPackageError = errors.New("missing result of kibumod analyzer")

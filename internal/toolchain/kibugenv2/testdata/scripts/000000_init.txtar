@@ -128,6 +128,7 @@ import (
 	"context"
 	transport "github.com/kibu-sh/kibu/pkg/transport"
 	httpx "github.com/kibu-sh/kibu/pkg/transport/httpx"
+	middleware "github.com/kibu-sh/kibu/pkg/transport/middleware"
 	temporal "github.com/kibu-sh/kibu/pkg/transport/temporal"
 	activity "go.temporal.io/sdk/activity"
 	client "go.temporal.io/sdk/client"
@@ -469,10 +470,10 @@ type ServiceController struct {
 	Service Service
 }
 
-func (svc *ServiceController) Build() []*httpx.Handler {
-	var handlers []*httpx.Handler
-	handlers = append(handlers, httpx.NewHandler("/billingv1/Service/WatchAccount", transport.NewEndpoint(svc.Service.WatchAccount)).WithMethods("POST"))
-	return handlers
+func (svc *ServiceController) HTTPHandlerFactory(_ *middleware.Registry) []*httpx.Handler {
+	return []*httpx.Handler{
+		httpx.NewHandler("/billingv1/WatchAccount", transport.NewEndpoint(svc.Service.WatchAccount)).WithMethods("POST"),
+	}
 }
 
 //kibu:provider group=WorkerFactory import=github.com/kibu-sh/kibu/pkg/transport/temporal

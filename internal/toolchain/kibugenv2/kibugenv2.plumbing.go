@@ -27,6 +27,7 @@ const (
 	kibuTransportImportName    = "github.com/kibu-sh/kibu/pkg/transport"
 	kibuTemporalImportName     = "github.com/kibu-sh/kibu/pkg/transport/temporal"
 	kibuHttpxImportName        = "github.com/kibu-sh/kibu/pkg/transport/httpx"
+	kibuMiddlewareImportName   = "github.com/kibu-sh/kibu/pkg/transport/middleware"
 	temporalActivityImportName = "go.temporal.io/sdk/activity"
 	temporalClientImportName   = "go.temporal.io/sdk/client"
 	temporalWorkerImportName   = "go.temporal.io/sdk/worker"
@@ -431,27 +432,33 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 
 		f.Func().Params(
 			jen.Id("svc").Op("*").Id(suffixController(svc.Name)),
-		).Id("Build").Params().Params(
+		).Id("HTTPHandlerFactory").Params(jen.Id("_").Op("*").Qual(kibuMiddlewareImportName, "Registry")).Params(
 			jen.Index().Op("*").Qual(kibuHttpxImportName, "Handler"),
 		).BlockFunc(func(g *jen.Group) {
-			g.Var().Id("handlers").Index().Op("*").Qual(kibuHttpxImportName, "Handler")
-			for _, op := range svc.Operations {
-				methodDecorator, _ := op.Decorators.Find(isKibuServiceMethod)
+			g.ReturnFunc(func(g *jen.Group) {
+				g.Index().Op("*").Qual(kibuHttpxImportName, "Handler").CustomFunc(modspecv2.MultiLineCurly(), func(g *jen.Group) {
+					for _, op := range svc.Operations {
+						methodDecorator, _ := op.Decorators.Find(isKibuServiceMethod)
 
-				path, _ := methodDecorator.Options.GetOne("path",
-					fmt.Sprintf("/%s/%s/%s", pkg.Name, svc.Name, op.Name))
+						// TODO: warn on analysis pass that there's a duplicate path detected
+						// 	this is due to multiple Service interfaces defined in the same Package
+						path, _ := methodDecorator.Options.GetOne("path",
+							fmt.Sprintf("/%s/%s", pkg.Name, op.Name))
 
-				method, _ := methodDecorator.Options.GetOne("method",
-					http.MethodPost)
+						// TODO: support more than one method per service call
+						//  although this usually should be POST since JSON serialization will be most common
+						method, _ := methodDecorator.Options.GetOne("method",
+							http.MethodPost)
 
-				g.Id("handlers").Op("=").Append(jen.Id("handlers"),
-					jen.Qual(kibuHttpxImportName, "NewHandler").Call(
-						jen.Lit(path),
-						jen.Qual(kibuTransportImportName, "NewEndpoint").Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
-					).Dot("WithMethods").Call(jen.Lit(method)),
-				)
-			}
-			g.Return(jen.Id("handlers"))
+						g.Id("httpx").Dot("NewHandler").
+							Call(jen.Lit(path),
+								jen.Qual(kibuTransportImportName, "NewEndpoint").
+									Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
+							).Dot("WithMethods").Call(jen.Lit(method))
+
+					}
+				})
+			})
 		})
 	}
 }

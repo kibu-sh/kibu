@@ -1,9 +1,7 @@
 package kibumod
 
 import (
-	"github.com/kibu-sh/kibu/internal/toolchain/kibufuncs"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibuwire"
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/samber/lo"
 	"go/ast"
@@ -27,11 +25,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 	ResultType:       returnType,
 	RunDespiteErrors: true,
-	Requires: []*analysis.Analyzer{
-		inspect.Analyzer,
-		kibufuncs.Analyzer,
-		kibuwire.Analyzer,
-	},
+	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 }
 
 func run(pass *analysis.Pass) (any, error) {

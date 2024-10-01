@@ -11,7 +11,6 @@ import (
 
 func Main() (int, error) {
 	var root string
-	var patterns []string
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -27,7 +26,7 @@ func Main() (int, error) {
 
 	cfg := pipeline.ConfigDefaults().
 		WithDir(root).
-		WithPatterns(patterns).
+		WithPatterns(fset.Args()).
 		WithAnalyzers([]*analysis.Analyzer{Analyzer})
 
 	results, pkgs, err := pipeline.Run(cfg)
