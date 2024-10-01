@@ -307,6 +307,10 @@ func tryIndex(pair []string, i int) []string {
 
 type Map = orderedmap.OrderedMap[*ast.Ident, List]
 
+func NewMap() *Map {
+	return orderedmap.New[*ast.Ident, List]()
+}
+
 // FromDecls returns a list of directives cached by *ast.Ident
 func FromDecls(decls []ast.Decl) (result *Map, err error) {
 	result = orderedmap.New[*ast.Ident, List]()
