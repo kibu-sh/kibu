@@ -5,6 +5,7 @@ import { defineConfig } from 'astro/config'
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://kibu.sh',
   integrations: [
     starlight({
       title: 'Kibu Documentation',
