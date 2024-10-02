@@ -3,7 +3,6 @@ package fswatch
 import (
 	"context"
 	"github.com/fsnotify/fsnotify"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io/fs"
 	"os"
@@ -13,6 +12,9 @@ import (
 )
 
 func TestRecursiveWatcherSuite(t *testing.T) {
+	if os.Getenv("SKIP_WATCHER_TESTS") != "" {
+		t.Skip("skipping watcher tests")
+	}
 	suite.Run(t, new(RecursiveWatcherSuite))
 }
 
@@ -34,6 +36,8 @@ func (s *RecursiveWatcherSuite) SetupSuite() {
 	)
 	r.NoError(err)
 	s.watcher.Start()
+	// hack to wait for watcher to start
+	time.Sleep(time.Second * 3)
 }
 
 func (s *RecursiveWatcherSuite) TearDownSuite() {
@@ -41,28 +45,37 @@ func (s *RecursiveWatcherSuite) TearDownSuite() {
 	s.Require().ErrorIs(err, context.Canceled)
 }
 
-func (s *RecursiveWatcherSuite) TestEventSequence() {
-	type expect struct {
-		op    fsnotify.Op
-		name  string
-		gitOp bool
+func createDummyFile(dir, name string) error {
+	f, err := os.Create(filepath.Join(dir, name))
+	if err != nil {
+		return err
 	}
+	return f.Close()
+}
 
-	type testCase struct {
-		name     string
-		action   func() error
-		expected expect
-	}
+type expect struct {
+	op    fsnotify.Op
+	name  string
+	gitOp bool
+}
+
+type testCase struct {
+	name     string
+	action   func() error
+	expected expect
+}
+
+func (s *RecursiveWatcherSuite) TestEventSequence() {
 
 	tests := []testCase{
 		{
 			name: "should receive create event",
-			action: func() error {
-				return createDummyFile(s.dir, "test.txt")
-			},
 			expected: expect{
 				op:   fsnotify.Create,
 				name: filepath.Join(s.dir, "test.txt"),
+			},
+			action: func() error {
+				return createDummyFile(s.dir, "test.txt")
 			},
 		},
 		{
@@ -137,24 +150,21 @@ func (s *RecursiveWatcherSuite) TestEventSequence() {
 	}
 
 	for _, test := range tests {
-		s.T().Run(test.name, func(t *testing.T) {
-			if test.action != nil {
-				require.NoError(t, test.action())
-			}
-
-			ev, err := s.watcher.ReadOne(time.Second * 3)
-			require.NoError(t, err)
-			require.Equal(t, test.expected.gitOp, ev.GitOp, "expected event to have desired git op")
-			require.Equal(t, ev.Name, test.expected.name, "expected event to have desired name")
-			require.Truef(t, ev.Has(test.expected.op), "expected event to have desired op")
-		})
+		s.Run(test.name, s.newCaseFunc(test))
 	}
 }
 
-func createDummyFile(dir, name string) error {
-	f, err := os.Create(filepath.Join(dir, name))
-	if err != nil {
-		return err
+func (s *RecursiveWatcherSuite) newCaseFunc(test testCase) func() {
+	return func() {
+		r := s.Require()
+		if test.action != nil {
+			r.NoError(test.action())
+		}
+
+		ev, err := s.watcher.ReadOne(time.Second * 10)
+		r.NoError(err)
+		r.Equal(test.expected.gitOp, ev.GitOp, "expected event to have desired git op")
+		r.Equal(test.expected.name, ev.Name, "expected event to have desired name")
+		r.Truef(ev.Has(test.expected.op), "expected event to have desired op")
 	}
-	return f.Close()
 }

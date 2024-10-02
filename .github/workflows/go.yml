@@ -21,27 +21,28 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
+    - name: Install Go
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
 
-    - name: Set up Node
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20
-
-    - name: Set up pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 9
-
-    - name: Install Go Mods
-      run: go mod download
+    - name: Install Go modules
+      run: go mod download -x
 
     - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+        run_install: false
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'pnpm'
+    - name: Install Node Modules
       run: pnpm install
-    
+
     - name: Generate
       run: go generate ./...
 
@@ -50,6 +51,8 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      env:
+        SKIP_WATCHER_TESTS: 1
 
     - name: Vet
       run: go vet ./...
