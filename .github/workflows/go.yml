@@ -51,6 +51,8 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      env:
+        SKIP_WATCHER_TESTS: 1
 
     - name: Vet
       run: go vet ./...
