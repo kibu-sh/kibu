@@ -1,0 +1,33 @@
+---
+title: Project Structure
+description: TODO
+---
+import { FileTree } from '@astrojs/starlight/components';
+
+This is our recommended project structure.
+While kibu doesn't enforce this specific structure, we recommend this for long term maintainability.
+
+<FileTree>
+  - docker-compose.core.yaml
+  - docker-compose.yaml
+  - go.mod
+  - go.sum
+  - kibu.go
+  - src/
+    - backend/
+      - cmd/
+        - server/ this is where your main.go lives
+      - database/
+        - migrations/
+        - models/
+        - queries/
+      - systems/
+        - billingv1/
+          - **billingv1.go** your interfaces go here
+          - activities/ implementations go in these subdirectories
+          - services/
+          - workflows/
+        - ... many more systems
+      - gen/
+        - kibuwire/ kibu generates a wire super set
+</FileTree>

@@ -1,0 +1,119 @@
+---
+title: Getting Started
+description: Quickly get started with Kibu
+slug: guides/getting-started
+sidebar:
+    order: 0
+    label: Getting Started
+---
+import { Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="Kibu is in Alpha">
+  Discern has been using Kibu since 2022.
+  We're excited to share this with the community.
+
+  Please keep in mind that we are actively porting this code from a closed source repo.
+  Part of this project is implementing new features that we want for ourselves and are excited to build with the community.
+
+  Until we reach a public 1.0 release, these guides may change in backwards incompatible ways.
+</Aside>
+
+# I want to skip the tutorial
+If you're eager to see the outcome of this tutorial,
+jump straight to our [templates' repo](https://github.com/kibu-sh/templates).
+
+
+# Starting from scratch
+<Steps>
+
+1. Start a new go project
+
+   ```shell
+   mkdir example
+   cd example
+   go mod init example
+   ```
+
+2. Install kibu's base tool chain
+
+    ```shell
+    go install github.com/google/wire/cmd/wire@latest
+    go install github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/cmd/kibugenv2@main
+    go install github.com/kibu-sh/kibu/internal/toolchain/kibuwire/cmd/kibuwire@main
+    ```
+
+3. Jump start the project structure
+    ```shell
+    # this will be our code generation entrypoint
+    touch generate.go
+
+    # we need a place to put our first service
+    mkdir -p src/backend/systems/health/services
+    touch src/backend/systems/health/health.go
+    ```
+</Steps>
+
+
+## Let's write a simple service interface in Kibu
+
+`src/backend/systems/health/health.go`
+
+```go
+package health
+
+import (
+	"context"
+)
+
+type CheckRequest struct {}
+
+type CheckResponse struct {
+  Message string `json:"message"`
+}
+
+// Activities stub until bug is fixed
+//kibu:activity
+type Activities interface{}
+
+// Service checks the health of the entire system
+//
+//kibu:service
+type Service interface {
+  // Check returns a message letting us know the service is alive
+  //
+  //kibu:service:method method=GET
+  Check(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
+}
+```
+
+## Now, generate some plumbing
+
+`generate.go`
+```go
+package generate
+
+// analyze each module and generate system plumbing code
+//go:generate kibugenv2 ./...
+
+// execute a second pass to generate wire superset
+//go:generate kibuwire ./...
+```
+
+```shell
+go generate generate.go
+```
+
+Two new files have manifested
+System plumbing for the interfaces we defined.
+`src/backend/systems/health/health.gen.go`
+
+A managed wire superset of all the `//kibu:provider` directives in the system.
+At scale, kibu makes managing wire sets a breeze across hundreds of services.
+`kibuwire/kibuwire.gen.go`
+
+
+<Aside type="note" title="Stay Tuned">
+  We will be pushing updates to these docs and tutorials daily.
+  Keep up over on our [Discord](https://discord.gg/5sga863FVB) to stay up to date.
+</Aside>

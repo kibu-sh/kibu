@@ -1,0 +1,44 @@
+{
+  "name": "kibu",
+  "private": true,
+  "scripts": {
+    "lint": "eslint '{**/*,*}.{js,ts,jsx,tsx,vue}'",
+    "lint:fix": "pnpm run lint --fix",
+    "clean:modules": "find ./ -type d -name \"node_modules\" | xargs rm -rf \"{}\""
+  },
+  "author": "hello@kibu.sh",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "dependencies": {
+    "@types/react-syntax-highlighter": "^15.5.7",
+    "@remix-run/eslint-config": "^1.16.1",
+    "@tailwindcss/forms": "^0.5.3",
+    "@types/jest": "^29.5.2",
+    "@types/node": "^18.16.16",
+    "eslint-config-next": "13.1.1",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "prettier": "^2.8.8",
+    "prettier-plugin-tailwindcss": "^0.2.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.2.2",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.3",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "vite": "^4.4.5"
+  },
+  "workspaces": [
+    "pkg/wiretap/ui/*",
+    "docs/*"
+  ],
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=7"
+  }
+}

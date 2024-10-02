@@ -1,0 +1,3 @@
+packages:
+  - "pkg/wiretap/ui"
+  - "docs"

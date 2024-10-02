@@ -1,0 +1,30 @@
+run:
+  concurrency: 4
+  timeout: 5m
+  issues-exit-code: 2
+  tests: true
+  skip-dirs:
+    - 'vendor'
+    - 'node_modules'
+    - 'src/backend/lib/cdk8s/imports'
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+
+
+# allow underscores in package names
+package-regex: '^[\w-./]+(_[\w-./]+)*$'
+
+linters-settings:
+  revive:
+    rules:
+      - name: var-naming
+
+exclude:
+  - '*.gen.go'
+  - 'src/backend/database/models/*.sql.go'
+  - 'src/backend/database/models/*.gen.go'

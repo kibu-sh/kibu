@@ -1,0 +1,16 @@
+load
+
+-- module.cue --
+package main
+
+#Definition: {
+  Nested: {
+    Names: [{ Name: string }]
+  }
+}
+
+#Definition & {
+ Nested: {
+	Names: [{ Name: "example"}]
+  }
+}
