@@ -1,5 +1,5 @@
 ---
-title: Managing Secrets & Configurations
+title: Secrets & Configurations
 description: TODO
 ---
 

@@ -1,9 +1,11 @@
 ---
 title: Getting Started
 description: Quickly get started with Kibu
+slug: guides/getting-started
+sidebar:
+    order: 0
+    label: Getting Started
 ---
-
-# Getting Started
 
 ## Install
 Install the cli and library by running the following commands in your terminal.
