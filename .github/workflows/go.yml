@@ -26,6 +26,9 @@ jobs:
       with:
         go-version: ${{ matrix.go }}
 
+    - name: Install Go modules
+      run: go mod download -x
+
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
@@ -37,6 +40,8 @@ jobs:
       with:
         node-version: 20
         cache: 'pnpm'
+    - name: Install Node Modules
+      run: pnpm install
 
     - name: Generate
       run: go generate ./...
