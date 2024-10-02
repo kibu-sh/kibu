@@ -1,0 +1,119 @@
+---
+title: Managing Secrets & Configurations
+description: TODO
+---
+
+# Managing Secrets &amp; Configurations
+
+## Introduction
+Eventually, you will need to manage secrets and configurations in your application. 
+This could be API keys, database passwords, or any other sensitive information.
+To complicate things further, you will need to manage different configurations for different environments.
+
+1. How do we use configuration in developement?
+2. How do we promote configuration between environments?
+3. Can we write tests that use secrets and configurations?
+
+## Configuration Store
+Its important to manage configuration regardless of its sensitivity in a secure way.
+Treating all configuration as sensitive information is a good practice.
+
+We provide a set of tools to manage configuration in a secure way.
+### Providers
+TODO: add GCP Example
+TODO: explain devops and releasing builds with secrets (remote vs packaged)
+
+### CLI
+This command will open a file in your editor and wait for it to be released before continuing.
+Try adding some JSON data to the file and saving it.
+```Bash
+export EDITOR="idea -w"
+kibu config edit [KEY] -e [ENV]
+```
+
+```json
+{
+  "message": "Hello, secure!👋"
+}
+```
+
+You'll notice there's a new, encrypted file in your configuration store.
+```
+.kibu/store/config/[ENV]/[KEY].enc.json
+```
+
+```json
+{
+	"EncryptionKey": {
+		"Engine": "gcpkms",
+		"Env": "dev",
+		"Key": "projects/[project]/locations/global/keyRings/[keyring]/cryptoKeys/[key]"
+	},
+	"Data": "[BASE_64_ENCRYPTED_DATA]",
+	"Version": 16268448737260137327,
+	"CreatedAt": "2024-03-01T14:57:33.123252-07:00",
+	"LastModifiedAt": "2024-03-01T14:57:33.123252-07:00"
+}
+```
+
+Now, you can see the contents in your terminal by running
+```Bash
+kibu config get [key] -e [env]
+```
+
+You should see the data we saved when using the edit command.`
+
+### Code (Go)
+You can access these same config objects by using the using the `config.Store` interface.
+
+```go
+package main
+
+import (
+	"context"
+	"github.com/kibu-sh/kibu/pkg/config"
+	"github.com/kibu-sh/kibu/pkg/workspace"
+)
+
+type Custom struct {
+	Message string `json:"message"`
+}
+func LoadConfig(ctx context.Context, store config.Store) (cfg Custom, err error) {
+	_, err = store.GetByKey(ctx,"[key]", &cfg)
+	return
+}
+
+
+
+func main() {
+	ctx := context.Background()
+	store, err := workspace.DefaultConfigStore("[env]")
+	if err != nil {
+		panic(err)
+	}
+	cfg, err := LoadConfig(ctx, store)
+	if err != nil {
+		panic(err)
+	}
+	_ = cfg
+}
+```
+
+
+### Use Your IDE/Editor to edit configuration
+We respect the `EDITOR` environment variable when editing configuration.
+
+Add something like this to your shell profile `$HOME/.zsh_profile`
+
+This example shows checking an environment variable to determine which editor to use.
+IDEA will set this variable in your environment when a shell session is started.
+Otherwise, we'll fall back to using neovim.
+
+ 
+```Bash
+if [ -n "$IDEA_INITIAL_DIRECTORY" ]; then
+  export EDITOR="idea -w"
+else
+  export EDITOR="nvim"
+fi
+```

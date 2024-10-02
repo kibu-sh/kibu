@@ -1,1 +1,0 @@
-https://spiral.dev/ (as inspiration)
