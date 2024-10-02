@@ -1,5 +1,9 @@
 import starlightPlugin from '@astrojs/starlight-tailwind'
 
+const kibu = {
+  light: '#CBF2AE',
+}
+
 // Generated color palettes
 const accent = {
   200: '#878885', // dark accent
@@ -24,17 +28,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        kibu,
         // Your preferred accent color. Indigo is closest to Starlight’s defaults.
         accent,
         // Your preferred gray scale. Zinc is closest to Starlight’s defaults.
         gray,
       },
-      fontFamily: {
-        // Your preferred text font. Starlight uses a system font stack by default.
-        sans: ['"Atkinson Hyperlegible"'],
-        // Your preferred code font. Starlight uses system monospace fonts by default.
-        mono: ['"IBM Plex Mono"'],
-      },
+      // fontFamily: {
+      //   // Your preferred text font. Starlight uses a system font stack by default.
+      //   sans: ['"Atkinson Hyperlegible"'],
+      //   // Your preferred code font. Starlight uses system monospace fonts by default.
+      //   mono: ['"IBM Plex Mono"'],
+      // },
     },
   },
   plugins: [starlightPlugin()],

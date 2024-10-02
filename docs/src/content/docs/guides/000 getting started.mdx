@@ -7,6 +7,23 @@ sidebar:
     label: Getting Started
 ---
 
+
+import { Steps } from '@astrojs/starlight/components';
+
+<Steps>
+
+1. Import the component into your MDX file:
+
+   ```js
+   import { Steps } from '@astrojs/starlight/components';
+   ```
+
+2. Wrap `<Steps>` around your ordered list items.
+
+</Steps>
+
+
+
 ## Install
 Install the cli and library by running the following commands in your terminal.
 ```bash
@@ -42,9 +59,3 @@ touch src/backend/systems/health/healthspec/health_dto.go
 ```
 
 Once the wire.go and wire_set.go files have been created cd into the server directory and run wire once.
-
-## Further reading
-
-- Read [about how-to guides](https://diataxis.fr/how-to-guides/) in the Diátaxis framework
-
-https://spiral.dev/ (as inspiration)
