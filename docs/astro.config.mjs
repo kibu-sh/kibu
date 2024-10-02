@@ -14,6 +14,9 @@ export default defineConfig({
         dark: './src/assets/logo dark.svg',
         light: './src/assets/logo light.svg',
       },
+      editLink: {
+        baseUrl: 'https://github.com/kibu-sh/kibu/edit/main/docs',
+      },
       social: {
         github: 'https://github.com/kibu-sh/kibu',
         youtube: 'https://www.youtube.com/@kibu-sh',
