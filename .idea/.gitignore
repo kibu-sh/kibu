@@ -9,3 +9,5 @@
 kubernetes-settings.xml
 # GitHub Copilot persisted chat sessions
 /copilot/chatSessions
+/php.xml
+/misc.xml
