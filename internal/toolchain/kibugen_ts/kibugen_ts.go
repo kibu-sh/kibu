@@ -114,9 +114,14 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 		return
 	}
 
-	sb.WriteString("export interface ")
+	for i := 0; i < underlying.NumFields(); i++ {
+		field := underlying.Field(i)
+		generateNestedTypes(sb, ctx, field.Type())
+	}
+
+	sb.WriteString("export type ")
 	sb.WriteString(typeName)
-	sb.WriteString(" {\n")
+	sb.WriteString(" = {\n")
 
 	for i := 0; i < underlying.NumFields(); i++ {
 		field := underlying.Field(i)
@@ -135,6 +140,64 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 	}
 
 	sb.WriteString("}\n\n")
+}
+
+func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
+	switch t := typ.(type) {
+	case *types.Pointer:
+		generateNestedTypes(sb, ctx, t.Elem())
+	case *types.Slice:
+		generateNestedTypes(sb, ctx, t.Elem())
+	case *types.Array:
+		generateNestedTypes(sb, ctx, t.Elem())
+	case *types.Map:
+		generateNestedTypes(sb, ctx, t.Key())
+		generateNestedTypes(sb, ctx, t.Elem())
+	case *types.Named:
+		obj := t.Obj()
+		if obj.Pkg() == nil || obj.Pkg() != ctx.pkg.GoPkg {
+			return
+		}
+
+		typeName := obj.Name()
+		if ctx.generatedTypes[typeName] {
+			return
+		}
+
+		underlying, ok := t.Underlying().(*types.Struct)
+		if !ok {
+			return
+		}
+
+		ctx.generatedTypes[typeName] = true
+
+		for i := 0; i < underlying.NumFields(); i++ {
+			field := underlying.Field(i)
+			generateNestedTypes(sb, ctx, field.Type())
+		}
+
+		sb.WriteString("export type ")
+		sb.WriteString(typeName)
+		sb.WriteString(" = {\n")
+
+		for i := 0; i < underlying.NumFields(); i++ {
+			field := underlying.Field(i)
+			tag := underlying.Tag(i)
+
+			jsonName := getJSONFieldName(field.Name(), tag)
+			if jsonName == "-" {
+				continue
+			}
+
+			sb.WriteString("  ")
+			sb.WriteString(jsonName)
+			sb.WriteString(": ")
+			writeGoTypeAsTS(sb, ctx, field.Type())
+			sb.WriteString("\n")
+		}
+
+		sb.WriteString("}\n\n")
+	}
 }
 
 func writeTypeName(sb *strings.Builder, ctx *genContext, typ modspecv2.Type) {

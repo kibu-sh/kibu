@@ -2,12 +2,17 @@ package health
 
 import "context"
 
+type Status struct {
+	Code string `json:"code"`
+}
+
 type CheckRequest struct {
 	Name string `json:"name"`
 }
 
 type CheckResponse struct {
-	Status string `json:"status"`
+	Value  string `json:"value"`
+	Status Status `json:"status"`
 }
 
 //kibu:service
