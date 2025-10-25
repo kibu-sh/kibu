@@ -2,6 +2,11 @@ package wiretap
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/kibu-sh/kibu/pkg/messaging"
 	"github.com/kibu-sh/kibu/pkg/wiretap/internal/internalmock"
 	"github.com/kibu-sh/kibu/pkg/wiretap/internal/spec"
@@ -9,10 +14,6 @@ import (
 	"github.com/kibu-sh/kibu/pkg/wiretap/rules/requestrules"
 	"github.com/kibu-sh/kibu/pkg/wiretap/stores/archive"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 type WiretapSuite struct {
