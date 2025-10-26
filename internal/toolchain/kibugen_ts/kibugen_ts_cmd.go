@@ -3,6 +3,7 @@ package kibugen_ts
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -51,17 +52,40 @@ func Main() (int, error) {
 	if err != nil {
 		return 1, errors.Join(err, errors.New("failed to run pipeline"))
 	}
-	_ = results
-	_ = pkgs
 
-	//wireModPrefix := strings.TrimPrefix(genDir, pkgs[0].Module.Dir)
-	//providerArtifacts := modspecv2.GatherResults[*Artifact](results)
-	//wiremod := buildKibuWireModule(wireModPrefix, providerArtifacts)
-	//artifacts := modspecv2.GatherResults[modspecv2.Artifact](results)
-	//artifacts = append(artifacts, wiremod)
-	//_, err = modspecv2.SaveArtifacts(pkgs[0].Module, artifacts)
-	//if err != nil {
-	//	return 1, errors.Join(err, errors.New("failed to save artifacts"))
-	//}
+	if len(pkgs) == 0 {
+		return 1, errors.New("no packages found")
+	}
+
+	moduleDir := pkgs[0].Module.Dir
+	artifacts := gatherArtifacts(results)
+
+	for _, artifact := range artifacts {
+		outPath := filepath.Join(moduleDir, artifact.OutputPath())
+		outDir := filepath.Dir(outPath)
+
+		if err := os.MkdirAll(outDir, 0755); err != nil {
+			return 1, errors.Join(err, fmt.Errorf("failed to create directory %s", outDir))
+		}
+
+		if err := os.WriteFile(outPath, []byte(artifact.Contents()), 0644); err != nil {
+			return 1, errors.Join(err, fmt.Errorf("failed to write file %s", outPath))
+		}
+
+		fmt.Printf("Generated: %s\n", outPath)
+	}
+
 	return 0, nil
+}
+
+func gatherArtifacts(results []*analysis.Pass) []*artifact {
+	var artifacts []*artifact
+	for _, pass := range results {
+		for _, result := range pass.ResultOf {
+			if artifact, ok := result.(*artifact); ok {
+				artifacts = append(artifacts, artifact)
+			}
+		}
+	}
+	return artifacts
 }

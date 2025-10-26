@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
@@ -13,16 +15,42 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+var resultType = reflect.TypeOf((Artifact)(nil))
+
 var Analyzer = &analysis.Analyzer{
-	Name:     "kibugen_ts",
-	Doc:      "Analyzes go source code for kibu services and generates typescript",
-	Requires: []*analysis.Analyzer{kibumod.Analyzer},
-	//ResultType:       resultType,
+	Name:             "kibugen_ts",
+	Doc:              "Analyzes go source code for kibu services and generates typescript",
+	Requires:         []*analysis.Analyzer{kibumod.Analyzer},
+	ResultType:       resultType,
 	RunDespiteErrors: true,
 	Run:              run,
 }
 
 var missingPackageError = errors.New("missing result of kibugen_ts analyzer")
+
+type Artifact interface {
+	Contents() string
+	OutputPath() string
+}
+
+type artifact struct {
+	contents string
+	pass     *analysis.Pass
+}
+
+func (a *artifact) Contents() string {
+	return a.contents
+}
+
+func (a *artifact) OutputPath() string {
+	relPath := modspecv2.RelPathFromPass(a.pass)
+	return filepath.Join(relPath, a.pass.Pkg.Name()+".gen.ts")
+}
+
+func FromPass(pass *analysis.Pass) (Artifact, bool) {
+	result, ok := pass.ResultOf[Analyzer].(*artifact)
+	return result, ok
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	pkg, ok := kibumod.FromPass(pass)
@@ -34,9 +62,12 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	_ = GenerateTypeScript(pkg)
+	contents := GenerateTypeScript(pkg)
 
-	return nil, nil
+	return &artifact{
+		contents: contents,
+		pass:     pass,
+	}, nil
 }
 
 func GenerateTypeScript(pkg *modspecv2.Package) string {
