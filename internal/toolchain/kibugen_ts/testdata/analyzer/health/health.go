@@ -18,7 +18,13 @@ type CheckResponse struct {
 }
 
 //kibu:service
-type Service interface {
+type ServiceV1 interface {
+	//kibu:service:method method=GET
+	Check(ctx context.Context, req *CheckRequest) (res *CheckResponse, err error)
+}
+
+//kibu:service
+type ServiceV2 interface {
 	//kibu:service:method method=GET
 	Check(ctx context.Context, req *CheckRequest) (res *CheckResponse, err error)
 }
