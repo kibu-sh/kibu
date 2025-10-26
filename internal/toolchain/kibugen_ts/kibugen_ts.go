@@ -94,6 +94,10 @@ type genContext struct {
 }
 
 func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) {
+	if !svc.Decorators.Some(decorators.HasPrefix("kibu:service")) {
+		return
+	}
+
 	for _, op := range svc.Operations {
 		if len(op.Params) >= 2 && len(op.Results) >= 1 {
 			writeTypeDefinition(sb, ctx, op.Params[1])
