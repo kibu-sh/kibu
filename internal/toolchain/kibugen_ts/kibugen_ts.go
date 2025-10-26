@@ -81,6 +81,7 @@ func GenerateTypeScript(pkg *modspecv2.Package) string {
 	ctx := &genContext{
 		pkg:            pkg,
 		generatedTypes: make(map[string]bool),
+		serviceFns:     make([]string, 0),
 	}
 
 	sb.WriteString("import type { HTTPClient } from './client'\n\n")
@@ -89,12 +90,15 @@ func GenerateTypeScript(pkg *modspecv2.Package) string {
 		writeService(&sb, ctx, svc)
 	}
 
+	writeNamespaceExport(&sb, ctx, pkg)
+
 	return sb.String()
 }
 
 type genContext struct {
 	pkg            *modspecv2.Package
 	generatedTypes map[string]bool
+	serviceFns     []string
 }
 
 func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) {
@@ -110,7 +114,9 @@ func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) 
 	}
 
 	serviceFnName := "create" + svc.Name
-	sb.WriteString("export function ")
+	ctx.serviceFns = append(ctx.serviceFns, serviceFnName)
+
+	sb.WriteString("function ")
 	sb.WriteString(serviceFnName)
 	sb.WriteString("(c: HTTPClient) {\n")
 	sb.WriteString("  return {\n")
@@ -120,7 +126,7 @@ func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) 
 	}
 
 	sb.WriteString("  }\n")
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 }
 
 func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service, op *modspecv2.Operation) {
@@ -186,7 +192,7 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 		generateNestedTypes(sb, ctx, field.Type())
 	}
 
-	sb.WriteString("export type ")
+	sb.WriteString("type ")
 	sb.WriteString(typeName)
 	sb.WriteString(" = {\n")
 
@@ -396,4 +402,27 @@ func getJSONFieldName(fieldName, tag string) string {
 	}
 
 	return fieldName
+}
+
+func writeNamespaceExport(sb *strings.Builder, ctx *genContext, pkg *modspecv2.Package) {
+	if len(ctx.serviceFns) == 0 {
+		return
+	}
+
+	namespaceName := pkg.Name
+	if len(namespaceName) > 0 {
+		namespaceName = strings.ToLower(string(namespaceName[0])) + namespaceName[1:]
+	}
+
+	sb.WriteString("export const ")
+	sb.WriteString(namespaceName)
+	sb.WriteString(" = {\n")
+
+	for _, fnName := range ctx.serviceFns {
+		sb.WriteString("  ")
+		sb.WriteString(fnName)
+		sb.WriteString(",\n")
+	}
+
+	sb.WriteString("}\n")
 }

@@ -29,15 +29,15 @@ type Service interface {
 -- exp/healthv1.gen.ts --
 import type { HTTPClient } from './client'
 
-export type CheckRequest = {
+type CheckRequest = {
   name: string
 }
 
-export type CheckResponse = {
+type CheckResponse = {
   status: string
 }
 
-export function createService(c: HTTPClient) {
+function createService(c: HTTPClient) {
   return {
     async check(req: CheckRequest): Promise<CheckResponse> {
       return c.request({
@@ -54,4 +54,8 @@ export function createService(c: HTTPClient) {
       })
     },
   }
+}
+
+export const healthv1 = {
+  createService,
 }
