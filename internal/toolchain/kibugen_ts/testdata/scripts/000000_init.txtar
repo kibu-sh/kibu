@@ -1,7 +1,5 @@
 kibugen_ts -cwd $WORK/src/backend/ -out $WORK/src/backend/gen/ ./...
-exists $WORK/src/backend/healthv1/healthv1.gen.ts
-grep 'export function createService' $WORK/src/backend/healthv1/healthv1.gen.ts
-grep 'import type { HTTPClient }' $WORK/src/backend/healthv1/healthv1.gen.ts
+cmp $WORK/exp/healthv1.gen.ts $WORK/src/backend/healthv1/healthv1.gen.ts
 
 -- src/go.mod --
 module github.com/example/module
@@ -23,4 +21,27 @@ type CheckResponse struct {
 type Service interface {
 	//kibu:service:method method=GET path=/health/check
 	Check(ctx context.Context, req *CheckRequest) (res *CheckResponse, err error)
+}
+
+-- exp/healthv1.gen.ts --
+import type { HTTPClient } from './client'
+
+export type CheckRequest = {
+  name: string
+}
+
+export type CheckResponse = {
+  status: string
+}
+
+export function createService(c: HTTPClient) {
+  return {
+    async check(req: CheckRequest): Promise<CheckResponse> {
+      return c.request({
+        method: 'GET',
+        pathname: '/health/check',
+        data: req,
+      })
+    },
+  }
 }
