@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -46,7 +45,12 @@ func (a *artifact) Contents() string {
 
 func (a *artifact) OutputPath() string {
 	relPath := modspecv2.RelPathFromPass(a.pass)
-	return filepath.Join(relPath, a.pass.Pkg.Name()+".gen.ts")
+	relPath = strings.TrimPrefix(relPath, "/")
+	normalizedPath := strings.ReplaceAll(relPath, "/", "_")
+	if normalizedPath == "" {
+		normalizedPath = a.pass.Pkg.Name()
+	}
+	return normalizedPath + ".gen.ts"
 }
 
 func FromPass(pass *analysis.Pass) (Artifact, bool) {

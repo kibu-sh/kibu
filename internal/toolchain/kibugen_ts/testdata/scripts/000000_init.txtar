@@ -1,5 +1,5 @@
 kibugen_ts -cwd $WORK/src/backend/ -out $WORK/gen/ ./...
-cmp $WORK/exp/healthv1.gen.ts $WORK/gen/kibugen_ts/backend/healthv1/healthv1.gen.ts
+cmp $WORK/exp/healthv1.gen.ts $WORK/gen/kibugen_ts/backend_healthv1.gen.ts
 
 -- src/go.mod --
 module github.com/example/module
