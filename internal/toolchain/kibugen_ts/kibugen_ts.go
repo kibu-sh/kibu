@@ -1,10 +1,12 @@
 package kibugen_ts
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
 
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 	"github.com/pkg/errors"
@@ -44,6 +46,8 @@ func GenerateTypeScript(pkg *modspecv2.Package) string {
 		generatedTypes: make(map[string]bool),
 	}
 
+	sb.WriteString("import type { HTTPClient } from './client'\n\n")
+
 	for _, svc := range pkg.Services {
 		writeService(&sb, ctx, svc)
 	}
@@ -64,18 +68,21 @@ func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) 
 		}
 	}
 
-	sb.WriteString("export type ")
-	sb.WriteString(svc.Name)
-	sb.WriteString(" = {\n")
+	serviceFnName := "create" + svc.Name
+	sb.WriteString("export function ")
+	sb.WriteString(serviceFnName)
+	sb.WriteString("(c: HTTPClient) {\n")
+	sb.WriteString("  return {\n")
 
 	for _, op := range svc.Operations {
-		writeServiceOperation(sb, ctx, op)
+		writeServiceOperation(sb, ctx, svc, op)
 	}
 
+	sb.WriteString("  }\n")
 	sb.WriteString("}\n")
 }
 
-func writeServiceOperation(sb *strings.Builder, ctx *genContext, op *modspecv2.Operation) {
+func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service, op *modspecv2.Operation) {
 	if len(op.Params) != 2 || len(op.Results) != 2 {
 		return
 	}
@@ -83,13 +90,32 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, op *modspecv2.O
 	req := op.Params[1]
 	res := op.Results[0]
 
-	sb.WriteString("  ")
-	sb.WriteString(op.Name)
+	methodDecorator, _ := op.Decorators.Find(decorators.HasPrefix("kibu:service:method"))
+	httpMethod, _ := methodDecorator.Options.GetOne("method", "POST")
+	path, _ := methodDecorator.Options.GetOne("path", fmt.Sprintf("/%s/%s", strings.ToLower(svc.Name), op.Name))
+
+	funcName := op.Name
+	if len(funcName) > 0 {
+		funcName = strings.ToLower(string(funcName[0])) + funcName[1:]
+	}
+
+	sb.WriteString("    async ")
+	sb.WriteString(funcName)
 	sb.WriteString("(req: ")
 	writeTypeName(sb, ctx, req)
 	sb.WriteString("): Promise<")
 	writeTypeName(sb, ctx, res)
-	sb.WriteString(">\n")
+	sb.WriteString("> {\n")
+	sb.WriteString("      return c.request({\n")
+	sb.WriteString("        method: '")
+	sb.WriteString(httpMethod)
+	sb.WriteString("',\n")
+	sb.WriteString("        pathname: '")
+	sb.WriteString(path)
+	sb.WriteString("',\n")
+	sb.WriteString("        data: req,\n")
+	sb.WriteString("      })\n")
+	sb.WriteString("    },\n")
 }
 
 func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Type) {

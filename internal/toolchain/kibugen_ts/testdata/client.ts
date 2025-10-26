@@ -1,11 +1,13 @@
 type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
-type JSONRequest<T = unknown> = {
+type HTTPRequest<T = unknown> = {
   method: HTTPMethod
   pathname: string
+  searchParams?: URLSearchParams
+  headers?: Headers
   data?: T
 }
 
-export interface Client {
-  execAsJSON<Req, Res>(request: JSONRequest<Req>): Promise<Res>
+export interface HTTPClient {
+  request<Req, Res>(request: HTTPRequest<Req>): Promise<Res>
 }
