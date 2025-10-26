@@ -57,11 +57,12 @@ func Main() (int, error) {
 		return 1, errors.New("no packages found")
 	}
 
-	moduleDir := pkgs[0].Module.Dir
 	artifacts := gatherArtifacts(results)
 
+
 	for _, artifact := range artifacts {
-		outPath := filepath.Join(moduleDir, artifact.OutputPath())
+		relPath := artifact.OutputPath()
+		outPath := filepath.Join(genDir, "kibugen_ts", relPath)
 		outDir := filepath.Dir(outPath)
 
 		if err := os.MkdirAll(outDir, 0755); err != nil {
@@ -82,8 +83,8 @@ func gatherArtifacts(results []*analysis.Pass) []*artifact {
 	var artifacts []*artifact
 	for _, pass := range results {
 		for _, result := range pass.ResultOf {
-			if artifact, ok := result.(*artifact); ok {
-				artifacts = append(artifacts, artifact)
+			if art, ok := result.(*artifact); ok {
+				artifacts = append(artifacts, art)
 			}
 		}
 	}

@@ -20,7 +20,7 @@ func TestAnalyzer(t *testing.T) {
 	results := analysistest.Run(t, analyzerPath,
 		Analyzer, "./...")
 
-	artifact, ok := results[0].Result.(Artifact)
+	artifact, ok := results[0].Result.(*artifact)
 	require.True(t, ok)
 	require.NotNil(t, artifact)
 	require.NotEmpty(t, artifact.Contents())
@@ -78,11 +78,12 @@ func TestGenerator(t *testing.T) {
 					ts.Fatalf("no packages found")
 				}
 
-				moduleDir := pkgs[0].Module.Dir
 				artifacts := gatherArtifacts(results)
 
+
 				for _, artifact := range artifacts {
-					outPath := filepath.Join(moduleDir, artifact.OutputPath())
+					relPath := artifact.OutputPath()
+					outPath := filepath.Join(genDir, "kibugen_ts", relPath)
 					outDir := filepath.Dir(outPath)
 
 					if err := os.MkdirAll(outDir, 0755); err != nil {
