@@ -80,10 +80,19 @@ func TestGenerator(t *testing.T) {
 
 				artifacts := gatherArtifacts(results)
 
+				outputDir := filepath.Join(genDir, "kibugen_ts")
+				if err := os.MkdirAll(outputDir, 0755); err != nil {
+					ts.Fatalf("failed to create output directory %s: %v", outputDir, err)
+				}
+
+				if err := unpackEmbeddedFiles(outputDir); err != nil {
+					ts.Fatalf("failed to unpack embedded files: %v", err)
+				}
 
 				for _, artifact := range artifacts {
 					relPath := artifact.OutputPath()
-					outPath := filepath.Join(genDir, "kibugen_ts", relPath)
+					outPath := filepath.Join(outputDir, relPath)
+					outPath = filepath.Join(genDir, "kibugen_ts", relPath)
 					outDir := filepath.Dir(outPath)
 
 					if err := os.MkdirAll(outDir, 0755); err != nil {

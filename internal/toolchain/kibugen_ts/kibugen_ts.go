@@ -1,6 +1,7 @@
 package kibugen_ts
 
 import (
+	"embed"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -13,6 +14,10 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/analysis"
 )
+
+//go:embed embedded/*
+var EmbeddedFiles embed.FS
+
 
 var resultType = reflect.TypeOf((*artifact)(nil))
 

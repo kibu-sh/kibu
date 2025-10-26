@@ -59,10 +59,18 @@ func Main() (int, error) {
 
 	artifacts := gatherArtifacts(results)
 
+	outputDir := filepath.Join(genDir, "kibugen_ts")
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return 1, errors.Join(err, fmt.Errorf("failed to create output directory %s", outputDir))
+	}
+
+	if err := unpackEmbeddedFiles(outputDir); err != nil {
+		return 1, errors.Join(err, errors.New("failed to unpack embedded files"))
+	}
 
 	for _, artifact := range artifacts {
 		relPath := artifact.OutputPath()
-		outPath := filepath.Join(genDir, "kibugen_ts", relPath)
+		outPath := filepath.Join(outputDir, relPath)
 		outDir := filepath.Dir(outPath)
 
 		if err := os.MkdirAll(outDir, 0755); err != nil {
@@ -77,6 +85,33 @@ func Main() (int, error) {
 	}
 
 	return 0, nil
+}
+
+func unpackEmbeddedFiles(outputDir string) error {
+	entries, err := EmbeddedFiles.ReadDir("embedded")
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		content, err := EmbeddedFiles.ReadFile(filepath.Join("embedded", entry.Name()))
+		if err != nil {
+			return err
+		}
+
+		outPath := filepath.Join(outputDir, entry.Name())
+		if err := os.WriteFile(outPath, content, 0644); err != nil {
+			return err
+		}
+
+		fmt.Printf("Unpacked: %s\n", outPath)
+	}
+
+	return nil
 }
 
 func gatherArtifacts(results []*analysis.Pass) []*artifact {
