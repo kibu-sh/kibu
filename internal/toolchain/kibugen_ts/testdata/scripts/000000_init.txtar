@@ -20,7 +20,10 @@ type CheckResponse struct {
 //kibu:service
 type Service interface {
 	//kibu:service:method method=GET path=/health/check
-	Check(ctx context.Context, req *CheckRequest) (res *CheckResponse, err error)
+	Check(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
+
+	//kibu:service:method
+	CheckNoDecoratorOptions(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
 }
 
 -- exp/healthv1.gen.ts --
@@ -40,6 +43,13 @@ export function createService(c: HTTPClient) {
       return c.request({
         method: 'GET',
         pathname: '/health/check',
+        data: req,
+      })
+    },
+    async checkNoDecoratorOptions(req: CheckRequest): Promise<CheckResponse> {
+      return c.request({
+        method: 'POST',
+        pathname: '/service/CheckNoDecoratorOptions',
         data: req,
       })
     },
