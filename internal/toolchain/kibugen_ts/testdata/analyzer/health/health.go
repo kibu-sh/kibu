@@ -11,8 +11,10 @@ type CheckRequest struct {
 }
 
 type CheckResponse struct {
-	Value  string `json:"value"`
-	Status Status `json:"status"`
+	Value          string   `json:"value"`
+	Status         Status   `json:"status"`
+	StatusList     []Status `json:"status_list"`
+	OptionalStatus *Status  `json:"optional_status"`
 }
 
 //kibu:service

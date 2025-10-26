@@ -134,8 +134,20 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 
 		sb.WriteString("  ")
 		sb.WriteString(jsonName)
+
+		isPointer := false
+		if _, ok := field.Type().(*types.Pointer); ok {
+			isPointer = true
+			sb.WriteString("?")
+		}
+
 		sb.WriteString(": ")
 		writeGoTypeAsTS(sb, ctx, field.Type())
+
+		if isPointer {
+			sb.WriteString(" | null")
+		}
+
 		sb.WriteString("\n")
 	}
 
@@ -191,8 +203,20 @@ func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
 
 			sb.WriteString("  ")
 			sb.WriteString(jsonName)
+
+			isPointer := false
+			if _, ok := field.Type().(*types.Pointer); ok {
+				isPointer = true
+				sb.WriteString("?")
+			}
+
 			sb.WriteString(": ")
 			writeGoTypeAsTS(sb, ctx, field.Type())
+
+			if isPointer {
+				sb.WriteString(" | null")
+			}
+
 			sb.WriteString("\n")
 		}
 
