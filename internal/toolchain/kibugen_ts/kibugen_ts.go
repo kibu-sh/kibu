@@ -15,7 +15,16 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var resultType = reflect.TypeOf((Artifact)(nil))
+var resultType = reflect.TypeOf((*artifact)(nil))
+
+type Artifact interface {
+	Contents() string
+	OutputPath() string
+}
+
+var _ Artifact = (*artifact)(nil)
+
+var missingPackageError = errors.New("missing result of kibugen_ts analyzer")
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "kibugen_ts",
@@ -24,13 +33,6 @@ var Analyzer = &analysis.Analyzer{
 	ResultType:       resultType,
 	RunDespiteErrors: true,
 	Run:              run,
-}
-
-var missingPackageError = errors.New("missing result of kibugen_ts analyzer")
-
-type Artifact interface {
-	Contents() string
-	OutputPath() string
 }
 
 type artifact struct {
