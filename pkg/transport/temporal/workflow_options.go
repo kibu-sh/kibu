@@ -1,10 +1,11 @@
 package temporal
 
 import (
+	"time"
+
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
-	"time"
 
 	"go.temporal.io/sdk/workflow"
 )
@@ -219,7 +220,6 @@ func (b WorkflowOptionsBuilder) AsStartOptions() client.StartWorkflowOptions {
 		StartDelay:                               b.startDelay,
 		StaticSummary:                            b.staticSummary,
 		StaticDetails:                            b.staticDetails,
-		WithStartOperation:                       b.withStartOperation,
 	}
 }
 
