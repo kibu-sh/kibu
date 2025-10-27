@@ -17,7 +17,7 @@ export type FetchClientParams = {
   headers?: Headers
   integrity?: string
   keepalive?: boolean
-  redirect: 'error' | 'follow' | 'manual'
+  redirect?: 'error' | 'follow' | 'manual'
   credentials?: 'include' | 'omit' | 'same-origin'
   mode?: 'cors' | 'navigate' | 'no-cors' | 'same-origin'
   cache?:
@@ -27,7 +27,7 @@ export type FetchClientParams = {
     | 'no-store'
     | 'only-if-cached'
     | 'reload'
-  referrerPolicy:
+  referrerPolicy?:
     | ''
     | 'no-referrer'
     | 'no-referrer-when-downgrade'

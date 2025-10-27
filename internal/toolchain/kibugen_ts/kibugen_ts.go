@@ -18,7 +18,6 @@ import (
 //go:embed embedded/*
 var EmbeddedFiles embed.FS
 
-
 var resultType = reflect.TypeOf((*artifact)(nil))
 
 type Artifact interface {
@@ -352,11 +351,20 @@ func writeGoTypeAsTS(sb *strings.Builder, ctx *genContext, typ types.Type) {
 		sb.WriteString(">")
 	case *types.Named:
 		obj := t.Obj()
-		if obj.Pkg() != nil && obj.Pkg() != ctx.pkg.GoPkg {
-			sb.WriteString(obj.Pkg().Name())
-			sb.WriteString(".")
+		// Handle uuid.UUID as string
+		if obj.Pkg() != nil && obj.Pkg().Path() == "github.com/google/uuid" && obj.Name() == "UUID" {
+			sb.WriteString("string")
+			return
 		}
-		sb.WriteString(obj.Name())
+		//// Handle types from other packages
+		//if obj.Pkg() != nil && obj.Pkg() != ctx.pkg.GoPkg {
+		//	sb.WriteString(obj.Pkg().Name())
+		//	sb.WriteString(".")
+		//}
+		//sb.WriteString(obj.Name())
+
+		sb.WriteString("any")
+		return
 	default:
 		sb.WriteString("any")
 	}

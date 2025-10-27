@@ -1,3 +1,4 @@
+env GOPROXY=direct
 kibugen_ts -cwd $WORK/src/backend/ -out $WORK/gen/ ./...
 cmp $WORK/exp/healthv1.gen.ts $WORK/gen/kibugen_ts/backend_healthv1.gen.ts
 exists $WORK/gen/kibugen_ts/client.ts
@@ -5,17 +6,30 @@ exists $WORK/gen/kibugen_ts/client.ts
 -- src/go.mod --
 module github.com/example/module
 
+go 1.25
+
+require github.com/google/uuid v1.6.0
+
+-- src/go.sum --
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+
 -- src/backend/healthv1/health.go --
 package healthv1
 
-import "context"
+import (
+	"context"
+	"github.com/google/uuid"
+)
 
 type CheckRequest struct {
 	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
 }
 
 type CheckResponse struct {
 	Status string `json:"status"`
+	UUID   uuid.UUID `json:"uuid"`
 }
 
 //kibu:service
@@ -32,10 +46,12 @@ import type { HTTPClient } from './client'
 
 type CheckRequest = {
   name: string
+  id: string
 }
 
 type CheckResponse = {
   status: string
+  uuid: string
 }
 
 function createService(c: HTTPClient) {
