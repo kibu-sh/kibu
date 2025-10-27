@@ -50,7 +50,7 @@ function createService(c: HTTPClient) {
     async checkNoDecoratorOptions(req: CheckRequest): Promise<CheckResponse> {
       return c.request({
         method: 'POST',
-        pathname: '/service/CheckNoDecoratorOptions',
+        pathname: '/healthv1/Service/CheckNoDecoratorOptions',
         data: req,
       })
     },

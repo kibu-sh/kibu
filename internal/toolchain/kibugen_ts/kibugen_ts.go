@@ -144,7 +144,7 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 
 	methodDecorator, _ := op.Decorators.Find(decorators.HasPrefix("kibu:service:method"))
 	httpMethod, _ := methodDecorator.Options.GetOne("method", "POST")
-	path, _ := methodDecorator.Options.GetOne("path", fmt.Sprintf("/%s/%s", strings.ToLower(svc.Name), op.Name))
+	path, _ := methodDecorator.Options.GetOne("path", fmt.Sprintf("/%s/%s/%s", ctx.pkg.Name, svc.Name, op.Name))
 
 	funcName := op.Name
 	if len(funcName) > 0 {
