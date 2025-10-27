@@ -439,7 +439,7 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 						// TODO: warn on analysis pass that there's a duplicate path detected
 						// 	this is due to multiple Service interfaces defined in the same Package
 						path, _ := methodDecorator.Options.GetOne("path",
-							fmt.Sprintf("/%s/%s", pkg.Name, op.Name))
+							fmt.Sprintf("/%s/%s/%s", pkg.Name, svc.Name, op.Name))
 
 						// TODO: support more than one method per service call
 						//  although this usually should be POST since JSON serialization will be most common

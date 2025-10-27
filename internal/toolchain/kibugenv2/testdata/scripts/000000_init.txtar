@@ -475,7 +475,7 @@ type ServiceController struct {
 
 func (svc *ServiceController) HTTPHandlerFactory(_ *middleware.Registry) []*httpx.Handler {
 	return []*httpx.Handler{
-		httpx.NewHandler("/billingv1/WatchAccount", transport.NewEndpoint(svc.Service.WatchAccount)).WithMethods("POST"),
+		httpx.NewHandler("/billingv1/Service/WatchAccount", transport.NewEndpoint(svc.Service.WatchAccount)).WithMethods("POST"),
 	}
 }
 
