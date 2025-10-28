@@ -39,15 +39,28 @@ export type FetchClientParams = {
     | 'unsafe-url'
 }
 
+function cannotHaveBody(method: HTTPMethod) {
+  return ['GET', 'HEAD'].includes(method)
+}
+
+function hasSuccessStatusCode(status: number) {
+  return status >= 200 && status < 300
+}
+
 function asJSON(request: HTTPRequest) {
+  if (cannotHaveBody(request.method)) return undefined
   return request.data ? JSON.stringify(request.data) : undefined
 }
+
+const applicationJSON = 'application/json'
 
 export function createFetchClient(init: FetchClientParams): HTTPClient {
   return {
     async request<ReqT, ResT>(request: HTTPRequest<ReqT>): Promise<ResT> {
       const url = new URL(request.pathname, init.baseUrl)
       const headers = new Headers(init.headers)
+      headers.set('Accept', applicationJSON)
+      headers.set('Content-Type', applicationJSON)
 
       request.searchParams?.forEach((value, key) => {
         url.searchParams.append(key, value)
@@ -71,6 +84,13 @@ export function createFetchClient(init: FetchClientParams): HTTPClient {
       })
 
       const data = await res.json()
+
+      if (!hasSuccessStatusCode(res.status)) {
+        throw new Error(
+          `Request failed with status ${res.status} ${JSON.stringify(data)}`,
+        )
+      }
+
       return data as ResT
     },
   }
