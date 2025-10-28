@@ -2,18 +2,20 @@ package kibuwire
 
 import (
 	"fmt"
+	"go/ast"
+	"go/types"
+	"path/filepath"
+	"reflect"
+
 	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
+	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2/knowndecor"
 	"github.com/samber/lo"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
-	"go/ast"
-	"go/types"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"path/filepath"
-	"reflect"
 )
 
 type Provider struct {
@@ -136,23 +138,6 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 }
 
-var (
-	IsKibu         = decorators.HasPrefix("kibu")
-	IsKibuProvider = decorators.HasPrefix("kibu:provider")
-
-	IsKibuWorkflow       = decorators.HasPrefix("kibu:workflow")
-	IsKibuWorkflowUpdate = decorators.HasPrefix("kibu:workflow:update")
-	IsKibuWorkflowQuery  = decorators.HasPrefix("kibu:workflow:query")
-	IsKibuWorkflowSignal = decorators.HasPrefix("kibu:workflow:signal")
-	IsKibuWorkflowExec   = decorators.HasPrefix("kibu:workflow:execute")
-
-	IsKibuActivity       = decorators.HasPrefix("kibu:activity")
-	IsKibuActivityMethod = decorators.HasPrefix("kibu:activity:method")
-
-	IsKibuService       = decorators.HasPrefix("kibu:service")
-	IsKibuServiceMethod = decorators.HasPrefix("kibu:service:method")
-)
-
 func run(pass *analysis.Pass) (any, error) {
 	file := modspecv2.NewJenFileFromPackage(pass.Pkg)
 	walk := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -187,7 +172,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		providerLine, found := decor.Find(IsKibuProvider)
+		providerLine, found := decor.Find(knowndecor.IsKibuProvider)
 		if !found {
 			return
 		}
@@ -380,11 +365,8 @@ func buildSuperSet(f *jen.File, providers ProviderList) {
 			// includes the group set
 			g.Id("GroupSet")
 
-			// remove ungrouped providers, group by package
-			hasExportedWireSets := providers.Filter(FilterUngrouped).GroupBy(GroupByPackage)
-
 			// we only need to import the exported wire sets into our superset
-			for list := range hasExportedWireSets.ValuesFromOldest() {
+			for list := range providers.GroupBy(GroupByPackage).ValuesFromOldest() {
 				provider, _ := list.First()
 				g.Qual(provider.GoPackage.Path(), "WireSet")
 			}

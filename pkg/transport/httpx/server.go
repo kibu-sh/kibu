@@ -3,16 +3,19 @@ package httpx
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/kibu-sh/kibu/pkg/transport"
+	"github.com/pkg/errors"
 )
 
 type NewServerParams struct {
-	Mux      ServeMux
-	Handlers []*Handler
+	Mux        ServeMux
+	Handlers   []*Handler
+	Middleware []transport.Middleware
 }
 
 type ListenAddr string
@@ -26,7 +29,7 @@ func NewServer(params *NewServerParams) (*http.Server, error) {
 	for _, handler := range params.Handlers {
 		log.Debug(fmt.Sprintf("[kibu.transport.httpx] %s %s",
 			handler.Methods, handler.Path))
-		params.Mux.Handle(handler)
+		params.Mux.Handle(handler.WithMiddleware(params.Middleware...))
 	}
 
 	return &http.Server{
