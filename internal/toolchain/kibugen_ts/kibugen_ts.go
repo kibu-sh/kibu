@@ -86,6 +86,7 @@ func GenerateTypeScript(pkg *modspecv2.Package) string {
 		pkg:            pkg,
 		generatedTypes: make(map[string]bool),
 		serviceFns:     make([]string, 0),
+		typeQueue:      make([]*queuedType, 0),
 	}
 
 	sb.WriteString("import type { HTTPClient } from './client'\n\n")
@@ -93,6 +94,9 @@ func GenerateTypeScript(pkg *modspecv2.Package) string {
 	for _, svc := range pkg.Services {
 		writeService(&sb, ctx, svc)
 	}
+
+	// Process any queued types from cross-package references
+	processTypeQueue(&sb, ctx)
 
 	writeNamespaceExport(&sb, ctx, pkg)
 
@@ -103,6 +107,78 @@ type genContext struct {
 	pkg            *modspecv2.Package
 	generatedTypes map[string]bool
 	serviceFns     []string
+	typeQueue      []*queuedType
+}
+
+// processTypeQueue generates TypeScript type definitions for all queued types
+func processTypeQueue(sb *strings.Builder, ctx *genContext) {
+	// Process types until queue is empty
+	// Note: new types may be added to the queue as we process (for nested types)
+	for len(ctx.typeQueue) > 0 {
+		// Pop the first type from the queue
+		queuedType := ctx.typeQueue[0]
+		ctx.typeQueue = ctx.typeQueue[1:]
+
+		// Generate the TypeScript type definition
+		generateQueuedTypeDefinition(sb, ctx, queuedType)
+	}
+}
+
+// generateQueuedTypeDefinition generates a TypeScript type definition for a queued type
+func generateQueuedTypeDefinition(sb *strings.Builder, ctx *genContext, qt *queuedType) {
+	underlying, ok := qt.named.Underlying().(*types.Struct)
+	if !ok {
+		return
+	}
+
+	// First, queue any nested types
+	for i := 0; i < underlying.NumFields(); i++ {
+		field := underlying.Field(i)
+		generateNestedTypes(sb, ctx, field.Type())
+	}
+
+	// Generate the type definition
+	sb.WriteString("export type ")
+	sb.WriteString(qt.name)
+	sb.WriteString(" = {\n")
+
+	for i := 0; i < underlying.NumFields(); i++ {
+		field := underlying.Field(i)
+		tag := underlying.Tag(i)
+
+		jsonName := getJSONFieldName(field.Name(), tag)
+		if jsonName == "-" {
+			continue
+		}
+
+		sb.WriteString("  ")
+		sb.WriteString(jsonName)
+
+		// Check if the field is optional (pointer or NullUUID)
+		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
+			ctx:   ctx,
+			ty:    field.Type(),
+			chain: defaultTypeChain(),
+		})
+		if err != nil {
+			tsType = "any"
+		}
+
+		if isOptional {
+			sb.WriteString("?")
+		}
+
+		sb.WriteString(": ")
+		sb.WriteString(tsType)
+
+		if isOptional {
+			sb.WriteString(" | null")
+		}
+
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("}\n\n")
 }
 
 func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) {
@@ -212,16 +288,24 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 		sb.WriteString("  ")
 		sb.WriteString(jsonName)
 
-		isPointer := false
-		if _, ok := field.Type().(*types.Pointer); ok {
-			isPointer = true
+		// Check if the field is optional (pointer or NullUUID)
+		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
+			ctx:   ctx,
+			ty:    field.Type(),
+			chain: defaultTypeChain(),
+		})
+		if err != nil {
+			tsType = "any"
+		}
+
+		if isOptional {
 			sb.WriteString("?")
 		}
 
 		sb.WriteString(": ")
-		writeGoTypeAsTS(sb, ctx, field.Type())
+		sb.WriteString(tsType)
 
-		if isPointer {
+		if isOptional {
 			sb.WriteString(" | null")
 		}
 
@@ -281,16 +365,24 @@ func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
 			sb.WriteString("  ")
 			sb.WriteString(jsonName)
 
-			isPointer := false
-			if _, ok := field.Type().(*types.Pointer); ok {
-				isPointer = true
+			// Check if the field is optional (pointer or NullUUID)
+			tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
+				ctx:   ctx,
+				ty:    field.Type(),
+				chain: defaultTypeChain(),
+			})
+			if err != nil {
+				tsType = "any"
+			}
+
+			if isOptional {
 				sb.WriteString("?")
 			}
 
 			sb.WriteString(": ")
-			writeGoTypeAsTS(sb, ctx, field.Type())
+			sb.WriteString(tsType)
 
-			if isPointer {
+			if isOptional {
 				sb.WriteString(" | null")
 			}
 
@@ -332,42 +424,21 @@ func writeTypeExprAsTS(sb *strings.Builder, ctx *genContext, expr ast.Expr) {
 }
 
 func writeGoTypeAsTS(sb *strings.Builder, ctx *genContext, typ types.Type) {
-	switch t := typ.(type) {
-	case *types.Basic:
-		sb.WriteString(goBasicToTS(t))
-	case *types.Pointer:
-		writeGoTypeAsTS(sb, ctx, t.Elem())
-	case *types.Slice:
-		writeGoTypeAsTS(sb, ctx, t.Elem())
-		sb.WriteString("[]")
-	case *types.Array:
-		writeGoTypeAsTS(sb, ctx, t.Elem())
-		sb.WriteString("[]")
-	case *types.Map:
-		sb.WriteString("Record<")
-		writeGoTypeAsTS(sb, ctx, t.Key())
-		sb.WriteString(", ")
-		writeGoTypeAsTS(sb, ctx, t.Elem())
-		sb.WriteString(">")
-	case *types.Named:
-		obj := t.Obj()
-		// Handle uuid.UUID as string
-		if obj.Pkg() != nil && obj.Pkg().Path() == "github.com/google/uuid" && obj.Name() == "UUID" {
-			sb.WriteString("string")
-			return
-		}
-		//// Handle types from other packages
-		//if obj.Pkg() != nil && obj.Pkg() != ctx.pkg.GoPkg {
-		//	sb.WriteString(obj.Pkg().Name())
-		//	sb.WriteString(".")
-		//}
-		//sb.WriteString(obj.Name())
-
+	tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
+		ctx:   ctx,
+		ty:    typ,
+		chain: defaultTypeChain(),
+	})
+	if err != nil {
 		sb.WriteString("any")
 		return
-	default:
-		sb.WriteString("any")
 	}
+
+	sb.WriteString(tsType)
+
+	// Note: isOptional is handled by the caller (writeTypeDefinition and generateNestedTypes)
+	// They check for pointer types separately and add the "?" and "| null" suffix
+	_ = isOptional
 }
 
 func goBasicToTS(basic *types.Basic) string {
