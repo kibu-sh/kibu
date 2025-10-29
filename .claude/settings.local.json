@@ -4,7 +4,8 @@
       "Bash(go test:*)",
       "Bash(go doc:*)",
       "Bash(go build:*)",
-      "Bash(internal/toolchain/kibugenv2/kibugenv2.plumbing.workflows.go)"
+      "Bash(internal/toolchain/kibugenv2/kibugenv2.plumbing.workflows.go)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
