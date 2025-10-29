@@ -71,6 +71,7 @@ func defaultTypeChain() typeBuilderChain {
 		typeFromUUID,
 		typeFromNullUUID,
 		typeFromTime,
+		typeFromTypeAlias, // Handle type aliases after special types, before containers
 		typeFromPointer,
 		typeFromSlice,
 		typeFromArray,
@@ -237,6 +238,43 @@ func typeFromTime(params *typeBuilderParams) (tsType string, isOptional bool, er
 	}
 
 	tsType = "string"
+	return
+}
+
+// typeFromTypeAlias handles type aliases (e.g., type AccountStatus string)
+// This unwraps named types that aren't structs or special cases and resolves their underlying types
+func typeFromTypeAlias(params *typeBuilderParams) (tsType string, isOptional bool, err error) {
+	named, ok := params.ty.(*types.Named)
+	if !ok {
+		return
+	}
+
+	// Skip if it's a struct - let typeFromNamedStruct handle it
+	if _, isStruct := named.Underlying().(*types.Struct); isStruct {
+		return
+	}
+
+	// Skip if it's already handled by special type handlers
+	// UUID, NullUUID, and time.Time are processed before this handler in the chain
+	obj := named.Obj()
+	if obj.Pkg() != nil {
+		pkgPath := obj.Pkg().Path()
+		typeName := obj.Name()
+
+		// These are handled by earlier handlers in the chain
+		if (pkgPath == "github.com/google/uuid" && (typeName == "UUID" || typeName == "NullUUID")) ||
+			(pkgPath == "time" && typeName == "Time") {
+			return
+		}
+	}
+
+	// Unwrap the type alias and recursively resolve the underlying type
+	tsType, isOptional, err = params.dive(&typeBuilderParams{
+		ctx:  params.ctx,
+		ty:   named.Underlying(),
+		dive: params.dive,
+	})
+
 	return
 }
 

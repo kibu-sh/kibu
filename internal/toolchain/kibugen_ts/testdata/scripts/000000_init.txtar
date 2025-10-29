@@ -22,6 +22,12 @@ import (
 	"time"
 )
 
+// Type aliases for testing
+type AccountStatus string
+type Score int
+type Tags []string
+type PrimaryStatus AccountStatus
+
 type Address struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -42,6 +48,10 @@ type User struct {
 	SecondaryID uuid.NullUUID `json:"secondary_id"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt *time.Time    `json:"updated_at"`
+	Status    AccountStatus `json:"status"`
+	Score     Score         `json:"score"`
+	Tags      Tags          `json:"tags"`
+	PrimaryStatus PrimaryStatus `json:"primary_status"`
 }
 
 -- src/backend/healthv1/health.go --
@@ -114,6 +124,10 @@ export type backend_typesv1_User = {
   secondary_id?: string | null
   created_at: string
   updated_at?: string | null
+  status: string
+  score: number
+  tags: string[]
+  primary_status: string
 }
 
 export type backend_typesv1_Profile = {
