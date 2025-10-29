@@ -28,6 +28,12 @@ type Score int
 type Tags []string
 type PrimaryStatus AccountStatus
 
+// Embedded struct for testing field promotion
+type Timestamps struct {
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
 type Address struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -41,16 +47,15 @@ type Profile struct {
 }
 
 type User struct {
-	ID        uuid.UUID     `json:"id"`
-	Name      string        `json:"name"`
-	Email     *string       `json:"email"`
-	Profile   Profile       `json:"profile"`
-	SecondaryID uuid.NullUUID `json:"secondary_id"`
-	CreatedAt time.Time     `json:"created_at"`
-	UpdatedAt *time.Time    `json:"updated_at"`
-	Status    AccountStatus `json:"status"`
-	Score     Score         `json:"score"`
-	Tags      Tags          `json:"tags"`
+	Timestamps             // embedded - fields should be promoted
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	Email         *string       `json:"email"`
+	Profile       Profile       `json:"profile"`
+	SecondaryID   uuid.NullUUID `json:"secondary_id"`
+	Status        AccountStatus `json:"status"`
+	Score         Score         `json:"score"`
+	Tags          Tags          `json:"tags"`
 	PrimaryStatus PrimaryStatus `json:"primary_status"`
 }
 
@@ -117,13 +122,13 @@ function createService(c: HTTPClient) {
 }
 
 export type backend_typesv1_User = {
+  created_at: string
+  updated_at?: string | null
   id: string
   name: string
   email?: string | null
   profile: backend_typesv1_Profile
   secondary_id?: string | null
-  created_at: string
-  updated_at?: string | null
   status: string
   score: number
   tags: string[]

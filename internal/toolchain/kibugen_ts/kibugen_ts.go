@@ -110,6 +110,52 @@ type genContext struct {
 	typeQueue      []*queuedType
 }
 
+// promotedField represents a struct field that may have been promoted from an embedded struct
+type promotedField struct {
+	field *types.Var
+	tag   string
+}
+
+// getPromotedStructFields returns all fields from a struct, with embedded struct fields promoted
+// This flattens embedded structs so their fields appear directly in the parent type
+func getPromotedStructFields(underlying *types.Struct) []promotedField {
+	var result []promotedField
+
+	for i := 0; i < underlying.NumFields(); i++ {
+		field := underlying.Field(i)
+		tag := underlying.Tag(i)
+
+		if field.Embedded() {
+			// This is an embedded field - promote its fields to the parent
+			embeddedType := field.Type()
+
+			// Unwrap pointer if the embedded field is a pointer type
+			if ptr, ok := embeddedType.(*types.Pointer); ok {
+				embeddedType = ptr.Elem()
+			}
+
+			// Get the underlying type (handles type aliases)
+			embeddedType = embeddedType.Underlying()
+
+			// If it's a struct, recursively get its fields
+			if embeddedStruct, ok := embeddedType.(*types.Struct); ok {
+				// Recursively promote fields from the embedded struct
+				embeddedFields := getPromotedStructFields(embeddedStruct)
+				result = append(result, embeddedFields...)
+			}
+			// Skip adding the embedded field itself - we only want its promoted fields
+		} else {
+			// Regular field - add it directly
+			result = append(result, promotedField{
+				field: field,
+				tag:   tag,
+			})
+		}
+	}
+
+	return result
+}
+
 // processTypeQueue generates TypeScript type definitions for all queued types
 func processTypeQueue(sb *strings.Builder, ctx *genContext) {
 	// Process types until queue is empty
@@ -131,10 +177,12 @@ func generateQueuedTypeDefinition(sb *strings.Builder, ctx *genContext, qt *queu
 		return
 	}
 
-	// First, queue any nested types
-	for i := 0; i < underlying.NumFields(); i++ {
-		field := underlying.Field(i)
-		generateNestedTypes(sb, ctx, field.Type())
+	// Get all fields including promoted fields from embedded structs
+	promotedFields := getPromotedStructFields(underlying)
+
+	// First, queue any nested types for all fields
+	for _, pf := range promotedFields {
+		generateNestedTypes(sb, ctx, pf.field.Type())
 	}
 
 	// Generate the type definition
@@ -142,11 +190,9 @@ func generateQueuedTypeDefinition(sb *strings.Builder, ctx *genContext, qt *queu
 	sb.WriteString(qt.name)
 	sb.WriteString(" = {\n")
 
-	for i := 0; i < underlying.NumFields(); i++ {
-		field := underlying.Field(i)
-		tag := underlying.Tag(i)
-
-		jsonName := getJSONFieldName(field.Name(), tag)
+	// Write all promoted fields
+	for _, pf := range promotedFields {
+		jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
 		if jsonName == "-" {
 			continue
 		}
@@ -157,7 +203,7 @@ func generateQueuedTypeDefinition(sb *strings.Builder, ctx *genContext, qt *queu
 		// Check if the field is optional (pointer or NullUUID)
 		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
 			ctx:   ctx,
-			ty:    field.Type(),
+			ty:    pf.field.Type(),
 			chain: defaultTypeChain(),
 		})
 		if err != nil {
@@ -267,20 +313,21 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 		return
 	}
 
-	for i := 0; i < underlying.NumFields(); i++ {
-		field := underlying.Field(i)
-		generateNestedTypes(sb, ctx, field.Type())
+	// Get all fields including promoted fields from embedded structs
+	promotedFields := getPromotedStructFields(underlying)
+
+	// First, generate nested types for all fields
+	for _, pf := range promotedFields {
+		generateNestedTypes(sb, ctx, pf.field.Type())
 	}
 
 	sb.WriteString("type ")
 	sb.WriteString(typeName)
 	sb.WriteString(" = {\n")
 
-	for i := 0; i < underlying.NumFields(); i++ {
-		field := underlying.Field(i)
-		tag := underlying.Tag(i)
-
-		jsonName := getJSONFieldName(field.Name(), tag)
+	// Write all promoted fields
+	for _, pf := range promotedFields {
+		jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
 		if jsonName == "-" {
 			continue
 		}
@@ -291,7 +338,7 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 		// Check if the field is optional (pointer or NullUUID)
 		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
 			ctx:   ctx,
-			ty:    field.Type(),
+			ty:    pf.field.Type(),
 			chain: defaultTypeChain(),
 		})
 		if err != nil {
@@ -344,20 +391,21 @@ func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
 
 		ctx.generatedTypes[typeName] = true
 
-		for i := 0; i < underlying.NumFields(); i++ {
-			field := underlying.Field(i)
-			generateNestedTypes(sb, ctx, field.Type())
+		// Get all fields including promoted fields from embedded structs
+		promotedFields := getPromotedStructFields(underlying)
+
+		// First, generate nested types for all fields
+		for _, pf := range promotedFields {
+			generateNestedTypes(sb, ctx, pf.field.Type())
 		}
 
 		sb.WriteString("export type ")
 		sb.WriteString(typeName)
 		sb.WriteString(" = {\n")
 
-		for i := 0; i < underlying.NumFields(); i++ {
-			field := underlying.Field(i)
-			tag := underlying.Tag(i)
-
-			jsonName := getJSONFieldName(field.Name(), tag)
+		// Write all promoted fields
+		for _, pf := range promotedFields {
+			jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
 			if jsonName == "-" {
 				continue
 			}
@@ -368,7 +416,7 @@ func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
 			// Check if the field is optional (pointer or NullUUID)
 			tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
 				ctx:   ctx,
-				ty:    field.Type(),
+				ty:    pf.field.Type(),
 				chain: defaultTypeChain(),
 			})
 			if err != nil {
