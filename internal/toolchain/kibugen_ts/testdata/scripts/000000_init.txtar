@@ -104,11 +104,10 @@ type CheckResponse = {
 
 function createService(c: HTTPClient) {
   return {
-    async check(req: CheckRequest): Promise<CheckResponse> {
+    async check(): Promise<CheckResponse> {
       return c.request({
         method: 'GET',
         pathname: '/health/check',
-        data: req,
       })
     },
     async checkNoDecoratorOptions(req: CheckRequest): Promise<CheckResponse> {

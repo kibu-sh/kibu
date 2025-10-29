@@ -272,10 +272,16 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 		funcName = strings.ToLower(string(funcName[0])) + funcName[1:]
 	}
 
+	// GET and HEAD methods cannot have request bodies per HTTP spec
+	cannotHaveBody := httpMethod == "GET" || httpMethod == "HEAD"
+
 	sb.WriteString("    async ")
 	sb.WriteString(funcName)
-	sb.WriteString("(req: ")
-	writeTypeName(sb, ctx, req)
+	sb.WriteString("(")
+	if !cannotHaveBody {
+		sb.WriteString("req: ")
+		writeTypeName(sb, ctx, req)
+	}
 	sb.WriteString("): Promise<")
 	writeTypeName(sb, ctx, res)
 	sb.WriteString("> {\n")
@@ -286,7 +292,9 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 	sb.WriteString("        pathname: '")
 	sb.WriteString(path)
 	sb.WriteString("',\n")
-	sb.WriteString("        data: req,\n")
+	if !cannotHaveBody {
+		sb.WriteString("        data: req,\n")
+	}
 	sb.WriteString("      })\n")
 	sb.WriteString("    },\n")
 }
