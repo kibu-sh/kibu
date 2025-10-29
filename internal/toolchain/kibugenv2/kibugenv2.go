@@ -5,6 +5,7 @@ import (
 	"github.com/dave/jennifer/jen"
 	"github.com/kibu-sh/kibu/internal/toolchain/kibumod"
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
+	"go/types"
 	"golang.org/x/tools/go/analysis"
 	"reflect"
 )
@@ -27,6 +28,11 @@ var Analyzer = &analysis.Analyzer{
 
 var missingPackageError = errors.New("missing result of kibumod analyzer")
 
+// importResolver provides context for resolving package import paths
+type importResolver struct {
+	typesInfo *types.Info
+}
+
 func run(pass *analysis.Pass) (any, error) {
 	pkg, ok := kibumod.FromPass(pass)
 	if !ok {
@@ -40,7 +46,9 @@ func run(pass *analysis.Pass) (any, error) {
 	genFile := modspecv2.NewJenFileFromPackage(pass.Pkg)
 	result := modspecv2.NewPackageArtifact(genFile, pass, "")
 
-	generate(genFile, pkg,
+	resolver := &importResolver{typesInfo: pass.TypesInfo}
+
+	generate(genFile, pkg, resolver,
 		buildPkgCompilerAssertions,
 		buildPkgConstants,
 		buildSignalChannelFuncs,
@@ -56,11 +64,11 @@ func run(pass *analysis.Pass) (any, error) {
 	return result, nil
 }
 
-type genFunc func(genFile *jen.File, pkg *modspecv2.Package)
+type genFunc func(genFile *jen.File, pkg *modspecv2.Package, resolver *importResolver)
 
-func generate(genFile *jen.File, pkg *modspecv2.Package, genFuncs ...genFunc) {
+func generate(genFile *jen.File, pkg *modspecv2.Package, resolver *importResolver, genFuncs ...genFunc) {
 	for _, genFunc := range genFuncs {
-		genFunc(genFile, pkg)
+		genFunc(genFile, pkg, resolver)
 	}
 	return
 }

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(go doc:*)",
+      "Bash(go build:*)",
+      "Bash(internal/toolchain/kibugenv2/kibugenv2.plumbing.workflows.go)"
     ],
     "deny": [],
     "ask": []
