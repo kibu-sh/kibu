@@ -57,7 +57,9 @@ const applicationJSON = 'application/json'
 export function createFetchClient(init: FetchClientParams): HTTPClient {
   return {
     async request<ReqT, ResT>(request: HTTPRequest<ReqT>): Promise<ResT> {
-      const url = new URL(request.pathname, init.baseUrl)
+      const url = new URL(init.baseUrl)
+      url.pathname = url.pathname + request.pathname
+      url.pathname = url.pathname.replaceAll('//', '/')
       const headers = new Headers(init.headers)
       headers.set('Accept', applicationJSON)
       headers.set('Content-Type', applicationJSON)
@@ -85,9 +87,9 @@ export function createFetchClient(init: FetchClientParams): HTTPClient {
 
       const data = await res.json()
 
-      if (!hasSuccessStatusCode(res.status)) {
+      if (!res.ok) {
         throw new Error(
-          `Request failed with status ${res.status} ${JSON.stringify(data)}`,
+          `${request.method} ${url} ${res.status} ${JSON.stringify(data)}`,
         )
       }
 
