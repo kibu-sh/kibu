@@ -66,6 +66,7 @@ import (
 	"context"
 	"github.com/example/module/backend/typesv1"
 	"github.com/google/uuid"
+	"github.com/kibu-sh/kibu/pkg/transport"
 )
 
 type CheckRequest struct {
@@ -86,6 +87,9 @@ type Service interface {
 
 	//kibu:service:method
 	CheckNoDecoratorOptions(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
+
+	//kibu:service:method mode=raw method=POST path=/health/raw
+	RawHandler(tctx transport.Context) error
 }
 
 -- exp/healthv1.gen.ts --
@@ -130,7 +134,7 @@ export type backend_typesv1_User = {
   secondary_id?: string | null
   status: string
   score: number
-  tags: string[]
+  tags?: string[] | null
   primary_status: string
 }
 

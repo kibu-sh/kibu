@@ -138,6 +138,7 @@ func typeFromSlice(params *typeBuilderParams) (tsType string, isOptional bool, e
 	}
 
 	tsType = elemType + "[]"
+	isOptional = true // Go slices can be nil
 	return
 }
 

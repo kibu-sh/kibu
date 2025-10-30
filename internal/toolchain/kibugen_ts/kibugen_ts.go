@@ -264,6 +264,12 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 	res := op.Results[0]
 
 	methodDecorator, _ := op.Decorators.Find(decorators.HasPrefix("kibu:service:method"))
+
+	// Skip raw endpoints - they're not exposed in TypeScript clients
+	if mode, _ := methodDecorator.Options.GetOne("mode", ""); mode == "raw" {
+		return
+	}
+
 	httpMethod, _ := methodDecorator.Options.GetOne("method", "POST")
 	path, _ := methodDecorator.Options.GetOne("path", fmt.Sprintf("/%s/%s/%s", ctx.pkg.Name, svc.Name, op.Name))
 

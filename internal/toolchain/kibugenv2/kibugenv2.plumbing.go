@@ -457,11 +457,27 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package, resolver *impo
 						method, _ := methodDecorator.Options.GetOne("method",
 							http.MethodPost)
 
-						g.Id("httpx").Dot("NewHandler").
+						// Check if this is a raw endpoint
+						mode, _ := methodDecorator.Options.GetOne("mode", "")
+						isRaw := mode == "raw"
+
+						// Choose the appropriate endpoint constructor
+						endpointMethod := "NewEndpoint"
+						if isRaw {
+							endpointMethod = "NewRawEndpoint"
+						}
+
+						// Build the handler - raw endpoints don't use .WithMethods()
+						handler := g.Id("httpx").Dot("NewHandler").
 							Call(jen.Lit(path),
-								jen.Qual(kibuTransportImportName, "NewEndpoint").
+								jen.Qual(kibuTransportImportName, endpointMethod).
 									Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
-							).Dot("WithMethods").Call(jen.Lit(method))
+							)
+
+						// Only add WithMethods for standard endpoints
+						if !isRaw {
+							handler.Dot("WithMethods").Call(jen.Lit(method))
+						}
 
 					}
 				})
