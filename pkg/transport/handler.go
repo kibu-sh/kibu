@@ -15,6 +15,7 @@ func (h HandlerFunc) Serve(tctx Context) error {
 
 type Middleware func(Handler) Handler
 type MiddlewareFunc func(tctx Context, next Handler) error
+type MiddlewareFactory interface{ BuildMiddleware() []Middleware }
 
 func ApplyMiddleware(handler Handler, middleware ...Middleware) Handler {
 	for _, m := range middleware {

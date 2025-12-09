@@ -6,7 +6,7 @@ import (
 	"github.com/kibu-sh/kibu/internal/toolchain/modspecv2"
 )
 
-func buildWorkerController(f *jen.File, pkg *modspecv2.Package) {
+func buildWorkerController(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	f.Comment("//kibu:provider group=WorkerFactory import=github.com/kibu-sh/kibu/pkg/transport/temporal")
 	f.Type().Id("WorkerController").StructFunc(func(g *jen.Group) {
 		g.Id("Client").Qual(temporalClientImportName, "Client")

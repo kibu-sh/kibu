@@ -3,10 +3,15 @@ package wireset
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+
 	"github.com/google/wire"
 	"github.com/kibu-sh/kibu/pkg/appcontext"
 	"github.com/kibu-sh/kibu/pkg/config"
 	"github.com/kibu-sh/kibu/pkg/foreman"
+	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/kibu-sh/kibu/pkg/transport/httpx"
 	"github.com/kibu-sh/kibu/pkg/transport/middleware"
 	"github.com/kibu-sh/kibu/pkg/transport/temporal"
@@ -14,9 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
-	"log/slog"
-	"net"
-	"net/http"
 )
 
 func ProvideServerAddress() httpx.ListenAddr {
@@ -140,6 +142,13 @@ func BindWorkers(factories []temporal.WorkerFactory) (workers []worker.Worker) {
 	return
 }
 
+func BindMiddleware(factories []transport.MiddlewareFactory) (middleware []transport.Middleware) {
+	for _, factory := range factories {
+		middleware = append(middleware, factory.BuildMiddleware()...)
+	}
+	return
+}
+
 var Required = wire.NewSet(
 	appcontext.Context,
 	NewConfigStore,
@@ -157,6 +166,7 @@ var HTTPServeMux = wire.NewSet(
 	NewListeners,
 	ProvideServerAddress,
 	BindHTTPHandlers,
+	BindMiddleware,
 	middleware.NewRegistry,
 	httpx.NewServer,
 	httpx.NewTCPListener,

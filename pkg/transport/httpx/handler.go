@@ -2,13 +2,14 @@ package httpx
 
 import (
 	"fmt"
+	"log/slog"
+	"net/http"
+	"time"
+
 	"github.com/kibu-sh/kibu/pkg/slogx"
 	"github.com/kibu-sh/kibu/pkg/transport"
 	"github.com/kibu-sh/kibu/pkg/transport/middleware"
 	"github.com/pkg/errors"
-	"log/slog"
-	"net/http"
-	"time"
 )
 
 // check if Handler implements http.Handler
@@ -37,6 +38,11 @@ func NewHandler(path string, handler transport.Handler) *Handler {
 
 func (h *Handler) WithMethods(methods ...string) *Handler {
 	h.Methods = methods
+	return h
+}
+
+func (h *Handler) WithMiddleware(middleware ...transport.Middleware) *Handler {
+	h.Handler = transport.ApplyMiddleware(h.Handler, middleware...)
 	return h
 }
 

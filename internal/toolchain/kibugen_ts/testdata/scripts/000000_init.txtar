@@ -1,0 +1,155 @@
+env GOPROXY=direct
+kibugen_ts -cwd $WORK/src/backend/ -out $WORK/gen/ ./...
+cmp $WORK/exp/healthv1.gen.ts $WORK/gen/kibugen_ts/backend_healthv1.gen.ts
+exists $WORK/gen/kibugen_ts/client.ts
+
+-- src/go.mod --
+module github.com/example/module
+
+go 1.25
+
+require github.com/google/uuid v1.6.0
+
+-- src/go.sum --
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+
+-- src/backend/typesv1/types.go --
+package typesv1
+
+import (
+	"github.com/google/uuid"
+	"time"
+)
+
+// Type aliases for testing
+type AccountStatus string
+type Score int
+type Tags []string
+type PrimaryStatus AccountStatus
+
+// Embedded struct for testing field promotion
+type Timestamps struct {
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+type Address struct {
+	Street  string `json:"street"`
+	City    string `json:"city"`
+	ZipCode string `json:"zip_code"`
+}
+
+type Profile struct {
+	Bio       string   `json:"bio"`
+	Address   Address  `json:"address"`
+	AvatarURL *string  `json:"avatar_url"`
+}
+
+type User struct {
+	Timestamps             // embedded - fields should be promoted
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	Email         *string       `json:"email"`
+	Profile       Profile       `json:"profile"`
+	SecondaryID   uuid.NullUUID `json:"secondary_id"`
+	Status        AccountStatus `json:"status"`
+	Score         Score         `json:"score"`
+	Tags          Tags          `json:"tags"`
+	PrimaryStatus PrimaryStatus `json:"primary_status"`
+}
+
+-- src/backend/healthv1/health.go --
+package healthv1
+
+import (
+	"context"
+	"github.com/example/module/backend/typesv1"
+	"github.com/google/uuid"
+	"github.com/kibu-sh/kibu/pkg/transport"
+)
+
+type CheckRequest struct {
+	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	User typesv1.User `json:"user"`
+}
+
+type CheckResponse struct {
+	Status string `json:"status"`
+	UUID   uuid.UUID `json:"uuid"`
+}
+
+//kibu:service
+type Service interface {
+	//kibu:service:method method=GET path=/health/check
+	Check(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
+
+	//kibu:service:method
+	CheckNoDecoratorOptions(ctx context.Context, req CheckRequest) (res CheckResponse, err error)
+
+	//kibu:service:method mode=raw method=POST path=/health/raw
+	RawHandler(tctx transport.Context) error
+}
+
+-- exp/healthv1.gen.ts --
+import type { HTTPClient } from './client'
+
+type CheckRequest = {
+  name: string
+  id: string
+  user: backend_typesv1_User
+}
+
+type CheckResponse = {
+  status: string
+  uuid: string
+}
+
+function createService(c: HTTPClient) {
+  return {
+    async check(): Promise<CheckResponse> {
+      return c.request({
+        method: 'GET',
+        pathname: '/health/check',
+      })
+    },
+    async checkNoDecoratorOptions(req: CheckRequest): Promise<CheckResponse> {
+      return c.request({
+        method: 'POST',
+        pathname: '/healthv1/Service/CheckNoDecoratorOptions',
+        data: req,
+      })
+    },
+  }
+}
+
+export type backend_typesv1_User = {
+  created_at: string
+  updated_at?: string | null
+  id: string
+  name: string
+  email?: string | null
+  profile: backend_typesv1_Profile
+  secondary_id?: string | null
+  status: string
+  score: number
+  tags?: string[] | null
+  primary_status: string
+}
+
+export type backend_typesv1_Profile = {
+  bio: string
+  address: backend_typesv1_Address
+  avatar_url?: string | null
+}
+
+export type backend_typesv1_Address = {
+  street: string
+  city: string
+  zip_code: string
+}
+
+export const healthv1 = {
+  createService,
+}

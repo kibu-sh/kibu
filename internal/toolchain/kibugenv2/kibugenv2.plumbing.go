@@ -8,6 +8,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/samber/mo"
 	"go/ast"
+	"go/types"
 	"net/http"
 	"unicode"
 )
@@ -113,7 +114,7 @@ func packageNameConst() string {
 }
 
 // buildPkgCompilerAssertions creates compiler assertions for all services
-func buildPkgCompilerAssertions(f *jen.File, pkg *modspecv2.Package) {
+func buildPkgCompilerAssertions(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	f.Comment("compiler assertions")
 	for _, svc := range pkg.Services {
 		if svc.Decorators.Some(isKibuActivity) {
@@ -149,7 +150,7 @@ func operationConstLiteral(pkg *modspecv2.Package, svc *modspecv2.Service, op *m
 }
 
 // buildPkgConstants a set of constant references for later code
-func buildPkgConstants(f *jen.File, pkg *modspecv2.Package) {
+func buildPkgConstants(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	f.Comment("system constants")
 	f.Const().DefsFunc(func(g *jen.Group) {
 		// packageName = "billingv1"
@@ -173,15 +174,15 @@ func buildPkgConstants(f *jen.File, pkg *modspecv2.Package) {
 	return
 }
 
-func buildActivityInterfaces(f *jen.File, pkg *modspecv2.Package) {
+func buildActivityInterfaces(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	f.Comment("activity interfaces")
 	for _, svc := range pkg.Services {
-		f.Add(activityProxyInterface(svc))
+		f.Add(activityProxyInterface(resolver, svc))
 	}
 	return
 }
 
-func activityProxyInterface(svc *modspecv2.Service) jen.Code {
+func activityProxyInterface(resolver *importResolver, svc *modspecv2.Service) jen.Code {
 	if !svc.Decorators.Some(isKibuActivity) {
 		return jen.Null()
 	}
@@ -191,22 +192,22 @@ func activityProxyInterface(svc *modspecv2.Service) jen.Code {
 			g.Id(op.Name).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(namedWorkflowContextParam())
-					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+					g.Add(resolver.paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
 					g.Id("mods").Op("...").Add(qualKibuTemporalActivityOptionFunc())
 				}).
 				ParamsFunc(func(g *jen.Group) {
-					g.Add(paramToExp(paramAtIndex(op.Results, 0)))
+					g.Add(resolver.paramToExp(paramAtIndex(op.Results, 0)))
 					g.Error()
 				})
 
 			g.Id(suffixAsync(op.Name)).
 				ParamsFunc(func(g *jen.Group) {
 					g.Add(namedWorkflowContextParam())
-					g.Add(paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
+					g.Add(resolver.paramToMaybeNamedExp(paramAtIndex(op.Params, 1)))
 					g.Id("mods").Op("...").Add(qualKibuTemporalActivityOptionFunc())
 				}).
 				ParamsFunc(func(g *jen.Group) {
-					g.Add(qualKibuTemporalFuture(paramToExpOrAny(paramAtIndex(op.Results, 0))))
+					g.Add(qualKibuTemporalFuture(resolver.paramToExpOrAny(paramAtIndex(op.Results, 0))))
 				})
 		}
 	})
@@ -294,17 +295,17 @@ func qualWorkflowSelector() jen.Code {
 	return jen.Qual(temporalWorkflowImportName, "Selector")
 }
 
-func signalChannelProviderFunc(svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
+func signalChannelProviderFunc(resolver *importResolver, svc *modspecv2.Service, op *modspecv2.Operation) jen.Code {
 	return jen.Func().Id(signalChannelProviderFuncName(svc, op)).
 		Params(namedWorkflowContextParam()).
 		ParamsFunc(func(g *jen.Group) {
 			g.Qual(kibuTemporalImportName, "SignalChannel").
-				Types(paramToExp(paramAtIndex(op.Params, 1)))
+				Types(resolver.paramToExp(paramAtIndex(op.Params, 1)))
 		}).
 		BlockFunc(func(g *jen.Group) {
 			g.ReturnFunc(func(g *jen.Group) {
 				g.Qual(kibuTemporalImportName, "NewSignalChannel").
-					Types(paramToExp(paramAtIndex(op.Params, 1))).
+					Types(resolver.paramToExp(paramAtIndex(op.Params, 1))).
 					Call(jen.Id("ctx"), jen.Id(operationConstName(svc, op)))
 			})
 		})
@@ -320,27 +321,27 @@ func paramAtIndex(params []modspecv2.Type, index int) optionalParam {
 	return mo.Some[modspecv2.Type](params[index])
 }
 
-func paramToExp(param optionalParam) jen.Code {
+func (ir *importResolver) paramToExp(param optionalParam) jen.Code {
 	if param.IsAbsent() {
 		return jen.Null()
 	}
-	return exprToJen(param.MustGet().Field.Type)
+	return ir.exprToJen(param.MustGet().Field.Type)
 }
 
-func paramToExpOrAny(param optionalParam) jen.Code {
+func (ir *importResolver) paramToExpOrAny(param optionalParam) jen.Code {
 	if param.IsAbsent() {
 		return jen.Any()
 	}
-	return exprToJen(param.MustGet().Field.Type)
+	return ir.exprToJen(param.MustGet().Field.Type)
 }
 
-func paramToMaybeNamedExp(param optionalParam) jen.Code {
+func (ir *importResolver) paramToMaybeNamedExp(param optionalParam) jen.Code {
 	if param.IsAbsent() {
 		return jen.Null()
 	}
 
 	p := param.MustGet()
-	exp := paramToExp(param)
+	exp := ir.paramToExp(param)
 	if p.Name == "" {
 		return exp
 	}
@@ -348,7 +349,7 @@ func paramToMaybeNamedExp(param optionalParam) jen.Code {
 	return jen.Id(p.Name).Add(exp)
 }
 
-func exprToJen(expr ast.Expr) jen.Code {
+func (ir *importResolver) exprToJen(expr ast.Expr) jen.Code {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		// Simple identifier
@@ -357,21 +358,31 @@ func exprToJen(expr ast.Expr) jen.Code {
 		// Qualified identifier (e.g., pkg.Type)
 		xIdent, ok := e.X.(*ast.Ident)
 		if ok {
+			// Resolve the full import path using type information
+			if ir.typesInfo != nil {
+				if obj := ir.typesInfo.Uses[xIdent]; obj != nil {
+					if pkgName, ok := obj.(*types.PkgName); ok {
+						// Get the full import path from the package
+						return jen.Qual(pkgName.Imported().Path(), e.Sel.Name)
+					}
+				}
+			}
+			// Fallback to local name if resolution fails
 			return jen.Qual(xIdent.Name, e.Sel.Name)
 		}
 		// Handle other cases as needed
 	case *ast.StarExpr:
 		// Pointer type
-		return jen.Op("*").Add(exprToJen(e.X))
+		return jen.Op("*").Add(ir.exprToJen(e.X))
 	case *ast.ArrayType:
 		// Array or slice type
 		if e.Len != nil {
-			return jen.Index(exprToJen(e.Len)).Add(exprToJen(e.Elt))
+			return jen.Index(ir.exprToJen(e.Len)).Add(ir.exprToJen(e.Elt))
 		}
-		return jen.Index().Add(exprToJen(e.Elt))
+		return jen.Index().Add(ir.exprToJen(e.Elt))
 	case *ast.MapType:
 		// Map type
-		return jen.Map(exprToJen(e.Key)).Add(exprToJen(e.Value))
+		return jen.Map(ir.exprToJen(e.Key)).Add(ir.exprToJen(e.Value))
 	case *ast.FuncType:
 		// Function type
 		// For simplicity, returning "func(...)"
@@ -415,7 +426,7 @@ func compilerAssertionToInterface(iface, impl string) *jen.Statement {
 		Params(ptrExpr(impl)).
 		Parens(jen.Nil())
 }
-func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
+func buildServiceControllers(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuService) {
 			continue
@@ -439,18 +450,34 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 						// TODO: warn on analysis pass that there's a duplicate path detected
 						// 	this is due to multiple Service interfaces defined in the same Package
 						path, _ := methodDecorator.Options.GetOne("path",
-							fmt.Sprintf("/%s/%s", pkg.Name, op.Name))
+							fmt.Sprintf("/%s/%s/%s", pkg.Name, svc.Name, op.Name))
 
 						// TODO: support more than one method per service call
 						//  although this usually should be POST since JSON serialization will be most common
 						method, _ := methodDecorator.Options.GetOne("method",
 							http.MethodPost)
 
-						g.Id("httpx").Dot("NewHandler").
+						// Check if this is a raw endpoint
+						mode, _ := methodDecorator.Options.GetOne("mode", "")
+						isRaw := mode == "raw"
+
+						// Choose the appropriate endpoint constructor
+						endpointMethod := "NewEndpoint"
+						if isRaw {
+							endpointMethod = "NewRawEndpoint"
+						}
+
+						// Build the handler - raw endpoints don't use .WithMethods()
+						handler := g.Id("httpx").Dot("NewHandler").
 							Call(jen.Lit(path),
-								jen.Qual(kibuTransportImportName, "NewEndpoint").
+								jen.Qual(kibuTransportImportName, endpointMethod).
 									Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
-							).Dot("WithMethods").Call(jen.Lit(method))
+							)
+
+						// Only add WithMethods for standard endpoints
+						if !isRaw {
+							handler.Dot("WithMethods").Call(jen.Lit(method))
+						}
 
 					}
 				})
@@ -459,7 +486,7 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package) {
 	}
 }
 
-func buildActivitiesControllers(f *jen.File, pkg *modspecv2.Package) {
+func buildActivitiesControllers(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuActivity) {
 			continue
