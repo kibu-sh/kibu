@@ -6,6 +6,10 @@ import { defineConfig } from 'astro/config'
 // https://astro.build/config
 export default defineConfig({
   site: 'https://kibu.sh',
+  // Enable legacy content collections for Astro v5 compatibility
+  legacy: {
+    collections: true,
+  },
   integrations: [
     starlight({
       title: 'Kibu Documentation',
@@ -20,7 +24,7 @@ export default defineConfig({
       social: {
         github: 'https://github.com/kibu-sh/kibu',
         youtube: 'https://www.youtube.com/@kibu-sh',
-        twitter: 'https://twitter.com/kibu_sh',
+        'x.com': 'https://twitter.com/kibu_sh',
         discord: 'https://discord.gg/5sga863FVB',
       },
       sidebar: [
