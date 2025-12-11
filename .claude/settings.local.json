@@ -4,10 +4,16 @@
       "Bash(go test:*)",
       "Bash(go doc:*)",
       "Bash(go build:*)",
-      "Bash(internal/toolchain/kibugenv2/kibugenv2.plumbing.workflows.go)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(but:*)",
+      "Bash(grep:*)",
+      "Skill(conventional-commit)"
     ],
-    "deny": [],
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(but describe:*)",
+      "Bash(go build github.com:*)"
+    ],
     "ask": []
   }
 }
