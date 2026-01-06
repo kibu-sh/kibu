@@ -41,7 +41,10 @@ jump straight to our [templates' repo](https://github.com/kibu-sh/templates).
     go install github.com/google/wire/cmd/wire@latest
     go install github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/cmd/kibugenv2@main
     go install github.com/kibu-sh/kibu/internal/toolchain/kibuwire/cmd/kibuwire@main
+    go install github.com/kibu-sh/kibu/internal/toolchain/kibugen_ts/cmd/kibugen_ts@main
     ```
+
+    See the [Toolchain Reference](/reference/toolchain/toolchain) for details on each tool.
 
 3. Jump start the project structure
     ```shell
@@ -112,6 +115,30 @@ A managed wire superset of all the `//kibu:provider` directives in the system.
 At scale, kibu makes managing wire sets a breeze across hundreds of services.
 `kibuwire/kibuwire.gen.go`
 
+## Optional: Generate TypeScript Clients
+
+If you're building a TypeScript frontend, you can also generate type-safe clients:
+
+```shell
+kibugen_ts -output ./frontend/src/api ./...
+```
+
+This creates TypeScript types and service clients from your Go service definitions.
+See the [kibugen_ts Reference](/reference/toolchain/kibugen-ts) for more details.
+
+## Understanding Decorators
+
+Kibu uses comment-based decorators to drive code generation:
+
+| Decorator | Purpose |
+|-----------|---------|
+| `//kibu:service` | Define an HTTP service interface |
+| `//kibu:service:method` | Configure an HTTP endpoint |
+| `//kibu:workflow` | Define a Temporal workflow |
+| `//kibu:activity` | Define Temporal activities |
+| `//kibu:provider` | Register a Wire provider |
+
+See the full [Decorators Reference](/reference/decorators) for all options.
 
 <Aside type="note" title="Stay Tuned">
   We will be pushing updates to these docs and tutorials daily.
