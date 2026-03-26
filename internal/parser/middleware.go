@@ -2,12 +2,14 @@ package parser
 
 import (
 	"errors"
-	"fmt"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/types"
 	"strconv"
+
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 )
+
+var ErrMiddlewareOrderNotInteger = errors.New("middleware order must be an integer")
 
 type Middleware struct {
 	*TypeMeta
@@ -30,14 +32,12 @@ func collectMiddleware(p *Package) defMapperFunc {
 		}
 
 		meta := NewTypeMeta(ident, obj, p)
-		tags, _ := dir.Options.GetAll("tag", []string{"global"})
-		orderOpt, _ := dir.Options.GetOne("order", "0")
+		tags, _ := dir.Options.ListValues("tag", []string{"global"})
+		orderOpt := dir.Options.Lookup("order").Or("0")
 
 		order, err := strconv.Atoi(orderOpt)
 		if err != nil {
-			err = errors.Join(err, fmt.Errorf("order must be an integer %s",
-				meta.Position().String(),
-			))
+			err = errors.Join(NewPositionError(ErrMiddlewareOrderNotInteger, meta.Position()), err)
 			return
 		}
 

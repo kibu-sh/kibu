@@ -3,12 +3,13 @@ package decorators
 import (
 	"encoding/gob"
 	"encoding/json"
+	"go/ast"
+	"strings"
+
 	"github.com/gobwas/glob"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
-	"go/ast"
-	"strings"
 )
 
 var ErrInvalidDirective = errors.New("invalid directive")
@@ -21,11 +22,15 @@ type Line struct {
 }
 
 func (d Line) String() string {
-	fqn := []string{d.Tool, d.Name}
+	parts := lineParts(d)
+	return strings.Join(parts, ":")
+}
+
+func lineParts(d Line) []string {
 	if d.Qualifier != "" {
-		fqn = append(fqn, d.Qualifier)
+		return []string{d.Tool, d.Name, d.Qualifier}
 	}
-	return strings.Join(fqn, ":")
+	return []string{d.Tool, d.Name}
 }
 
 var _ gob.GobEncoder = (*OptionList)(nil)
@@ -33,6 +38,25 @@ var _ gob.GobDecoder = (*OptionList)(nil)
 
 type OptionList struct {
 	om map[string][]string
+}
+
+// OptionValue holds the result of a single-value option lookup.
+type OptionValue struct {
+	value string
+	found bool
+}
+
+// Or returns the looked-up value if found, otherwise the fallback.
+func (v OptionValue) Or(fallback string) string {
+	if !v.found {
+		return fallback
+	}
+	return v.value
+}
+
+// Found reports whether the option key existed.
+func (v OptionValue) Found() bool {
+	return v.found
 }
 
 func (ol *OptionList) GobDecode(bytes []byte) error {
@@ -63,27 +87,37 @@ func (ol *OptionList) Set(key string, val []string) {
 	ol.om[key] = val
 }
 
-// GetOne returns a single option value by its key
-// If the option does not exist an empty string is returned
-func (ol *OptionList) GetOne(key, fallback string) (val string, ok bool) {
-	v, ok := ol.om[key]
-	if len(v) == 0 {
-		return fallback, false
+// Lookup returns an OptionValue for the given key.
+// Safe to call on a nil receiver.
+func (ol *OptionList) Lookup(key string) OptionValue {
+	if ol == nil {
+		return OptionValue{}
 	}
-	return v[0], true
+	v, ok := ol.om[key]
+	if !ok || len(v) == 0 {
+		return OptionValue{}
+	}
+	return OptionValue{value: v[0], found: true}
 }
 
-// GetAll returns a list of option values by key
-func (ol *OptionList) GetAll(key string, def []string) (val []string, ok bool) {
+// ListValues returns all option values for the given key.
+// If the key is absent, def is returned.
+func (ol *OptionList) ListValues(key string, def []string) (val []string, ok bool) {
+	if ol == nil {
+		return def, false
+	}
 	if val, ok = ol.om[key]; !ok {
 		val = def
 	}
 	return
 }
 
-// Has checks if an option is present by its key
-// it is possible for a key to be present with no value
+// Has checks if an option is present by its key.
+// It is possible for a key to be present with no value.
 func (ol *OptionList) Has(key string) bool {
+	if ol == nil {
+		return false
+	}
 	_, ok := ol.om[key]
 	return ok
 }
@@ -177,19 +211,30 @@ func FromCommentGroup(d *ast.CommentGroup) (result List, err error) {
 	}
 
 	for _, comment := range d.List {
-		if comment.Text[:2] == "//" {
-			txt := comment.Text[2:]
-			if IsDirective(txt) {
-				var dir Line
-				dir, err = Parse(txt)
-				if err != nil {
-					return
-				}
-				result = append(result, dir)
-			}
+		dir, parseErr := parseComment(comment)
+		if parseErr != nil {
+			return result, parseErr
+		}
+		if dir != nil {
+			result = append(result, *dir)
 		}
 	}
 	return
+}
+
+func parseComment(comment *ast.Comment) (*Line, error) {
+	if comment.Text[:2] != "//" {
+		return nil, nil
+	}
+	txt := comment.Text[2:]
+	if !IsDirective(txt) {
+		return nil, nil
+	}
+	dir, err := Parse(txt)
+	if err != nil {
+		return nil, err
+	}
+	return &dir, nil
 }
 
 // IsDirective reports whether c is a comment directive.
@@ -257,23 +302,19 @@ func Parse(d string) (dir Line, err error) {
 }
 
 func parseKey(s string) (string, string, string, error) {
-	tool := ""
-	name := ""
-	qualifier := ""
-
 	parts := strings.Split(s, ":")
 	if len(parts) < 2 {
 		return "", "", "", errors.Wrapf(ErrInvalidDirective,
 			"failed to parse key expected form at (tool:name) got %s", s)
 	}
+	return parts[0], parts[1], qualifierFromParts(parts), nil
+}
 
-	tool = parts[0]
-	name = parts[1]
-
+func qualifierFromParts(parts []string) string {
 	if len(parts) == 3 {
-		qualifier = parts[2]
+		return parts[2]
 	}
-	return tool, name, qualifier, nil
+	return ""
 }
 
 func parseOptions(opts []string) (result *OptionList, err error) {
@@ -292,7 +333,7 @@ func parseOptions(opts []string) (result *OptionList, err error) {
 		}
 
 		pair := strings.Split(opt, "=")
-		existing, _ := result.GetAll(pair[0], nil)
+		existing, _ := result.ListValues(pair[0], nil)
 		result.Set(pair[0], append(existing, tryIndex(pair, 1)...))
 	}
 	return result, nil
@@ -344,20 +385,32 @@ func ApplyFromDecl(decl ast.Decl, result *Map) (err error) {
 		return
 	}
 
+	applyDirsToDecl(decl, dirs, result)
+	return
+}
+
+func applyDirsToDecl(decl ast.Decl, dirs List, result *Map) {
 	switch decl := decl.(type) {
 	case *ast.GenDecl:
-		for _, spec := range decl.Specs {
-			switch spec := spec.(type) {
-			case *ast.TypeSpec:
-				result.Set(spec.Name, dirs)
-			case *ast.ValueSpec:
-				for _, name := range spec.Names {
-					result.Set(name, dirs)
-				}
-			}
-		}
+		applyDirsToGenDecl(decl, dirs, result)
 	case *ast.FuncDecl:
 		result.Set(decl.Name, dirs)
 	}
-	return
+}
+
+func applyDirsToGenDecl(decl *ast.GenDecl, dirs List, result *Map) {
+	for _, spec := range decl.Specs {
+		applyDirsToSpec(spec, dirs, result)
+	}
+}
+
+func applyDirsToSpec(spec ast.Spec, dirs List, result *Map) {
+	switch spec := spec.(type) {
+	case *ast.TypeSpec:
+		result.Set(spec.Name, dirs)
+	case *ast.ValueSpec:
+		for _, name := range spec.Names {
+			result.Set(name, dirs)
+		}
+	}
 }
