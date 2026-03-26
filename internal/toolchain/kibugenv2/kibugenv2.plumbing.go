@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/types"
 	"net/http"
+	"net/url"
 	"unicode"
 )
 
@@ -113,21 +114,33 @@ func packageNameConst() string {
 	return constName("package")
 }
 
+// compilerAssertionParams holds the parameters for compilerAssertionToInterface.
+type compilerAssertionParams struct {
+	iface string
+	impl  string
+}
+
 // buildPkgCompilerAssertions creates compiler assertions for all services
 func buildPkgCompilerAssertions(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	f.Comment("compiler assertions")
 	for _, svc := range pkg.Services {
 		if svc.Decorators.Some(isKibuActivity) {
-			f.Add(compilerAssertionToInterface(
-				suffixProxy(svc.Name), firstToLower(suffixProxy(svc.Name))))
+			f.Add(compilerAssertionToInterface(compilerAssertionParams{
+				iface: suffixProxy(svc.Name),
+				impl:  firstToLower(suffixProxy(svc.Name)),
+			}))
 		}
 
 		if svc.Decorators.Some(isKibuWorkflow) {
-			f.Add(compilerAssertionToInterface(
-				suffixChildRun(svc.Name), firstToLower(suffixChildRun(svc.Name))))
+			f.Add(compilerAssertionToInterface(compilerAssertionParams{
+				iface: suffixChildRun(svc.Name),
+				impl:  firstToLower(suffixChildRun(svc.Name)),
+			}))
 
-			f.Add(compilerAssertionToInterface(
-				suffixClient(svc.Name), firstToLower(suffixClient(svc.Name))))
+			f.Add(compilerAssertionToInterface(compilerAssertionParams{
+				iface: suffixClient(svc.Name),
+				impl:  firstToLower(suffixClient(svc.Name)),
+			}))
 		}
 	}
 	return
@@ -217,8 +230,14 @@ func qualKibuTemporalWorkflowOptionFunc() jen.Code {
 	return jen.Qual(kibuTemporalImportName, "WorkflowOptionFunc")
 }
 
-func qualKibuTemporalExecuteWithSignalParams(req jen.Code, sig jen.Code) jen.Code {
-	return jen.Qual(kibuTemporalImportName, "ExecuteWithSignalParams").Types(req, sig)
+// executeWithSignalCodes holds the code parameters for qualKibuTemporalExecuteWithSignalParams.
+type executeWithSignalCodes struct {
+	req jen.Code
+	sig jen.Code
+}
+
+func qualKibuTemporalExecuteWithSignalParams(codes executeWithSignalCodes) jen.Code {
+	return jen.Qual(kibuTemporalImportName, "ExecuteWithSignalParams").Types(codes.req, codes.sig)
 }
 
 func qualKibuTemporalExecuteParams(req jen.Code) jen.Code {
@@ -355,22 +374,7 @@ func (ir *importResolver) exprToJen(expr ast.Expr) jen.Code {
 		// Simple identifier
 		return jen.Id(e.Name)
 	case *ast.SelectorExpr:
-		// Qualified identifier (e.g., pkg.Type)
-		xIdent, ok := e.X.(*ast.Ident)
-		if ok {
-			// Resolve the full import path using type information
-			if ir.typesInfo != nil {
-				if obj := ir.typesInfo.Uses[xIdent]; obj != nil {
-					if pkgName, ok := obj.(*types.PkgName); ok {
-						// Get the full import path from the package
-						return jen.Qual(pkgName.Imported().Path(), e.Sel.Name)
-					}
-				}
-			}
-			// Fallback to local name if resolution fails
-			return jen.Qual(xIdent.Name, e.Sel.Name)
-		}
-		// Handle other cases as needed
+		return ir.selectorExprToJen(e)
 	case *ast.StarExpr:
 		// Pointer type
 		return jen.Op("*").Add(ir.exprToJen(e.X))
@@ -391,13 +395,49 @@ func (ir *importResolver) exprToJen(expr ast.Expr) jen.Code {
 	return jen.Any()
 }
 
+// selectorExprToJen resolves a qualified identifier (e.g., pkg.Type) to jen code.
+func (ir *importResolver) selectorExprToJen(e *ast.SelectorExpr) jen.Code {
+	xIdent, ok := e.X.(*ast.Ident)
+	if !ok {
+		return jen.Any()
+	}
+
+	resolved := ir.resolveQualifiedIdent(xIdent, e.Sel.Name)
+	if resolved != nil {
+		return resolved
+	}
+
+	// Fallback to local name if resolution fails
+	return jen.Qual(xIdent.Name, e.Sel.Name)
+}
+
+// resolveQualifiedIdent attempts to resolve a qualified identifier using type information.
+func (ir *importResolver) resolveQualifiedIdent(xIdent *ast.Ident, selName string) jen.Code {
+	if ir.typesInfo == nil {
+		return nil
+	}
+
+	obj := ir.typesInfo.Uses[xIdent]
+	if obj == nil {
+		return nil
+	}
+
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok {
+		return nil
+	}
+
+	// Get the full import path from the package
+	return jen.Qual(pkgName.Imported().Path(), selName)
+}
+
 func signalChannelProviderFuncName(svc *modspecv2.Service, op *modspecv2.Operation) string {
 	return firstToUpper(fmt.Sprintf("New%sSignalChannel", firstToUpper(op.Name)))
 }
 
 // firstToLower returns a string with the first rune converted to lowercase
 //
-//	"Name" → "name"
+//	"Name" -> "name"
 func firstToLower(name string) string {
 	r := []rune(name)
 	r[0] = unicode.ToLower(r[0])
@@ -415,17 +455,43 @@ func ptrExpr(name string) *jen.Statement {
 //
 //	var _ Name = (*name)(nil)
 func matchingCompilerAssertion(name string) *jen.Statement {
-	return compilerAssertionToInterface(name, firstToLower(name))
+	return compilerAssertionToInterface(compilerAssertionParams{
+		iface: name,
+		impl:  firstToLower(name),
+	})
 }
 
 // compilerAssertionToInterface creates an assertion that an impl struct implements the given interface
 //
 //	var _ Iface = (*impl)(nil)
-func compilerAssertionToInterface(iface, impl string) *jen.Statement {
-	return jen.Var().Id("_").Id(iface).Op("=").
-		Params(ptrExpr(impl)).
+func compilerAssertionToInterface(p compilerAssertionParams) *jen.Statement {
+	return jen.Var().Id("_").Id(p.iface).Op("=").
+		Params(ptrExpr(p.impl)).
 		Parens(jen.Nil())
 }
+
+// operationURLPath builds the URL path for a service operation using url.JoinPath.
+func operationURLPath(pkg *modspecv2.Package, svc *modspecv2.Service, op *modspecv2.Operation) string {
+	p, _ := url.JoinPath("/", pkg.Name, svc.Name, op.Name)
+	return p
+}
+
+// endpointMethodForMode returns the appropriate endpoint constructor name based on mode.
+func endpointMethodForMode(mode string) string {
+	if mode == "raw" {
+		return "NewRawEndpoint"
+	}
+	return "NewEndpoint"
+}
+
+// operationHandlerParams holds the parameters for buildServiceOperationHandler.
+type operationHandlerParams struct {
+	g   *jen.Group
+	pkg *modspecv2.Package
+	svc *modspecv2.Service
+	op  *modspecv2.Operation
+}
+
 func buildServiceControllers(f *jen.File, pkg *modspecv2.Package, resolver *importResolver) {
 	for _, svc := range pkg.Services {
 		if !svc.Decorators.Some(isKibuService) {
@@ -445,44 +511,44 @@ func buildServiceControllers(f *jen.File, pkg *modspecv2.Package, resolver *impo
 			g.ReturnFunc(func(g *jen.Group) {
 				g.Index().Op("*").Qual(kibuHttpxImportName, "Handler").CustomFunc(modspecv2.MultiLineCurly(), func(g *jen.Group) {
 					for _, op := range svc.Operations {
-						methodDecorator, _ := op.Decorators.Find(isKibuServiceMethod)
-
-						// TODO: warn on analysis pass that there's a duplicate path detected
-						// 	this is due to multiple Service interfaces defined in the same Package
-						path, _ := methodDecorator.Options.GetOne("path",
-							fmt.Sprintf("/%s/%s/%s", pkg.Name, svc.Name, op.Name))
-
-						// TODO: support more than one method per service call
-						//  although this usually should be POST since JSON serialization will be most common
-						method, _ := methodDecorator.Options.GetOne("method",
-							http.MethodPost)
-
-						// Check if this is a raw endpoint
-						mode, _ := methodDecorator.Options.GetOne("mode", "")
-						isRaw := mode == "raw"
-
-						// Choose the appropriate endpoint constructor
-						endpointMethod := "NewEndpoint"
-						if isRaw {
-							endpointMethod = "NewRawEndpoint"
-						}
-
-						// Build the handler - raw endpoints don't use .WithMethods()
-						handler := g.Id("httpx").Dot("NewHandler").
-							Call(jen.Lit(path),
-								jen.Qual(kibuTransportImportName, endpointMethod).
-									Call(jen.Id("svc").Dot("Service").Dot(op.Name)),
-							)
-
-						// Only add WithMethods for standard endpoints
-						if !isRaw {
-							handler.Dot("WithMethods").Call(jen.Lit(method))
-						}
-
+						buildServiceOperationHandler(operationHandlerParams{
+							g:   g,
+							pkg: pkg,
+							svc: svc,
+							op:  op,
+						})
 					}
 				})
 			})
 		})
+	}
+}
+
+func buildServiceOperationHandler(p operationHandlerParams) {
+	methodDecorator, _ := p.op.Decorators.Find(isKibuServiceMethod)
+
+	// Duplicate paths may occur when multiple Service interfaces are defined in the same Package.
+	path := methodDecorator.Options.Lookup("path").Or(
+		operationURLPath(p.pkg, p.svc, p.op))
+
+	// Defaults to POST since JSON serialization is most common.
+	method := methodDecorator.Options.Lookup("method").Or(
+		http.MethodPost)
+
+	// Check if this is a raw endpoint
+	mode := methodDecorator.Options.Lookup("mode").Or("")
+	endpointMethod := endpointMethodForMode(mode)
+
+	// Build the handler - raw endpoints don't use .WithMethods()
+	handler := p.g.Id("httpx").Dot("NewHandler").
+		Call(jen.Lit(path),
+			jen.Qual(kibuTransportImportName, endpointMethod).
+				Call(jen.Id("svc").Dot("Service").Dot(p.op.Name)),
+		)
+
+	// Only add WithMethods for standard endpoints
+	if mode != "raw" {
+		handler.Dot("WithMethods").Call(jen.Lit(method))
 	}
 }
 

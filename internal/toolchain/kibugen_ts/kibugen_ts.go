@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"net/url"
 	"reflect"
 	"strings"
 
@@ -47,14 +48,30 @@ func (a *artifact) Contents() string {
 	return a.contents
 }
 
+// normalizePathParams holds the parameters for normalizePathForOutput
+type normalizePathParams struct {
+	relPath string
+	pkgName string
+}
+
+// normalizePathForOutput converts a relative path to a normalized output name.
+// Falls back to pkgName when the path is empty.
+func normalizePathForOutput(params normalizePathParams) string {
+	normalized := strings.ReplaceAll(params.relPath, "/", "_")
+	if normalized != "" {
+		return normalized
+	}
+	return params.pkgName
+}
+
 func (a *artifact) OutputPath() string {
 	relPath := modspecv2.RelPathFromPass(a.pass)
 	relPath = strings.TrimPrefix(relPath, "/")
-	normalizedPath := strings.ReplaceAll(relPath, "/", "_")
-	if normalizedPath == "" {
-		normalizedPath = a.pass.Pkg.Name()
-	}
-	return normalizedPath + ".gen.ts"
+	normalizedPath := normalizePathForOutput(normalizePathParams{
+		relPath: relPath,
+		pkgName: a.pass.Pkg.Name(),
+	})
+	return fmt.Sprintf("%s.gen.ts", normalizedPath)
 }
 
 func FromPass(pass *analysis.Pass) (Artifact, bool) {
@@ -125,35 +142,41 @@ func getPromotedStructFields(underlying *types.Struct) []promotedField {
 		field := underlying.Field(i)
 		tag := underlying.Tag(i)
 
-		if field.Embedded() {
-			// This is an embedded field - promote its fields to the parent
-			embeddedType := field.Type()
-
-			// Unwrap pointer if the embedded field is a pointer type
-			if ptr, ok := embeddedType.(*types.Pointer); ok {
-				embeddedType = ptr.Elem()
-			}
-
-			// Get the underlying type (handles type aliases)
-			embeddedType = embeddedType.Underlying()
-
-			// If it's a struct, recursively get its fields
-			if embeddedStruct, ok := embeddedType.(*types.Struct); ok {
-				// Recursively promote fields from the embedded struct
-				embeddedFields := getPromotedStructFields(embeddedStruct)
-				result = append(result, embeddedFields...)
-			}
-			// Skip adding the embedded field itself - we only want its promoted fields
-		} else {
-			// Regular field - add it directly
+		if !field.Embedded() {
 			result = append(result, promotedField{
 				field: field,
 				tag:   tag,
 			})
+			continue
 		}
+
+		// This is an embedded field - promote its fields to the parent
+		promoted := promoteEmbeddedField(field)
+		result = append(result, promoted...)
 	}
 
 	return result
+}
+
+// promoteEmbeddedField extracts promoted fields from an embedded struct field.
+// Returns nil if the embedded type is not a struct.
+func promoteEmbeddedField(field *types.Var) []promotedField {
+	embeddedType := field.Type()
+
+	// Unwrap pointer if the embedded field is a pointer type
+	if ptr, ok := embeddedType.(*types.Pointer); ok {
+		embeddedType = ptr.Elem()
+	}
+
+	// Get the underlying type (handles type aliases)
+	embeddedType = embeddedType.Underlying()
+
+	embeddedStruct, ok := embeddedType.(*types.Struct)
+	if !ok {
+		return nil
+	}
+
+	return getPromotedStructFields(embeddedStruct)
 }
 
 // processTypeQueue generates TypeScript type definitions for all queued types
@@ -192,39 +215,58 @@ func generateQueuedTypeDefinition(sb *strings.Builder, ctx *genContext, qt *queu
 
 	// Write all promoted fields
 	for _, pf := range promotedFields {
-		jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
-		if jsonName == "-" {
-			continue
-		}
-
-		sb.WriteString("  ")
-		sb.WriteString(jsonName)
-
-		// Check if the field is optional (pointer or NullUUID)
-		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
-			ctx:   ctx,
-			ty:    pf.field.Type(),
-			chain: defaultTypeChain(),
-		})
-		if err != nil {
-			tsType = "any"
-		}
-
-		if isOptional {
-			sb.WriteString("?")
-		}
-
-		sb.WriteString(": ")
-		sb.WriteString(tsType)
-
-		if isOptional {
-			sb.WriteString(" | null")
-		}
-
-		sb.WriteString("\n")
+		writeFieldDefinition(sb, ctx, pf)
 	}
 
 	sb.WriteString("}\n\n")
+}
+
+// fieldTypeResult holds the result of resolving a field's TypeScript type
+type fieldTypeResult struct {
+	tsType     string
+	isOptional bool
+}
+
+// resolveFieldType resolves a Go type to its TypeScript type string and optionality
+func resolveFieldType(ctx *genContext, ty types.Type) fieldTypeResult {
+	tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
+		ctx:   ctx,
+		ty:    ty,
+		chain: defaultTypeChain(),
+	})
+	if err != nil {
+		tsType = "any"
+	}
+	return fieldTypeResult{tsType: tsType, isOptional: isOptional}
+}
+
+// writeFieldDefinition writes a single TypeScript field definition to the builder
+func writeFieldDefinition(sb *strings.Builder, ctx *genContext, pf promotedField) {
+	jsonName := lookupJSONFieldName(jsonFieldNameParams{
+		fieldName: pf.field.Name(),
+		tag:       pf.tag,
+	})
+	if jsonName == "-" {
+		return
+	}
+
+	sb.WriteString("  ")
+	sb.WriteString(jsonName)
+
+	result := resolveFieldType(ctx, pf.field.Type())
+
+	if result.isOptional {
+		sb.WriteString("?")
+	}
+
+	sb.WriteString(": ")
+	sb.WriteString(result.tsType)
+
+	if result.isOptional {
+		sb.WriteString(" | null")
+	}
+
+	sb.WriteString("\n")
 }
 
 func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) {
@@ -239,7 +281,7 @@ func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) 
 		}
 	}
 
-	serviceFnName := "create" + svc.Name
+	serviceFnName := fmt.Sprintf("create%s", svc.Name)
 	ctx.serviceFns = append(ctx.serviceFns, serviceFnName)
 
 	sb.WriteString("function ")
@@ -248,14 +290,26 @@ func writeService(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service) 
 	sb.WriteString("  return {\n")
 
 	for _, op := range svc.Operations {
-		writeServiceOperation(sb, ctx, svc, op)
+		writeServiceOperation(sb, ctx, serviceOperationParams{
+			svc: svc,
+			op:  op,
+		})
 	}
 
 	sb.WriteString("  }\n")
 	sb.WriteString("}\n\n")
 }
 
-func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.Service, op *modspecv2.Operation) {
+// serviceOperationParams holds the parameters for writing a service operation
+type serviceOperationParams struct {
+	svc *modspecv2.Service
+	op  *modspecv2.Operation
+}
+
+func writeServiceOperation(sb *strings.Builder, ctx *genContext, params serviceOperationParams) {
+	op := params.op
+	svc := params.svc
+
 	if len(op.Params) != 2 || len(op.Results) != 2 {
 		return
 	}
@@ -266,17 +320,19 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 	methodDecorator, _ := op.Decorators.Find(decorators.HasPrefix("kibu:service:method"))
 
 	// Skip raw endpoints - they're not exposed in TypeScript clients
-	if mode, _ := methodDecorator.Options.GetOne("mode", ""); mode == "raw" {
+	if methodDecorator.Options.Lookup("mode").Or("") == "raw" {
 		return
 	}
 
-	httpMethod, _ := methodDecorator.Options.GetOne("method", "POST")
-	path, _ := methodDecorator.Options.GetOne("path", fmt.Sprintf("/%s/%s/%s", ctx.pkg.Name, svc.Name, op.Name))
+	httpMethod := methodDecorator.Options.Lookup("method").Or("POST")
+	path := resolveOperationPath(resolveOperationPathParams{
+		pkgName:         ctx.pkg.Name,
+		svcName:         svc.Name,
+		opName:          op.Name,
+		methodDecorator: methodDecorator,
+	})
 
-	funcName := op.Name
-	if len(funcName) > 0 {
-		funcName = strings.ToLower(string(funcName[0])) + funcName[1:]
-	}
+	funcName := toLowerCamelCase(op.Name)
 
 	// GET and HEAD methods cannot have request bodies per HTTP spec
 	cannotHaveBody := httpMethod == "GET" || httpMethod == "HEAD"
@@ -303,6 +359,32 @@ func writeServiceOperation(sb *strings.Builder, ctx *genContext, svc *modspecv2.
 	}
 	sb.WriteString("      })\n")
 	sb.WriteString("    },\n")
+}
+
+// resolveOperationPathParams holds the parameters for resolveOperationPath
+type resolveOperationPathParams struct {
+	pkgName         string
+	svcName         string
+	opName          string
+	methodDecorator decorators.Line
+}
+
+// resolveOperationPath determines the URL path for a service operation
+func resolveOperationPath(params resolveOperationPathParams) string {
+	lookup := params.methodDecorator.Options.Lookup("path")
+	if lookup.Found() {
+		return lookup.Or("")
+	}
+	defaultPath, _ := url.JoinPath("/", params.pkgName, params.svcName, params.opName)
+	return defaultPath
+}
+
+// toLowerCamelCase converts a PascalCase name to lowerCamelCase
+func toLowerCamelCase(name string) string {
+	if len(name) == 0 {
+		return name
+	}
+	return fmt.Sprintf("%s%s", strings.ToLower(string(name[0])), name[1:])
 }
 
 func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Type) {
@@ -341,36 +423,7 @@ func writeTypeDefinition(sb *strings.Builder, ctx *genContext, typ modspecv2.Typ
 
 	// Write all promoted fields
 	for _, pf := range promotedFields {
-		jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
-		if jsonName == "-" {
-			continue
-		}
-
-		sb.WriteString("  ")
-		sb.WriteString(jsonName)
-
-		// Check if the field is optional (pointer or NullUUID)
-		tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
-			ctx:   ctx,
-			ty:    pf.field.Type(),
-			chain: defaultTypeChain(),
-		})
-		if err != nil {
-			tsType = "any"
-		}
-
-		if isOptional {
-			sb.WriteString("?")
-		}
-
-		sb.WriteString(": ")
-		sb.WriteString(tsType)
-
-		if isOptional {
-			sb.WriteString(" | null")
-		}
-
-		sb.WriteString("\n")
+		writeFieldDefinition(sb, ctx, pf)
 	}
 
 	sb.WriteString("}\n\n")
@@ -388,71 +441,47 @@ func generateNestedTypes(sb *strings.Builder, ctx *genContext, typ types.Type) {
 		generateNestedTypes(sb, ctx, t.Key())
 		generateNestedTypes(sb, ctx, t.Elem())
 	case *types.Named:
-		obj := t.Obj()
-		if obj.Pkg() == nil || obj.Pkg() != ctx.pkg.GoPkg {
-			return
-		}
-
-		typeName := obj.Name()
-		if ctx.generatedTypes[typeName] {
-			return
-		}
-
-		underlying, ok := t.Underlying().(*types.Struct)
-		if !ok {
-			return
-		}
-
-		ctx.generatedTypes[typeName] = true
-
-		// Get all fields including promoted fields from embedded structs
-		promotedFields := getPromotedStructFields(underlying)
-
-		// First, generate nested types for all fields
-		for _, pf := range promotedFields {
-			generateNestedTypes(sb, ctx, pf.field.Type())
-		}
-
-		sb.WriteString("export type ")
-		sb.WriteString(typeName)
-		sb.WriteString(" = {\n")
-
-		// Write all promoted fields
-		for _, pf := range promotedFields {
-			jsonName := getJSONFieldName(pf.field.Name(), pf.tag)
-			if jsonName == "-" {
-				continue
-			}
-
-			sb.WriteString("  ")
-			sb.WriteString(jsonName)
-
-			// Check if the field is optional (pointer or NullUUID)
-			tsType, isOptional, err := buildWithTypeChain(buildWithTypeChainParams{
-				ctx:   ctx,
-				ty:    pf.field.Type(),
-				chain: defaultTypeChain(),
-			})
-			if err != nil {
-				tsType = "any"
-			}
-
-			if isOptional {
-				sb.WriteString("?")
-			}
-
-			sb.WriteString(": ")
-			sb.WriteString(tsType)
-
-			if isOptional {
-				sb.WriteString(" | null")
-			}
-
-			sb.WriteString("\n")
-		}
-
-		sb.WriteString("}\n\n")
+		generateNestedNamedType(sb, ctx, t)
 	}
+}
+
+// generateNestedNamedType handles generation of nested named struct types
+func generateNestedNamedType(sb *strings.Builder, ctx *genContext, t *types.Named) {
+	obj := t.Obj()
+	if obj.Pkg() == nil || obj.Pkg() != ctx.pkg.GoPkg {
+		return
+	}
+
+	typeName := obj.Name()
+	if ctx.generatedTypes[typeName] {
+		return
+	}
+
+	underlying, ok := t.Underlying().(*types.Struct)
+	if !ok {
+		return
+	}
+
+	ctx.generatedTypes[typeName] = true
+
+	// Get all fields including promoted fields from embedded structs
+	promotedFields := getPromotedStructFields(underlying)
+
+	// First, generate nested types for all fields
+	for _, pf := range promotedFields {
+		generateNestedTypes(sb, ctx, pf.field.Type())
+	}
+
+	sb.WriteString("export type ")
+	sb.WriteString(typeName)
+	sb.WriteString(" = {\n")
+
+	// Write all promoted fields
+	for _, pf := range promotedFields {
+		writeFieldDefinition(sb, ctx, pf)
+	}
+
+	sb.WriteString("}\n\n")
 }
 
 func writeTypeName(sb *strings.Builder, ctx *genContext, typ modspecv2.Type) {
@@ -531,23 +560,42 @@ func getTypeNameFromExpr(expr ast.Expr) string {
 	}
 }
 
-func getJSONFieldName(fieldName, tag string) string {
-	if tag == "" {
-		return fieldName
+// jsonFieldNameParams holds the parameters for lookupJSONFieldName
+type jsonFieldNameParams struct {
+	fieldName string
+	tag       string
+}
+
+// lookupJSONFieldName extracts the JSON field name from a struct tag.
+// Returns the fieldName if no json tag is found.
+func lookupJSONFieldName(params jsonFieldNameParams) string {
+	if params.tag == "" {
+		return params.fieldName
 	}
 
-	tagParts := strings.Split(tag, " ")
+	tagParts := strings.Split(params.tag, " ")
 	for _, part := range tagParts {
-		if strings.HasPrefix(part, "json:") {
-			jsonTag := strings.Trim(strings.TrimPrefix(part, "json:"), `"`)
-			parts := strings.Split(jsonTag, ",")
-			if len(parts) > 0 && parts[0] != "" {
-				return parts[0]
-			}
+		name := extractJSONName(part)
+		if name != "" {
+			return name
 		}
 	}
 
-	return fieldName
+	return params.fieldName
+}
+
+// extractJSONName extracts the JSON field name from a single struct tag part.
+// Returns empty string if the part is not a json tag or has no usable name.
+func extractJSONName(tagPart string) string {
+	if !strings.HasPrefix(tagPart, "json:") {
+		return ""
+	}
+	jsonTag := strings.Trim(strings.TrimPrefix(tagPart, "json:"), `"`)
+	parts := strings.Split(jsonTag, ",")
+	if len(parts) == 0 || parts[0] == "" {
+		return ""
+	}
+	return parts[0]
 }
 
 func writeNamespaceExport(sb *strings.Builder, ctx *genContext, pkg *modspecv2.Package) {
@@ -555,10 +603,7 @@ func writeNamespaceExport(sb *strings.Builder, ctx *genContext, pkg *modspecv2.P
 		return
 	}
 
-	namespaceName := pkg.Name
-	if len(namespaceName) > 0 {
-		namespaceName = strings.ToLower(string(namespaceName[0])) + namespaceName[1:]
-	}
+	namespaceName := toLowerCamelCase(pkg.Name)
 
 	sb.WriteString("export const ")
 	sb.WriteString(namespaceName)

@@ -13,7 +13,7 @@ generate.cmd:
 	go generate ./cmd/...
 .PHONY: generate.cmd
 
-install: generate.cmd
+install: generate.cmd install.kibugenv2 install.kibugen_ts install.kibuwire
 	@go install ./cmd/kibu
 .PHONY: install
 
@@ -29,3 +29,5 @@ install.kibugen_ts:
 install.kibuwire:
 	 go install ./internal/toolchain/kibuwire/cmd/kibuwire
 .PHONY: install.kibuwire
+
+install.all: install install.kibugen_ts install.kibugenv2 install.kibuwire

@@ -1,11 +1,17 @@
 package parser
 
 import (
-	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
-	"github.com/pkg/errors"
+	"errors"
 	"go/ast"
 	"go/types"
 	"strings"
+
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
+)
+
+var (
+	ErrWorkerMissingType    = errors.New("worker must specify one of (activity or workflow)")
+	ErrWorkerMethodMismatch = errors.New("worker methods must match func Name(ctx context.Context, req Req) (res Res, err error)")
 )
 
 type Method struct {
@@ -32,12 +38,18 @@ const (
 	ActivityType = WorkerType("activity")
 )
 
-func NewWorker(name, queue string, meta *TypeMeta) *Worker {
+type NewWorkerParams struct {
+	Name     string
+	Queue    string
+	TypeMeta *TypeMeta
+}
+
+func NewWorker(params NewWorkerParams) *Worker {
 	return &Worker{
-		Name:      name,
-		TaskQueue: queue,
+		Name:      params.Name,
+		TaskQueue: params.Queue,
 		Methods:   make(map[*ast.Ident]*Method),
-		TypeMeta:  meta,
+		TypeMeta:  params.TypeMeta,
 	}
 }
 
@@ -63,23 +75,23 @@ func collectWorkers(pkg *Package) defMapperFunc {
 			return
 		}
 
-		// TODO: inject logger
-		// fmt.Printf("inspecting %s\n", n.String())
-		// skip this struct if it doesn't have the service directive
+		// skip this struct if it doesn't have the worker directive
 		dir, isWorker := dirs.Find(decorators.HasKey("kibu", "worker"))
 		if !isWorker {
 			return
 		}
 
-		taskQueue, _ := dir.Options.GetOne("task_queue", "default")
-		wrk := NewWorker(ident.Name, taskQueue, NewTypeMeta(ident, obj, pkg))
+		taskQueue := dir.Options.Lookup("task_queue").Or("default")
+		wrk := NewWorker(NewWorkerParams{
+			Name:     ident.Name,
+			Queue:    taskQueue,
+			TypeMeta: NewTypeMeta(ident, obj, pkg),
+		})
 
 		wrk.Directives = dirs
 
 		if !dir.Options.HasOneOf("workflow", "activity") {
-			err = errors.Errorf("worker must specify one of (activity or workflow) %s",
-				wrk.Position().String(),
-			)
+			err = NewPositionError(ErrWorkerMissingType, wrk.Position())
 			return
 		}
 
@@ -126,7 +138,7 @@ func collectWorkerMethods(pkg *Package, n *types.Named) (methods map[*ast.Ident]
 		sig := m.Type().(*types.Signature)
 
 		if sig.Params().Len() != 2 || sig.Results().Len() != 2 {
-			err = errors.Errorf("%s \n\tworker methods must match func %s(ctx context.Context, req Req) (res Res, err error)", pkg.GoPackage.Fset.Position(ident.Pos()).String(), ident.Name)
+			err = NewPositionError(ErrWorkerMethodMismatch, pkg.GoPackage.Fset.Position(ident.Pos()))
 			return
 		}
 

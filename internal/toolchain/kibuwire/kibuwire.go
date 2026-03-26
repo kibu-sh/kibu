@@ -27,13 +27,17 @@ type Provider struct {
 }
 
 func (p *Provider) SymbolName() string {
-	switch decl := p.Symbol.(type) {
+	return extractSymbolName(p.Symbol)
+}
+
+func extractSymbolName(symbol ast.Decl) string {
+	switch decl := symbol.(type) {
 	case *ast.FuncDecl:
 		return decl.Name.Name
 	case *ast.GenDecl:
 		return decl.Specs[0].(*ast.TypeSpec).Name.Name
 	default:
-		panic(fmt.Errorf("unsupported provider symbol type: %T", decl))
+		return ""
 	}
 }
 
@@ -242,16 +246,14 @@ func generateSymbolForFunc(g *jen.Group, provider *Provider) {
 }
 
 func groupFromProviderOptions(options *decorators.OptionList) *Group {
-	group, ok := options.GetOne("group", "")
-	if !ok {
+	lookup := options.Lookup("group")
+	if !lookup.Found() {
 		return nil
 	}
 
-	importPath, _ := options.GetOne("import", "")
-
 	return &Group{
-		Name:   group,
-		Import: importPath,
+		Name:   lookup.Or(""),
+		Import: options.Lookup("import").Or(""),
 	}
 }
 
@@ -302,7 +304,7 @@ func groupQualParam(group *Group) *jen.Statement {
 // groupProviderName returns the name of the group provider
 // github.com/kibu-sh/kibu/pkg/transport/httpx.HandlerFactory → HttpxHandlerFactoryGroup
 func groupProviderName(group *Group) string {
-	return lo.PascalCase(groupQualName(group).GoString()) + "Group"
+	return fmt.Sprintf("%sGroup", lo.PascalCase(groupQualName(group).GoString()))
 }
 
 // providerQualName returns the fully qualified name of the provider
@@ -320,7 +322,7 @@ func groupedProviderFieldName(provider *Provider) string {
 // groupProviderFuncName returns the name of the group provider function
 // github.com/kibu-sh/kibu/pkg/transport/httpx.HandlerFactory → HttpxHandlerFactoryGroupProvider
 func groupProviderFuncName(group *Group) string {
-	return lo.PascalCase(groupQualName(group).GoString()) + "Provider"
+	return fmt.Sprintf("%sProvider", lo.PascalCase(groupQualName(group).GoString()))
 }
 
 func buildGroupedProviderSet(f *jen.File, providers ProviderList) {

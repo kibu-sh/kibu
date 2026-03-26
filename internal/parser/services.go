@@ -2,12 +2,14 @@ package parser
 
 import (
 	"fmt"
-	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/decorators"
 )
 
 type Var struct {
@@ -38,7 +40,7 @@ func (v *Var) IsSlice() bool {
 func (v *Var) TypeName() string {
 	pkgPath := v.TypePkgPath()
 	base := v.Type().String()
-	result := strings.Replace(base, pkgPath+".", "", 1)
+	result := strings.Replace(base, fmt.Sprintf("%s.", pkgPath), "", 1)
 	return result
 }
 
@@ -75,25 +77,28 @@ func (t TypeMeta) RecvNamed() *types.Named {
 func (t TypeMeta) QualifiedName() string {
 	name := t.Object.Name()
 	if rec := t.Recv(); rec != nil {
-		name = rec.Origin().Name() + "." + name
+		name = fmt.Sprintf("%s.%s", rec.Origin().Name(), name)
 	}
 
 	return name
 }
 
 func (t TypeMeta) ID() string {
-	return t.PackagePath() + "." + t.QualifiedName()
+	return fmt.Sprintf("%s.%s", t.PackagePath(), t.QualifiedName())
 }
 
 func (t TypeMeta) PackagePath() string {
-	path := "_"
 	pkg := t.Object.Pkg()
 	// pkg is nil for objects in Universe scope and possibly types
 	// introduced via Eval (see also comment in object.sameId)
+	return resolvePackagePath(pkg)
+}
+
+func resolvePackagePath(pkg *types.Package) string {
 	if pkg != nil && pkg.Path() != "" {
-		path = pkg.Path()
+		return pkg.Path()
 	}
-	return path
+	return "_"
 }
 
 func (t TypeMeta) File() *token.File {
@@ -160,7 +165,6 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
-		// TODO: collectFields
 		_, ok = n.Underlying().(*types.Struct)
 		if !ok {
 			return
@@ -171,8 +175,6 @@ func collectServices(pkg *Package) defMapperFunc {
 			return
 		}
 
-		// TODO: inject logger
-		// fmt.Printf("inspecting %s\n", n.String())
 		// skip this struct if it doesn't have the service directive
 		if !dirs.Some(decorators.HasKey("kibu", "service")) {
 			return
@@ -188,6 +190,11 @@ func collectServices(pkg *Package) defMapperFunc {
 
 		return
 	}
+}
+
+func defaultEndpointPath(pkg *Package, ident *ast.Ident) string {
+	result, _ := url.JoinPath("/", pkg.Name, ident.Name)
+	return result
 }
 
 func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*Endpoint, err error) {
@@ -210,7 +217,7 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			continue
 		}
 
-		tags, _ := dir.Options.GetAll("tag", []string{})
+		tags, _ := dir.Options.ListValues("tag", []string{})
 
 		ep := &Endpoint{
 			Name:       ident.Name,
@@ -229,8 +236,8 @@ func collectEndpoints(pkg *Package, n *types.Named) (endpoints map[*ast.Ident]*E
 			ep.Response = &Var{Var: res}
 		}
 
-		ep.Path, _ = dir.Options.GetOne("path", fmt.Sprintf("/%s/%s", pkg.Name, ident.Name))
-		ep.Methods, _ = dir.Options.GetAll("method", []string{http.MethodGet})
+		ep.Path = dir.Options.Lookup("path").Or(defaultEndpointPath(pkg, ident))
+		ep.Methods, _ = dir.Options.ListValues("method", []string{http.MethodGet})
 
 		endpoints[ident] = ep
 	}
