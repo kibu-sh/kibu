@@ -52,6 +52,15 @@ var (
 	isActivityOrWorkflow  = decorators.OneOf(isKibuWorkflow, isKibuActivity)
 )
 
+func pkgHasDecorator(pkg *modspecv2.Package, matcher decorators.FilterFunc) bool {
+	for _, svc := range pkg.Services {
+		if svc.Decorators.Some(matcher) {
+			return true
+		}
+	}
+	return false
+}
+
 func firstToUpper(s string) string {
 	r := []rune(s)
 	r[0] = unicode.ToUpper(r[0])
@@ -476,9 +485,9 @@ func operationURLPath(pkg *modspecv2.Package, svc *modspecv2.Service, op *modspe
 	return p
 }
 
-// endpointMethodForMode returns the appropriate endpoint constructor name based on mode.
-func endpointMethodForMode(mode string) string {
-	if mode == "raw" {
+// endpointMethodForMode returns the appropriate endpoint constructor name.
+func endpointMethodForMode(raw bool) string {
+	if raw {
 		return "NewRawEndpoint"
 	}
 	return "NewEndpoint"
@@ -535,9 +544,10 @@ func buildServiceOperationHandler(p operationHandlerParams) {
 	method := methodDecorator.Options.Lookup("method").Or(
 		http.MethodPost)
 
-	// Check if this is a raw endpoint
-	mode := methodDecorator.Options.Lookup("mode").Or("")
-	endpointMethod := endpointMethodForMode(mode)
+	// Check if this is a raw endpoint via "mode=raw" or positional "raw"
+	isRaw := methodDecorator.Options.Lookup("mode").Or("") == "raw" ||
+		methodDecorator.Options.Has("raw")
+	endpointMethod := endpointMethodForMode(isRaw)
 
 	// Build the handler - raw endpoints don't use .WithMethods()
 	handler := p.g.Id("httpx").Dot("NewHandler").
@@ -547,7 +557,7 @@ func buildServiceOperationHandler(p operationHandlerParams) {
 		)
 
 	// Only add WithMethods for standard endpoints
-	if mode != "raw" {
+	if !isRaw {
 		handler.Dot("WithMethods").Call(jen.Lit(method))
 	}
 }
