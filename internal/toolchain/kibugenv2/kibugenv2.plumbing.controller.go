@@ -38,22 +38,26 @@ func buildWorkerController(f *jen.File, pkg *modspecv2.Package, resolver *import
 			g.Return(jen.Id("wk"))
 		})
 
-	f.Comment("//kibu:provider")
-	f.Func().Id("NewActivitiesProxy").Params().Id("ActivitiesProxy").Block(
-		jen.Return(jen.Op("&").Id("activitiesProxy").Values()),
-	)
+	if pkgHasDecorator(pkg, isKibuActivity) {
+		f.Comment("//kibu:provider")
+		f.Func().Id("NewActivitiesProxy").Params().Id("ActivitiesProxy").Block(
+			jen.Return(jen.Op("&").Id("activitiesProxy").Values()),
+		)
+	}
 
-	f.Comment("//kibu:provider")
-	f.Func().Id("NewWorkflowsProxy").Params().Id("WorkflowsProxy").Block(
-		jen.Return(jen.Op("&").Id("workflowsProxy").Values()),
-	)
+	if pkgHasDecorator(pkg, isKibuWorkflow) {
+		f.Comment("//kibu:provider")
+		f.Func().Id("NewWorkflowsProxy").Params().Id("WorkflowsProxy").Block(
+			jen.Return(jen.Op("&").Id("workflowsProxy").Values()),
+		)
 
-	f.Comment("//kibu:provider")
-	f.Func().Id("NewWorkflowsClient").Params(
-		jen.Id("client").Qual(temporalClientImportName, "Client"),
-	).Id("WorkflowsClient").Block(
-		jen.Return(jen.Op("&").Id("workflowsClient").Values(
-			jen.Id("client").Op(":").Id("client"),
-		)),
-	)
+		f.Comment("//kibu:provider")
+		f.Func().Id("NewWorkflowsClient").Params(
+			jen.Id("client").Qual(temporalClientImportName, "Client"),
+		).Id("WorkflowsClient").Block(
+			jen.Return(jen.Op("&").Id("workflowsClient").Values(
+				jen.Id("client").Op(":").Id("client"),
+			)),
+		)
+	}
 }
