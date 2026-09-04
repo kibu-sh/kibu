@@ -5,7 +5,8 @@ description: >
   systems, //kibu: services, Temporal workflows or activities, generating
   plumbing, Wire providers, or TypeScript clients. Use when the user runs
   /kibu, mentions kibugenv2, kibuwire, kibugen_ts, or asks to generate Go
-  plumbing from decorated interfaces.
+  plumbing from decorated interfaces. Also use for the kibu CLI, config store,
+  secrets, kibu config get/set/edit, migrate, or kibu dev.
 ---
 
 # Kibu
@@ -35,6 +36,10 @@ Every spec method, func type, and implementation names parameters and results: `
 
 Implement with functions that close over deps, not pointer-receiver structs. Hand-written wiring is `NewService`, `NewActivities`, and `New…WorkflowFactory` with `//kibu:provider`.
 
+## CLI
+
+Operator work uses the `kibu` CLI. Do not write a throwaway Go program (or decrypt `.enc.json` by hand) to read or write the config store, run migrations, or drive `kibu dev` / `kibu build`. Application code may inject `config.Store` at runtime.
+
 ## Read next
 
 | Situation | Load |
@@ -46,3 +51,5 @@ Implement with functions that close over deps, not pointer-receiver structs. Han
 | How discovery works | [references/kibumod.md](references/kibumod.md) |
 | Wire / `//kibu:provider` | [kibuwire/SKILL.md](kibuwire/SKILL.md) → [references/kibuwire.md](references/kibuwire.md) |
 | TypeScript clients | [kibugen-ts/SKILL.md](kibugen-ts/SKILL.md) → [references/kibugen-ts.md](references/kibugen-ts.md) |
+| Config store, secrets, `kibu config` | [cli/SKILL.md](cli/SKILL.md), then [references/config.md](references/config.md) |
+| Other `kibu` CLI (`dev`, `migrate`, `build`) | [cli/SKILL.md](cli/SKILL.md) → [references/cli.md](references/cli.md) |

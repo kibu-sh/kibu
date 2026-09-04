@@ -6,6 +6,7 @@ Do not prescribe how Postgres, Temporal, or other runtime dependencies are provi
 
 ```
 generate.go
+.kibu/                 # workspace.json; encrypted config under store/config (see config.md)
 src/backend/
   cmd/server/          # main, wireinject, wire_set
   database/            # optional sqlc / migrations
