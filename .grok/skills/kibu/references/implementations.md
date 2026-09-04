@@ -2,70 +2,82 @@
 
 Hand-written wiring is three `//kibu:provider` constructors in the system package. Generated controllers take `Service`, `Activities`, and `XxxWorkflowFactory` as fields. Generated `NewWorkflowsClient`, `NewActivitiesProxy`, and `*Controller` types come from `*.gen.go` / kibuwire — do not reimplement them.
 
-Prefer functions that close over deps. Avoid `type service struct { … }; func (s *service) Method(…)`.
+The spec interface is satisfied by a private struct with receivers. Do not invent a second interface, and do not implement the spec with a func type (`type serviceFunc func(...)`). Keep method bodies on the receiver; do not extract a package function per method unless there is a real reuse or test need.
 
-Name every parameter and result: `ctx`, `req`, `res`, `err` (and `input` / `wf` on factories). Do not write anonymous `(Foo, error)`. Early `return` after `if err != nil` is the point of named results.
+Name every parameter and result: `ctx`, `req`, `res`, `err` (and `input` / `wf` on factories). Do not write anonymous `(Foo, error)`.
 
 Signatures for spec methods: [decorators.md](decorators.md).
 
+## Shape
+
+1. Exported `XxxDeps` with the collaborators Wire should inject.
+2. Unexported impl struct whose only injected field is `deps XxxDeps`.
+3. Provider takes `XxxDeps` and assigns it: `return &service{deps: deps}`.
+4. Interface methods are receivers that use `s.deps`.
+
+Mark both the deps struct and the constructor `//kibu:provider` so kibuwire emits `wire.Struct(new(XxxDeps), "*")` plus the constructor.
+
 ## Service
 
-Single method → func type that implements the interface:
-
 ```go
-type serviceFunc func(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error)
+//kibu:provider
+type ServiceDeps struct {
+    Workflows WorkflowsClient
+}
 
-func (f serviceFunc) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
-    return f(ctx, req)
+type service struct {
+    deps ServiceDeps
 }
 
 //kibu:provider
-func NewService(workflows WorkflowsClient) Service {
-    return serviceFunc(func(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
-        run, err := workflows.CustomerSubscriptionsWorkflow().Execute(ctx, CustomerSubscriptionsRequest{})
-        if err != nil {
-            return
-        }
-        details, err := run.GetAccountDetails(ctx, GetAccountDetailsRequest{})
-        if err != nil {
-            return
-        }
-        res.Status = details.Status
+func NewService(deps ServiceDeps) Service {
+    return &service{deps: deps}
+}
+
+func (s *service) WatchAccount(ctx context.Context, req WatchAccountRequest) (res WatchAccountResponse, err error) {
+    run, err := s.deps.Workflows.CustomerSubscriptionsWorkflow().Execute(ctx, CustomerSubscriptionsRequest{})
+    if err != nil {
         return
-    })
+    }
+    details, err := run.GetAccountDetails(ctx, GetAccountDetailsRequest{})
+    if err != nil {
+        return
+    }
+    res.Status = details.Status
+    return
 }
 ```
 
-Multi-method: a struct of funcs (one field per method), still constructed in `NewService`. Do not add pointer-receiver methods that read struct fields.
-
 ## Activities
 
-Same pattern as Service. `NewActivities(deps) Activities` with `//kibu:provider`. Every activity method uses `(res …, err error)`.
+Same shape: `ActivitiesDeps`, `activities struct { deps ActivitiesDeps }`, `NewActivities(deps ActivitiesDeps) Activities`. Receivers on `*activities`. The spec already has `Activities` — do not declare another interface.
 
 Call activities from workflows through the generated `ActivitiesProxy`, not by constructing the activity impl inside the workflow.
 
 ## Workflow
 
-Generated factory type (names may be un-named in `*.gen.go`; hand-written providers still name results):
-
-```go
-type CustomerSubscriptionsWorkflowFactory func(input *CustomerSubscriptionsWorkflowInput) (wf CustomerSubscriptionsWorkflow, err error)
-```
-
 ```go
 //kibu:provider
-func NewCustomerSubscriptionsWorkflowFactory(activities ActivitiesProxy) CustomerSubscriptionsWorkflowFactory {
+type CustomerSubscriptionsWorkflowDeps struct {
+    Activities ActivitiesProxy
+}
+
+type customerSubscriptionsWorkflow struct {
+    deps  CustomerSubscriptionsWorkflowDeps
+    input *CustomerSubscriptionsWorkflowInput
+}
+
+//kibu:provider
+func NewCustomerSubscriptionsWorkflowFactory(deps CustomerSubscriptionsWorkflowDeps) CustomerSubscriptionsWorkflowFactory {
     return func(input *CustomerSubscriptionsWorkflowInput) (wf CustomerSubscriptionsWorkflow, err error) {
-        wf = newCustomerSubscriptionsWorkflow(input, activities)
+        wf = &customerSubscriptionsWorkflow{deps: deps, input: input}
         return
     }
 }
 ```
 
-Workflows may keep a tiny state value because signals, queries, and updates share data. Construct it inside the factory. Do not hang workflow methods off a long-lived pointer service object.
-
-Receive signals from `input.*Channel` or `New…SignalChannel(ctx)` as generated. Queries must not call activities.
+Execute / signal / query / update are receivers on `*customerSubscriptionsWorkflow` using `s.deps` and `s.input`. Queries must not call activities.
 
 ## Compile
 
-After adding providers, run kibuwire then `wire ./...`. Missing-provider errors mean a constructor is missing `//kibu:provider` or returns the wrong interface.
+After adding providers, run kibuwire then `wire ./...`. Missing-provider errors mean a constructor or deps struct is missing `//kibu:provider`, or the constructor return type is not the spec interface.

@@ -15,7 +15,7 @@ Generate Go plumbing from decorated interfaces in the same package. Do not edit 
 1. Read [../references/layout.md](../references/layout.md). Create or use one package under `src/backend/systems/<name>/`.
 2. Write DTOs and decorated interfaces in `<name>.spec.go`. Read [../references/decorators.md](../references/decorators.md). Name every param and result (`ctx`, `req`, `res`, `err`).
 3. Run generation from the module `generate.go` (or `kibugenv2 ./...` / `go run github.com/kibu-sh/kibu/internal/toolchain/kibugenv2/cmd/kibugenv2 ./...`).
-4. Implement providers in sibling files in the same package. Read [../references/implementations.md](../references/implementations.md). Functional constructors, not pointer-receiver structs.
+4. Implement providers in sibling files in the same package. Read [../references/implementations.md](../references/implementations.md). `XxxDeps` + private struct with receivers. Do not use a func type as the interface.
 5. If `//kibu:provider` appeared on generated controllers, continue with [../kibuwire/SKILL.md](../kibuwire/SKILL.md).
 6. Compile. If generated types look wrong, fix the spec and regenerate — do not patch the gen file.
 

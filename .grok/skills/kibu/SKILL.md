@@ -32,9 +32,9 @@ One Go package per system. Files, not `services/` / `workflows/` / `activities/`
 
 Every spec method, func type, and implementation names parameters and results: `ctx`, `req`, `res`, `err` (plus `input` / `wf` on workflow factories). Do not write anonymous `(Foo, error)`.
 
-## Functional providers
+## Providers
 
-Implement with functions that close over deps, not pointer-receiver structs. Hand-written wiring is `NewService`, `NewActivities`, and `New…WorkflowFactory` with `//kibu:provider`.
+Hand-written wiring is `NewService`, `NewActivities`, and `New…WorkflowFactory` with `//kibu:provider`. Each takes an `XxxDeps` struct and stores it on a private impl struct. Interface methods are receivers on that struct (`s.deps`). Do not implement the spec interface with a func type.
 
 ## CLI
 

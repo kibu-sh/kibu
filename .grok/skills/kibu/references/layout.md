@@ -47,9 +47,9 @@ Split by files. Export only public interfaces and DTOs. Other systems import `..
 ```
 src/backend/systems/billingv1/
   billingv1.spec.go     # exported interfaces + DTOs
-  service.go            # NewService
-  activities.go         # NewActivities
-  workflows.go          # New…WorkflowFactory
+  service.go            # ServiceDeps + NewService
+  activities.go         # ActivitiesDeps + NewActivities
+  workflows.go          # workflow Deps + New…WorkflowFactory
   billingv1.gen.go      # generated — do not edit
 ```
 

@@ -12,8 +12,10 @@ Each package with providers also gets a `WireSet`. `SuperSet` is `wire.NewSet` o
 
 ```go
 //kibu:provider
-func NewService(workflows WorkflowsClient) Service { … }
+func NewService(deps ServiceDeps) Service { … }
 ```
+
+`//kibu:provider` on a struct type emits `wire.Struct(new(T), "*")` (used for `XxxDeps` and generated controllers).
 
 | Option | Meaning |
 |--------|---------|
