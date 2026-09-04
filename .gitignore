@@ -17,3 +17,9 @@ node_modules/
 go.work*
 
 .DS_Store
+
+# Nix / direnv
+.direnv/
+result
+result-*
+
