@@ -56,27 +56,39 @@ Call activities from workflows through the generated `ActivitiesProxy`, not by c
 
 ## Workflow
 
+Mutable workflow data lives on a pointer to an unexported state struct, not as fields next to `deps` / `input`.
+
 ```go
 //kibu:provider
 type CustomerSubscriptionsWorkflowDeps struct {
     Activities ActivitiesProxy
 }
 
+type customerSubscriptionsWorkflowState struct {
+    accountStatus AccountStatus
+    discountCode  string
+}
+
 type customerSubscriptionsWorkflow struct {
     deps  CustomerSubscriptionsWorkflowDeps
     input *CustomerSubscriptionsWorkflowInput
+    state *customerSubscriptionsWorkflowState
 }
 
 //kibu:provider
 func NewCustomerSubscriptionsWorkflowFactory(deps CustomerSubscriptionsWorkflowDeps) CustomerSubscriptionsWorkflowFactory {
     return func(input *CustomerSubscriptionsWorkflowInput) (wf CustomerSubscriptionsWorkflow, err error) {
-        wf = &customerSubscriptionsWorkflow{deps: deps, input: input}
+        wf = &customerSubscriptionsWorkflow{
+            deps:  deps,
+            input: input,
+            state: &customerSubscriptionsWorkflowState{},
+        }
         return
     }
 }
 ```
 
-Execute / signal / query / update are receivers on `*customerSubscriptionsWorkflow` using `s.deps` and `s.input`. Queries must not call activities.
+Execute / signal / query / update are receivers on `*customerSubscriptionsWorkflow`. Read and write `s.state`, call activities via `s.deps`, receive signals from `s.input`. Queries must not call activities.
 
 ## Compile
 
