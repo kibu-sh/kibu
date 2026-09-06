@@ -1,6 +1,6 @@
 module github.com/kibu-sh/kibu
 
-go 1.25
+go 1.27
 
 require (
 	cloud.google.com/go/secretmanager v1.14.1
