@@ -1,0 +1,63 @@
+# Compare the actual in-memory result, including explicit order and membership.
+kibuenum $WORK/src ./...
+cmp result.txt expected.txt
+cmp diagnostics.txt empty.txt
+! grep 'OrderStatusInternal|EventUpdated' result.txt
+grep '"WireValue": "9223372036854775810"' result.json
+grep '"WireValue": "pending"' result.json
+grep 'OrderStatuses declaration=examples/enums.go:15:5 type=examples/enums.go:5:6 call=examples/enums.go:15:21' locations.txt
+grep 'OrderStatusPending constant=examples/enums.go:8:2' locations.txt
+grep 'value=examples/enums.go:16:10..examples/enums.go:16:28' locations.txt
+grep 'description=examples/enums.go:18:67..examples/enums.go:18:106' locations.txt
+# Repeated loads produce the same ordering and normalized source locations.
+cp result.json first.json
+kibuenum $WORK/src ./...
+cmp result.json first.json
+
+-- src/examples/enums.go --
+package examples
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type OrderStatus string
+
+const (
+	OrderStatusPending  OrderStatus = "pending"
+	OrderStatusPaid     OrderStatus = "paid"
+	OrderStatusFailed   OrderStatus = "failed"
+	OrderStatusInternal OrderStatus = "internal" // Deliberately not a member.
+	paymentLabel                    = "Payment " + "received"
+)
+
+var OrderStatuses = enum.Define[OrderStatus]([]enum.Member[OrderStatus]{
+	{Value: OrderStatusPending, Label: "Awaiting payment"},
+	{Value: OrderStatusPaid, Label: paymentLabel},
+	{Value: OrderStatusFailed, Label: "Payment failed", Description: "The payment attempt was unsuccessful."},
+})
+
+// These receivers could be generated later; the fixture needs no generated code.
+func (s OrderStatus) Validate() error { return OrderStatuses.Validate(s) }
+func (s OrderStatus) IsValid() bool   { return OrderStatuses.Has(s) }
+
+type EventCode uint64
+
+const (
+	EventCreated EventCode = 1<<63 + iota
+	EventUpdated
+	EventDeleted
+)
+
+var EventCodes = enum.Define[EventCode]([]enum.Member[EventCode]{
+	{Value: EventDeleted, Label: "Deleted"},
+	{Value: EventCreated, Label: "Created"},
+})
+
+-- expected.txt --
+enum example.test/enums/examples.OrderStatuses type=example.test/enums/examples.OrderStatus underlying=string
+  example.test/enums/examples.OrderStatusPending value="pending" label="Awaiting payment" description=""
+  example.test/enums/examples.OrderStatusPaid value="paid" label="Payment received" description=""
+  example.test/enums/examples.OrderStatusFailed value="failed" label="Payment failed" description="The payment attempt was unsuccessful."
+enum example.test/enums/examples.EventCodes type=example.test/enums/examples.EventCode underlying=uint64
+  example.test/enums/examples.EventDeleted value="9223372036854775810" label="Deleted" description=""
+  example.test/enums/examples.EventCreated value="9223372036854775808" label="Created" description=""
+-- empty.txt --

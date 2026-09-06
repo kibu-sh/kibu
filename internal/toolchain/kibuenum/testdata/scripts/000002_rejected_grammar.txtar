@@ -1,0 +1,235 @@
+# Each package isolates one unsupported declaration. Nothing here is executed.
+! kibuenum $WORK/src ./...
+cmp result.txt empty.txt
+cmp diagnostics.txt expected-diagnostics.txt
+grep 'Label must be a compile-time string constant' diagnostics.txt
+grep 'Description must be a compile-time string constant' diagnostics.txt
+grep 'first selected as A' diagnostics.txt
+grep 'first declaration at' diagnostics.txt
+grep 'exact enum type' diagnostics.txt
+grep 'enums.go:[0-9]+:[0-9]+' diagnostics.txt
+
+-- src/dynamic_metadata/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+func label() string { panic("must never execute") }
+var S = enum.Define[E]([]enum.Member[E]{{Value: A, Label: label()}})
+-- src/dynamic_description/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var desc = "desc"
+var S = enum.Define[E]([]enum.Member[E]{{Value: A, Description: desc}})
+-- src/variable_value/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var V E = A
+var S = enum.Define[E]([]enum.Member[E]{{Value: V}})
+-- src/untyped_constant/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+const U = "a"
+var S = enum.Define[E]([]enum.Member[E]{{Value: U}})
+-- src/literal_value/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Value: "a"}})
+-- src/conversion_value/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Value: E("a")}})
+-- src/missing_value/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Label: "a"}})
+-- src/duplicate_wire/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+const B E = A
+var S = enum.Define[E]([]enum.Member[E]{{Value: A}, {Value: B}})
+-- src/duplicate_declaration/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Value: A}})
+var T = enum.Define[E]([]enum.Member[E]{{Value: A}})
+-- src/conflicting_declaration/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Value: A}})
+var T = enum.Define[E]([]enum.Member[E]{})
+-- src/inferred_type/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define([]enum.Member[E]{{Value: A}})
+-- src/slice_variable/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var M = []enum.Member[E]{{Value: A}}
+var S = enum.Define[E](M)
+-- src/slice_function/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+func members() []enum.Member[E] { panic("must never execute") }
+var S = enum.Define[E](members())
+-- src/member_variable/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var M = enum.Member[E]{Value: A}
+var S = enum.Define[E]([]enum.Member[E]{M})
+-- src/indexed_slice/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{2: {Value: A}})
+-- src/unkeyed_member/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{A, "a", "b"}})
+-- src/local_call/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+func f() { _ = enum.Define[E]([]enum.Member[E]{{Value: A}}) }
+-- src/nested_call/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+func wrap(s enum.Set[E]) enum.Set[E] { return s }
+var S = wrap(enum.Define[E]([]enum.Member[E]{{Value: A}}))
+-- src/blank_declaration/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var _ = enum.Define[E]([]enum.Member[E]{{Value: A}})
+-- src/multiple_bindings/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S, T = enum.Define[E]([]enum.Member[E]{{Value: A}}), 1
+-- src/builtin_type/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[string]([]enum.Member[string]{{Value: "a"}})
+
+-- expected-diagnostics.txt --
+blank_declaration/enums.go:8:9..blank_declaration/enums.go:8:53 [enum-shape] Define must directly initialize one named package-level variable
+builtin_type/enums.go:8:21..builtin_type/enums.go:8:27 [enum-type] enum type must be a defined non-generic scalar in this package
+conflicting_declaration/enums.go:9:9..conflicting_declaration/enums.go:9:43 [enum-conflict] duplicate enum declaration for example.test/enums/conflicting_declaration.E; first declaration at conflicting_declaration/enums.go:8:9
+conversion_value/enums.go:8:49..conversion_value/enums.go:8:55 [enum-value] Value must reference a constant of the exact enum type
+duplicate_declaration/enums.go:9:9..duplicate_declaration/enums.go:9:53 [enum-conflict] duplicate enum declaration for example.test/enums/duplicate_declaration.E; first declaration at duplicate_declaration/enums.go:8:9
+duplicate_wire/enums.go:9:53..duplicate_wire/enums.go:9:63 [enum-duplicate-value] duplicate enum wire value "a" in B; first selected as A at duplicate_wire/enums.go:9:41
+dynamic_description/enums.go:9:65..dynamic_description/enums.go:9:69 [enum-metadata] Description must be a compile-time string constant
+dynamic_metadata/enums.go:9:59..dynamic_metadata/enums.go:9:66 [enum-metadata] Label must be a compile-time string constant
+indexed_slice/enums.go:8:41..indexed_slice/enums.go:8:54 [enum-shape] each member must be a keyed SDK Member literal; indexed elements are unsupported
+inferred_type/enums.go:8:9..inferred_type/enums.go:8:50 [enum-shape] Define requires one explicit enum type argument
+literal_value/enums.go:8:49..literal_value/enums.go:8:52 [enum-value] Value must reference a constant of the exact enum type
+local_call/enums.go:8:16..local_call/enums.go:8:60 [enum-shape] Define must directly initialize one named package-level variable
+member_variable/enums.go:9:41..member_variable/enums.go:9:42 [enum-shape] each member must be a keyed SDK Member literal; indexed elements are unsupported
+missing_value/enums.go:8:41..missing_value/enums.go:8:53 [enum-value] member requires an explicit Value constant
+multiple_bindings/enums.go:8:12..multiple_bindings/enums.go:8:56 [enum-shape] Define must directly initialize one named package-level variable
+nested_call/enums.go:9:14..nested_call/enums.go:9:58 [enum-shape] Define must directly initialize one named package-level variable
+slice_function/enums.go:9:24..slice_function/enums.go:9:33 [enum-shape] Define requires a literal member slice, not a variable or function call
+slice_variable/enums.go:9:24..slice_variable/enums.go:9:25 [enum-shape] Define requires a literal member slice, not a variable or function call
+unkeyed_member/enums.go:8:42..unkeyed_member/enums.go:8:43 [enum-shape] member fields must be keyed
+untyped_constant/enums.go:9:49..untyped_constant/enums.go:9:50 [enum-value] Value must reference a constant of the exact enum type
+variable_value/enums.go:9:49..variable_value/enums.go:9:50 [enum-value] Value must reference a constant of the exact enum type
+-- empty.txt --

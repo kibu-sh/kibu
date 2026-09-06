@@ -1,0 +1,84 @@
+# Explicit generic arguments, parentheses, aliases, and typed literals.
+# Indirect and unrelated functions are intentionally not declarations.
+kibuenum $WORK/src ./...
+cmp result.txt expected.txt
+cmp diagnostics.txt empty.txt
+
+-- src/renamed_import/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{{Value: A, Label: "a" + "b"}})
+-- src/parentheses/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = (enum.Define[E])([]enum.Member[E]{{Value: (A), Label: ("a")}})
+-- src/typed_literal/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{enum.Member[E]{Value: A}})
+-- src/empty_explicit_membership/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var S = enum.Define[E]([]enum.Member[E]{})
+-- src/alias_type/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+type Alias = E
+var S = enum.Define[Alias]([]enum.Member[Alias]{{Value: A}})
+-- src/same_spelling_unrelated_function/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+func Define[T ~string](members []enum.Member[T]) int { return 0 }
+var S = Define[E]([]enum.Member[E]{{Value: A}})
+-- src/indirect_function_is_outside_grammar/enums.go --
+package sample
+
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+
+type E string
+const A E = "a"
+
+var constructor = enum.Define[E]
+var S = constructor([]enum.Member[E]{{Value: A}})
+
+-- expected.txt --
+enum example.test/enums/alias_type.S type=example.test/enums/alias_type.E underlying=string
+  example.test/enums/alias_type.A value="a" label="" description=""
+enum example.test/enums/empty_explicit_membership.S type=example.test/enums/empty_explicit_membership.E underlying=string
+enum example.test/enums/parentheses.S type=example.test/enums/parentheses.E underlying=string
+  example.test/enums/parentheses.A value="a" label="a" description=""
+enum example.test/enums/renamed_import.S type=example.test/enums/renamed_import.E underlying=string
+  example.test/enums/renamed_import.A value="a" label="ab" description=""
+enum example.test/enums/typed_literal.S type=example.test/enums/typed_literal.E underlying=string
+  example.test/enums/typed_literal.A value="a" label="" description=""
+-- empty.txt --

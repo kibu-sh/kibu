@@ -1,0 +1,56 @@
+# The SDK import name is irrelevant; matching an unrelated imported symbol
+# merely spelled Define must not register an enum.
+kibuenum $WORK/src ./...
+cmp result.txt expected.txt
+cmp diagnostics.txt empty.txt
+
+# Reverse pass.Files and rebuild the inspector to exercise source-order sorting.
+cp result.json forward.json
+kibuenum -reverse-files $WORK/src ./...
+cmp result.json forward.json
+
+-- src/fake/fake.go --
+package enum
+func Define[T any](members any) int { return 0 }
+
+-- src/external/external.go --
+package external
+const Label = "Payment " + "received"
+
+-- src/ignored/enums.go --
+package ignored
+import enum "example.test/enums/fake"
+var S = enum.Define[string](nil)
+
+-- src/selected/a.go --
+package selected
+import . "github.com/kibu-sh/kibu/pkg/enum/experimental"
+import "example.test/enums/external"
+
+type E string
+const A E = "a"
+var (
+    Ordinary = 1
+    S = Define[E]([]Member[E]{{Value: A, Label: external.Label}})
+)
+
+-- src/selected/z.go --
+package selected
+import e "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type N int64
+const (
+    Low N = -3 + iota
+    High
+)
+var Numbers = e.Define[N]([]e.Member[N]{
+    {Value: High},
+    {Value: Low},
+})
+
+-- expected.txt --
+enum example.test/enums/selected.S type=example.test/enums/selected.E underlying=string
+  example.test/enums/selected.A value="a" label="Payment received" description=""
+enum example.test/enums/selected.Numbers type=example.test/enums/selected.N underlying=int64
+  example.test/enums/selected.High value="-2" label="" description=""
+  example.test/enums/selected.Low value="-3" label="" description=""
+-- empty.txt --

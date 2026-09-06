@@ -1,0 +1,41 @@
+# Foreign defined enums are valid Go but outside the accepted declaration grammar.
+! kibuenum $WORK/src ./foreign
+cmp diagnostics.txt expected-diagnostics.txt
+cmp result.txt empty.txt
+grep 'enum type must be a defined non-generic scalar in this package' diagnostics.txt
+
+# These mistakes are rejected by the loader's Go type checker before analysis.
+! kibuenum $WORK/src ./wrong_constant
+stderr 'package loading errors'
+! kibuenum $WORK/src ./wrong_member
+stderr 'package loading errors'
+
+-- src/external/enums.go --
+package external
+type E string
+const A E = "a"
+
+-- src/foreign/enums.go --
+package foreign
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+import "example.test/enums/external"
+var S = enum.Define[external.E]([]enum.Member[external.E]{{Value: external.A}})
+
+-- src/wrong_constant/enums.go --
+package wrong_constant
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type E string
+type Other string
+const B Other = "b"
+var S = enum.Define[E]([]enum.Member[E]{{Value: B}})
+
+-- src/wrong_member/enums.go --
+package wrong_member
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type E string
+type Other string
+var S = enum.Define[E]([]enum.Member[Other]{})
+
+-- expected-diagnostics.txt --
+foreign/enums.go:4:21..foreign/enums.go:4:31 [enum-type] enum type must be a defined non-generic scalar in this package
+-- empty.txt --

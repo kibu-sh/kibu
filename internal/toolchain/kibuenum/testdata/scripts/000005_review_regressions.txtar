@@ -1,0 +1,49 @@
+# A slice alias preserves identity. A distinct defined slice remains unsupported.
+kibuenum $WORK/src ./alias
+cmp result.txt expected.txt
+cmp diagnostics.txt empty.txt
+
+# Later duplicates must always identify the FIRST selected member.
+! kibuenum $WORK/src ./duplicates ./defined
+cmp result.txt empty.txt
+cmp diagnostics.txt expected-diagnostics.txt
+
+-- src/alias/enums.go --
+package alias
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type E string
+const A E = "a"
+type Members = []enum.Member[E]
+var S = enum.Define[E](Members{{Value: A}})
+
+-- src/defined/enums.go --
+package defined
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type E string
+const A E = "a"
+type Members []enum.Member[E]
+var S = enum.Define[E](Members{{Value: A}})
+
+-- src/duplicates/enums.go --
+package duplicates
+import enum "github.com/kibu-sh/kibu/pkg/enum/experimental"
+type E string
+const (
+    A E = "a"
+    B E = "a"
+    C E = "a"
+)
+var S = enum.Define[E]([]enum.Member[E]{
+    {Value: A},
+    {Value: B},
+    {Value: C},
+})
+
+-- expected.txt --
+enum example.test/enums/alias.S type=example.test/enums/alias.E underlying=string
+  example.test/enums/alias.A value="a" label="" description=""
+-- expected-diagnostics.txt --
+defined/enums.go:6:24..defined/enums.go:6:43 [enum-shape] expected []experimental.Member[Enum]
+duplicates/enums.go:11:5..duplicates/enums.go:11:15 [enum-duplicate-value] duplicate enum wire value "a" in B; first selected as A at duplicates/enums.go:10:5
+duplicates/enums.go:12:5..duplicates/enums.go:12:15 [enum-duplicate-value] duplicate enum wire value "a" in C; first selected as A at duplicates/enums.go:10:5
+-- empty.txt --
