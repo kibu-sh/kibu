@@ -5,6 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
+	"testing"
+	"time"
+
 	"github.com/cenkalti/backoff"
 	"github.com/docker/go-connections/nat"
 	"github.com/golang-migrate/migrate/v4"
@@ -13,10 +17,6 @@ import (
 	"github.com/kibu-sh/kibu/pkg/container"
 	"github.com/kibu-sh/kibu/pkg/ctxutil"
 	"github.com/kibu-sh/kibu/pkg/netx"
-	"net/url"
-	"os"
-	"testing"
-	"time"
 
 	containerapi "github.com/docker/docker/api/types/container"
 
@@ -46,6 +46,11 @@ func WaitForPostgres(ctx context.Context, db *sql.DB, timeout *time.Duration) co
 			return db.PingContext(ctx)
 		}, BackoffWithTimeout(ctx, timeout))
 	}
+}
+
+func databasePath(database string) string {
+	u := &url.URL{Path: database}
+	return u.Path
 }
 
 func NewPostgresDB(
@@ -109,12 +114,6 @@ func NewPostgresDB(
 		Timeout: params.Timeout,
 	}, WaitForPostgres(ctx, db, params.Timeout))
 
-	// create a read-write user this makes it easier to test row level security
-	//err = createReadWriteUser(ctx, db)
-	//if err != nil {
-	//	return
-	//}
-
 	// create the logical database that will used by the test
 	// this allows us to reuse a single container
 	err = recreateTestDatabase(ctx, db, params.Database)
@@ -123,10 +122,13 @@ func NewPostgresDB(
 	}
 
 	// update the dsn to use the test database
-	dsn.Path = fmt.Sprintf("/%s", params.Database)
+	resolved, joinErr := url.JoinPath("/", databasePath(params.Database))
+	if joinErr != nil {
+		err = joinErr
+		return
+	}
+	dsn.Path = resolved
 
-	// enable read-write user
-	//dsn.User = ReadWriteUserinfo
 	return
 }
 
@@ -172,13 +174,6 @@ func recreateTestDatabase(ctx context.Context, db *sql.DB, databaseName string) 
 		return
 	}
 
-	// TODO: having trouble with default user permissions
-	//user := ReadWriteUserinfo.Username()
-	//grantQuery := fmt.Sprintf("grant all privileges on database %s to %s;", databaseName, user)
-	//_, err = db.ExecContext(ctx, grantQuery)
-	//if err != nil {
-	//	return
-	//}
 	return
 }
 
@@ -200,11 +195,21 @@ func defaultDatabaseURL(hostPort string, userinfo *url.Userinfo) *url.URL {
 
 type MigrationProvider func(dsn string) (*migrate.Migrate, error)
 
+const defaultPostgresImage = "postgres:14"
+
+func postgresImageOrDefault(image string) string {
+	if image != "" {
+		return image
+	}
+	return defaultPostgresImage
+}
+
 type SetupPostgresDatabaseConnectionParams struct {
 	Manager        *container.Manager
 	LoadMigrations MigrationProvider
 	ContainerName  string
 	DatabaseName   string
+	ImageURL       string
 }
 
 func SetupPostgresDatabaseConnection(
@@ -212,7 +217,7 @@ func SetupPostgresDatabaseConnection(
 	params SetupPostgresDatabaseConnectionParams,
 ) (dsn *url.URL, err error) {
 	dsn, err = NewPostgresDB(ctx, params.Manager, NewPostgresDBParams{
-		ImageURL:      "postgres:14",
+		ImageURL:      postgresImageOrDefault(params.ImageURL),
 		Database:      params.DatabaseName,
 		ContainerName: params.ContainerName,
 	})
@@ -248,13 +253,13 @@ type SetupTestMainWithDBParams struct {
 	LoadMigrations MigrationProvider
 	ContainerName  string
 	DatabaseName   string
+	ImageURL       string
 }
 
 func SetupTestMainWithDB(
 	m *testing.M,
 	params SetupTestMainWithDBParams,
 ) {
-	var code int
 	ctx := Context()
 	sharedManager, err := container.NewManager()
 	CheckErrFatal(err)
@@ -267,6 +272,7 @@ func SetupTestMainWithDB(
 			LoadMigrations: params.LoadMigrations,
 			ContainerName:  params.ContainerName,
 			DatabaseName:   params.DatabaseName,
+			ImageURL:       params.ImageURL,
 		})
 	CheckErrFatal(err)
 
@@ -279,15 +285,7 @@ func SetupTestMainWithDB(
 	})
 	appcontext.UpdateCache(ctx)
 
-	code = m.Run()
-	// we stopped doing this to leave the container running
-	// each call should supply its own unique database name
-	// this will spin up a single container and create a logical database for each test
-	// the user can now introspect the database after the test has run
-	// this also reduces resource utilization in large tests
-	//_ = sharedManager.Cleanup(ctx)
-
-	os.Exit(code)
+	m.Run()
 }
 
 type Connection struct {
@@ -300,4 +298,10 @@ var connectionContextStore = ctxutil.NewStore[Connection, connectionCtxKey]()
 
 func GetDB() (Connection, error) {
 	return connectionContextStore.Load(Context())
+}
+
+// ExportConnection stores a database connection in the shared application
+// context so that it can be retrieved later via GetDB.
+func ExportConnection(ctx context.Context, conn Connection) context.Context {
+	return connectionContextStore.Save(ctx, conn)
 }
